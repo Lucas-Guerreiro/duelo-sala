@@ -49,6 +49,246 @@ function MathText({ text }) {
   return <span ref={containerRef} />;
 }
 
+
+// Sistema de Efeitos Sonoros Offline usando Web Audio API (100% livre de lag e disponível offline)
+let audioCtx = null;
+function getAudioContext() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function playSound(type) {
+  try {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+
+    switch (type) {
+      case 'click': {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(1000, now + 0.08);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+        osc.start(now);
+        osc.stop(now + 0.08);
+        break;
+      }
+      case 'success': {
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+
+        const playNote = (freq, start, duration) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, start);
+          osc.connect(gain);
+          osc.start(start);
+          osc.stop(start + duration);
+        };
+
+        playNote(523.25, now, 0.08); // C5
+        playNote(659.25, now + 0.08, 0.08); // E5
+        playNote(783.99, now + 0.16, 0.08); // G5
+        playNote(1046.50, now + 0.24, 0.16); // C6
+        break;
+      }
+      case 'error': {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc1.type = 'sawtooth';
+        osc2.type = 'sine';
+        
+        osc1.frequency.setValueAtTime(180, now);
+        osc1.frequency.linearRampToValueAtTime(100, now + 0.35);
+        
+        osc2.frequency.setValueAtTime(185, now);
+        osc2.frequency.linearRampToValueAtTime(103, now + 0.35);
+        
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.35);
+        osc2.stop(now + 0.35);
+        break;
+      }
+      case 'block': {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.4);
+        
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.4);
+        
+        osc.start(now);
+        osc.stop(now + 0.4);
+        break;
+      }
+      case 'half': {
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+        for (let i = 0; i < 6; i++) {
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          const freq = 800 + i * 200;
+          const delay = i * 0.05;
+          osc.frequency.setValueAtTime(freq, now + delay);
+          osc.connect(gain);
+          osc.start(now + delay);
+          osc.stop(now + delay + 0.08);
+        }
+        break;
+      }
+      case 'double': {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.4);
+        
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        
+        osc.start(now);
+        osc.stop(now + 0.4);
+        break;
+      }
+      case 'buzzer': {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc1.type = 'sawtooth';
+        osc2.type = 'square';
+        
+        osc1.frequency.setValueAtTime(440, now);
+        osc2.frequency.setValueAtTime(445, now);
+        
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.3);
+        osc2.stop(now + 0.3);
+        break;
+      }
+      case 'tick': {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, now);
+        
+        gain.gain.setValueAtTime(0.03, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+        
+        osc.start(now);
+        osc.stop(now + 0.04);
+        break;
+      }
+      case 'victory': {
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+        const playChord = (notes, start, duration) => {
+          notes.forEach(freq => {
+            const osc = ctx.createOscillator();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, start);
+            osc.connect(gain);
+            osc.start(start);
+            osc.stop(start + duration);
+          });
+        };
+
+        playChord([261.63, 329.63, 392.00], now, 0.2); // C4 Major
+        playChord([349.23, 440.00, 523.25], now + 0.2, 0.2); // F4 Major
+        playChord([392.00, 493.88, 587.33], now + 0.4, 0.2); // G4 Major
+        playChord([523.25, 659.25, 783.99, 1046.50], now + 0.6, 0.6); // C5 Major alto!
+        break;
+      }
+      case 'reveal': {
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+        const playNote = (freq, start, duration) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, start);
+          osc.connect(gain);
+          osc.start(start);
+          osc.stop(start + duration);
+        };
+
+        playNote(587.33, now, 0.15); // D5
+        playNote(880.00, now + 0.08, 0.35); // A5 alto e sustentado
+        break;
+      }
+      case 'suspense': {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.linearRampToValueAtTime(160, now + 0.5);
+        
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(0.08, now + 0.5);
+        
+        osc.start(now);
+        osc.stop(now + 0.5);
+        break;
+      }
+      default:
+        break;
+    }
+  } catch (e) {
+    console.warn("Erro ao reproduzir som:", e);
+  }
+}
+
 // Definição das Cores e Mapeamentos dos Botões estilo Kahoot
 const KAHOOT = [
   { cls: 'kbtn-amarelo', label: '🟡', name: 'Amarelo' },
@@ -137,6 +377,11 @@ export default function App() {
 
   // --- ESTADOS DE NAVEGAÇÃO ---
   const [tela, setTela] = useState('menu'); // 'menu' | 'ia' | 'controles' | 'cadastro' | 'selecao' | 'nomes' | 'jogo' | 'fim'
+
+  const irParaTela = (dest) => {
+    playSound('click');
+    setTela(dest);
+  };
 
   // --- ESTADOS DO GAMEPAD E DETECÇÃO ---
   const [gamepadsConectados, setGamepadsConectados] = useState([]);
@@ -242,25 +487,49 @@ export default function App() {
           const slotG = ctrl[jg].map.indexOf(btnIdx);
           if (slotG === -1) continue; // Botão pressionado não mapeado para este jogador
 
-           if (slotG < 4) {
-             // Botões de alternativas de resposta
-             if (efeitosRodada.bloqueado === jg) continue; // Ignora se o jogador estiver bloqueado
+          // Se o jogador estiver bloqueado nesta rodada, ele não pode acionar NENHUM botão do gamepad
+          if (efeitosRodada.bloqueado === jg) continue;
 
-             if (p.tipo === 'mc') {
-               responderPerguntaMC(jg, slotG);
-             } else if (p.tipo === 'vf') {
-               if (slotG === 2) responderPerguntaVF(jg, 'v');
-               if (slotG === 1) responderPerguntaVF(jg, 'f');
-             } else if (p.tipo === 'veloc') {
-               baterVelocidade(jg);
-             }
-           } else if (slotG === 4) {
-             // Botão físico Especial 1: Bloquear Oponente
-             usarPoder(jg, 'block');
-           } else if (slotG === 5) {
-             // Botão físico Especial 2: Dica 50/50
-             usarPoder(jg, 'half');
-           }
+          // INTERCEPÇÃO DO MODO APOSTAS
+          if (faseJogo === 'aposta') {
+            if (slotG < 4 && !apostasConfirmadas[jg] && !revelandoApostas) {
+              const valoresAposta = [0.5, 1.0, 2.0, 3.0];
+              const valorApostado = valoresAposta[slotG];
+              
+              const novasApostas = [...apostasRodada];
+              novasApostas[jg] = valorApostado;
+              setApostasRodada(novasApostas);
+              
+              const novasConfirmadas = [...apostasConfirmadas];
+              novasConfirmadas[jg] = true;
+              setApostasConfirmadas(novasConfirmadas);
+              
+              playSound('click');
+              
+              if (novasConfirmadas[0] && novasConfirmadas[1]) {
+                revelarELiberarPergunta();
+              }
+            }
+            continue;
+          }
+
+          if (slotG < 4) {
+            // Botões de alternativas de resposta
+            if (p.tipo === 'mc') {
+              responderPerguntaMC(jg, slotG);
+            } else if (p.tipo === 'vf') {
+              if (slotG === 2) responderPerguntaVF(jg, 'v');
+              if (slotG === 1) responderPerguntaVF(jg, 'f');
+            } else if (p.tipo === 'veloc') {
+              baterVelocidade(jg);
+            }
+          } else if (slotG === 4) {
+            // Botão físico Especial 1: Bloquear Oponente
+            usarPoder(jg, 'block');
+          } else if (slotG === 5) {
+            // Botão físico Especial 2: Dica 50/50
+            usarPoder(jg, 'half');
+          }
         }
       }
     }
@@ -330,6 +599,13 @@ export default function App() {
   const [velocBateu, setVelocBateu] = useState(null); // Quem bateu primeiro na velocidade: 0|1
   const [velocRevelado, setVelocRevelado] = useState(false); // Revelar gabarito de velocidade
   const [historico, setHistorico] = useState([]);
+
+  // --- ESTADOS DO MODO APOSTAS ("O PREÇO DA RESPOSTA") ---
+  const [modoApostas, setModoApostas] = useState(false);
+  const [faseJogo, setFaseJogo] = useState('pergunta'); // 'aposta' | 'pergunta'
+  const [apostasRodada, setApostasRodada] = useState([null, null]); // [apostaJ1, apostaJ2]
+  const [apostasConfirmadas, setApostasConfirmadas] = useState([false, false]);
+  const [revelandoApostas, setRevelandoApostas] = useState(false);
 
   // --- PODERES E EFEITOS DE RODADA ---
   const [poderes, setPoderes] = useState([
@@ -938,7 +1214,7 @@ export default function App() {
       alert('Nenhuma pergunta atende aos critérios selecionados! Por favor, ajuste os filtros.');
       return;
     }
-    setTela('nomes');
+    irParaTela('nomes');
   };
 
   const obterLimiteTempo = (pergunta) => {
@@ -1017,8 +1293,18 @@ export default function App() {
     setDicaExcluidas([]);
 
     setTela('jogo');
+    playSound('click');
 
-    iniciarRodadaTimer(embaralhadas[0]);
+    setApostasRodada([null, null]);
+    setApostasConfirmadas([false, false]);
+    setRevelandoApostas(false);
+
+    if (modoApostas) {
+      setFaseJogo('aposta');
+    } else {
+      setFaseJogo('pergunta');
+      iniciarRodadaTimer(poolEmbaralhadoCompleto[0]);
+    }
   };
 
   // GESTÃO DO TIMER DE CADA RODADA
@@ -1041,6 +1327,10 @@ export default function App() {
             encerrarRodadaPorTempo();
             return 0;
           }
+          // Tocar som de tick se estiver nos últimos 5 segundos da rodada
+          if (prev <= 5) {
+            playSound('tick');
+          }
           return prev - 1;
         });
       }, 1000);
@@ -1057,6 +1347,7 @@ export default function App() {
       const novasPontuacoes = [...pts];
       const limite = (p && p.tempo !== undefined && p.tempo !== null) ? p.tempo : (globalTimerEnabled ? globalTempo : null);
       const limiteEficaz = limite !== null ? limite : 0;
+      let alguemAcertou = false;
 
       // Calcular quem pontua nas de Múltipla Escolha e V/F
       if (p.tipo === 'mc' || p.tipo === 'vf') {
@@ -1064,10 +1355,12 @@ export default function App() {
         const acertos = [false, false];
 
         for (let j = 0; j < 2; j++) {
+          const apostaMult = (modoApostas && apostasRodada[j] !== null) ? apostasRodada[j] : 1.0;
           if (prev[j] !== null) {
             const acertou = String(prev[j]) === String(respostaCerta);
             acertos[j] = acertou;
             if (acertou) {
+              alguemAcertou = true;
               // Fórmula Kahoot: 1000 a 500 pontos dependendo do tempo gasto individual
               let ganho = 1000;
               if (limiteEficaz > 0) {
@@ -1079,11 +1372,34 @@ export default function App() {
               if (efeitosRodada.rodadaDupla) {
                 ganho *= 2;
               }
+              if (modoApostas) {
+                ganho = Math.round(ganho * apostaMult);
+              }
               novasPontuacoes[j] += ganho;
+            } else {
+              // Errou a resposta
+              if (modoApostas) {
+                const perda = Math.round(1000 * apostaMult);
+                novasPontuacoes[j] = Math.max(0, novasPontuacoes[j] - perda);
+              }
+            }
+          } else {
+            // Não respondeu (tempo esgotado no Modo Apostas)
+            if (modoApostas && efeitosRodada.bloqueado !== j) {
+              const perda = Math.round(1000 * apostaMult);
+              novasPontuacoes[j] = Math.max(0, novasPontuacoes[j] - perda);
             }
           }
         }
         setPts(novasPontuacoes);
+        if (alguemAcertou) {
+          playSound('success');
+        } else {
+          playSound('error');
+        }
+      } else {
+        // Velocidade que estourou o tempo (Se modo aposta ativo, penaliza quem não bateu se houver regra de aposta, mas em velocidade a omissão de batida de ambos não penaliza)
+        playSound('error');
       }
 
       // Adicionar no histórico
@@ -1108,6 +1424,9 @@ export default function App() {
   const usarPoder = (equipe, tipoPoder) => {
     if (rodDescanso || tela !== 'jogo') return;
 
+    // Se o jogador estiver bloqueado nesta rodada, ele não pode usar NENHUM poder
+    if (efeitosRodada.bloqueado === equipe) return;
+
     // Verificar se o poder já foi usado
     if (poderes[equipe][tipoPoder] <= 0) return;
 
@@ -1124,6 +1443,7 @@ export default function App() {
 
     // Aplicar os efeitos
     if (tipoPoder === 'block') {
+      playSound('block');
       const oponente = equipe === 0 ? 1 : 0;
       setEfeitosRodada(prev => ({
         ...prev,
@@ -1134,6 +1454,7 @@ export default function App() {
         fecharRodadaImediato(respJ, ordemResp);
       }
     } else if (tipoPoder === 'half') {
+      playSound('half');
       if (p.tipo !== 'mc') return; // 50/50 só funciona para múltipla escolha
       
       const novosDicas = [...efeitosRodada.dica];
@@ -1201,6 +1522,7 @@ export default function App() {
   const baterVelocidade = (jogador) => {
     if (velocBateu !== null || rodDescanso) return; // Alguém já bateu ou travado
     if (efeitosRodada.bloqueado === jogador) return; // Ignora se estiver bloqueado
+    playSound('buzzer');
     setVelocBateu(jogador);
     if (timerIntRef.current) clearInterval(timerIntRef.current);
   };
@@ -1211,13 +1533,26 @@ export default function App() {
     const novasPontuacoes = [...pts];
 
     if (acertou && velocBateu !== null) {
+      playSound('success');
       let ganho = 1200; // Pontuação fixa de velocidade
       // Dobrar se pontos duplos estiver ativo na rodada (moderador)!
       if (efeitosRodada.rodadaDupla) {
         ganho *= 2;
       }
+      if (modoApostas) {
+        const apostaMult = (apostasRodada[velocBateu] !== null) ? apostasRodada[velocBateu] : 1.0;
+        ganho = Math.round(ganho * apostaMult);
+      }
       novasPontuacoes[velocBateu] += ganho; 
       setPts(novasPontuacoes);
+    } else {
+      playSound('error');
+      if (modoApostas && velocBateu !== null) {
+        const apostaMult = (apostasRodada[velocBateu] !== null) ? apostasRodada[velocBateu] : 1.0;
+        const perda = Math.round(1000 * apostaMult);
+        novasPontuacoes[velocBateu] = Math.max(0, novasPontuacoes[velocBateu] - perda);
+        setPts(novasPontuacoes);
+      }
     }
 
     const bateuNome = velocBateu === 0 ? nomeJ1 : nomeJ2;
@@ -1248,10 +1583,14 @@ export default function App() {
     const limite = (p && p.tempo !== undefined && p.tempo !== null) ? p.tempo : (globalTimerEnabled ? globalTempo : null);
     const limiteEficaz = limite !== null ? limite : 0;
 
+    let alguemAcertou = false;
     for (let j = 0; j < 2; j++) {
       const resp = respostasFinais[j];
       const acertou = String(resp) === String(respostaCerta);
+      const apostaMult = (modoApostas && apostasRodada[j] !== null) ? apostasRodada[j] : 1.0;
+
       if (acertou) {
+        alguemAcertou = true;
         // Fórmula Kahoot: 1000 a 500 pontos dependendo do tempo gasto individual
         let ganho = 1000;
         if (limiteEficaz > 0) {
@@ -1263,10 +1602,24 @@ export default function App() {
         if (efeitosRodada.rodadaDupla) {
           ganho *= 2;
         }
+        if (modoApostas) {
+          ganho = Math.round(ganho * apostaMult);
+        }
         novasPontuacoes[j] += ganho;
+      } else {
+        // Errou a resposta ativamente (e não estava bloqueado)
+        if (modoApostas && resp !== null && efeitosRodada.bloqueado !== j) {
+          const perda = Math.round(1000 * apostaMult);
+          novasPontuacoes[j] = Math.max(0, novasPontuacoes[j] - perda);
+        }
       }
     }
     setPts(novasPontuacoes);
+    if (alguemAcertou) {
+      playSound('success');
+    } else {
+      playSound('error');
+    }
 
     const j1Desc = respostasFinais[0] !== null ? (p.tipo === 'mc' ? KAHOOT[respostasFinais[0]].name : respostasFinais[0] === 'v' ? 'Verdadeiro' : 'Falso') : 'Não respondeu';
     const j2Desc = respostasFinais[1] !== null ? (p.tipo === 'mc' ? KAHOOT[respostasFinais[1]].name : respostasFinais[1] === 'v' ? 'Verdadeiro' : 'Falso') : 'Não respondeu';
@@ -1285,6 +1638,7 @@ export default function App() {
 
   const avancarPergunta = () => {
     if (rodAtual >= fila.length) {
+      playSound('victory');
       setTela('fim');
     } else {
       const proximaRodada = rodAtual + 1;
@@ -1301,8 +1655,34 @@ export default function App() {
       });
       setDicaExcluidas([]);
       temposRespRef.current = [null, null]; // Reset dos tempos individuais
-      iniciarRodadaTimer(fila[rodAtual]);
+      
+      setApostasRodada([null, null]);
+      setApostasConfirmadas([false, false]);
+      setRevelandoApostas(false);
+
+      if (modoApostas) {
+        setFaseJogo('aposta');
+      } else {
+        setFaseJogo('pergunta');
+        iniciarRodadaTimer(fila[rodAtual]);
+      }
     }
+  };
+
+  const revelarELiberarPergunta = () => {
+    setRevelandoApostas(true);
+    playSound('reveal');
+    
+    // Revela as apostas por 2 segundos antes de iniciar
+    setTimeout(() => {
+      setRevelandoApostas(false);
+      setFaseJogo('pergunta');
+      
+      const p = fila[rodAtual - 1];
+      if (p) {
+        iniciarRodadaTimer(p);
+      }
+    }, 2000);
   };
 
   // --- RENDERS DE TELAS ---
@@ -1315,16 +1695,16 @@ export default function App() {
         <h1>Duelo na Sala</h1>
         <p>Jogo de disputa interativo para duas equipes</p>
         
-        <button className="btn-menu btn-play" onClick={() => { setMateriasSelecionadas([]); setTela('selecao'); }}>
+        <button className="btn-menu btn-play" onClick={() => { setMateriasSelecionadas([]); irParaTela('selecao'); }}>
           ▶ Jogar Duelo
         </button>
-        <button className="btn-menu btn-outline" onClick={() => { setIaPergsGeradas([]); setIaFeedback(null); setTela('ia'); }}>
+        <button className="btn-menu btn-outline" onClick={() => { setIaPergsGeradas([]); setIaFeedback(null); irParaTela('ia'); }}>
           ✨ Gerar perguntas com IA
         </button>
-        <button className="btn-menu btn-outline" onClick={() => { setFeedbackControles(null); setDetectMode(null); setTela('controles'); }}>
+        <button className="btn-menu btn-outline" onClick={() => { setFeedbackControles(null); setDetectMode(null); irParaTela('controles'); }}>
           🎮 Configurar controles
         </button>
-        <button className="btn-menu btn-outline" onClick={() => { setCadTab('manual'); setTela('cadastro'); }}>
+        <button className="btn-menu btn-outline" onClick={() => { setCadTab('manual'); irParaTela('cadastro'); }}>
           ⚙️ Gerenciar perguntas
         </button>
       </div>
@@ -1332,7 +1712,7 @@ export default function App() {
       {/* 2. TELA GERADOR IA */}
       <div id="tela-ia" className={`tela ${tela === 'ia' ? 'ativa' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
-          <button className="btn-volta" onClick={() => setTela('menu')}>← Voltar ao Menu</button>
+          <button className="btn-volta" onClick={() => irParaTela('menu')}>← Voltar ao Menu</button>
           <h2 style={{ fontSize: '1.6rem', fontWeight: 900 }}>✨ Gerar perguntas com IA</h2>
         </div>
 
@@ -1572,7 +1952,7 @@ export default function App() {
       {/* 3. TELA CONTROLES */}
       <div id="tela-controles" className={`tela ${tela === 'controles' ? 'ativa' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
-          <button className="btn-volta" onClick={() => setTela('menu')}>← Voltar ao Menu</button>
+          <button className="btn-volta" onClick={() => irParaTela('menu')}>← Voltar ao Menu</button>
           <h2 style={{ fontSize: '1.6rem', fontWeight: 900 }}>🎮 Configurar Controle Compartilhado</h2>
         </div>
 
@@ -1659,7 +2039,7 @@ export default function App() {
           </div>
         )}
 
-        <button className="btn-menu btn-play" style={{ margin: '16px auto 0', width: 'fit-content' }} onClick={() => setTela('menu')}>
+        <button className="btn-menu btn-play" style={{ margin: '16px auto 0', width: 'fit-content' }} onClick={() => irParaTela('menu')}>
           ✅ Mapeamento concluído
         </button>
       </div>
@@ -1667,7 +2047,7 @@ export default function App() {
       {/* 4. TELA CADASTRO */}
       <div id="tela-cadastro" className={`tela ${tela === 'cadastro' ? 'ativa' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
-          <button className="btn-volta" onClick={() => setTela('menu')}>← Voltar ao Menu</button>
+          <button className="btn-volta" onClick={() => irParaTela('menu')}>← Voltar ao Menu</button>
           <h2 style={{ fontSize: '1.6rem', fontWeight: 900 }}>⚙️ Gerenciar Matérias e Perguntas</h2>
         </div>
 
@@ -2110,7 +2490,7 @@ export default function App() {
 
       {/* 5. TELA SELEÇÃO DE MATÉRIA */}
       <div id="tela-selecao" className={`tela ${tela === 'selecao' ? 'ativa' : ''}`}>
-        <button className="btn-volta" onClick={() => setTela('menu')} style={{ alignSelf: 'flex-start' }}>← Voltar</button>
+        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'flex-start' }}>← Voltar</button>
         {(() => {
           // Derivar as opções únicas para exibição com base nos filtros
           const turmasUnicas = Array.from(new Set(perguntas.map(p => p.turma || 'Sem Turma'))).sort();
@@ -2199,7 +2579,7 @@ export default function App() {
               alert('Por favor, selecione pelo menos 1 pergunta na composição do quiz para continuar!');
               return;
             }
-            setTela('nomes');
+            irParaTela('nomes');
           };
 
           return (
@@ -2404,7 +2784,7 @@ export default function App() {
 
       {/* 6. TELA NOMES DAS EQUIPES */}
       <div id="tela-nomes" className={`tela ${tela === 'nomes' ? 'ativa' : ''}`}>
-        <button className="btn-volta" onClick={() => setTela('selecao')} style={{ alignSelf: 'flex-start' }}>← Voltar</button>
+        <button className="btn-volta" onClick={() => irParaTela('selecao')} style={{ alignSelf: 'flex-start' }}>← Voltar</button>
         
         <h2>👥 Quem vai disputar o duelo?</h2>
         <p style={{ color: '#c4b5fd', fontSize: '0.95rem', marginTop: '-12px' }}>Personalize o nome das duas equipes.</p>
@@ -2467,6 +2847,27 @@ export default function App() {
           </div>
         </div>
 
+        {/* PAINEL DE CONFIGURAÇÃO DO MODO APOSTAS */}
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'left', border: '1px solid rgba(245, 158, 11, 0.15)', boxShadow: modoApostas ? '0 0 15px rgba(245, 158, 11, 0.08)' : 'none', transition: 'all 0.3s ease' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#fb923c', marginBottom: '10px', borderLeft: '3px solid #fb923c', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            🎰 Variação: O Preço da Resposta (Modo Apostas)
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, cursor: 'pointer', textTransform: 'none', fontSize: '0.9rem', color: '#e5e7eb' }}>
+              <input 
+                type="checkbox" 
+                checked={modoApostas} 
+                onChange={(e) => { playSound('click'); setModoApostas(e.target.checked); }} 
+                style={{ width: 'auto' }}
+              />
+              Habilitar apostas estratégicas e multiplicadores de risco
+            </label>
+            <p style={{ color: '#9ca3af', fontSize: '0.78rem', margin: '4px 0 0 24px', lineHeight: '1.4' }}>
+              Os jogadores apostarão ocultamente (0.5x, 1x, 2x ou 3x) antes de cada pergunta baseado apenas na categoria. Acertos multiplicam os pontos, mas erros **subtraem** pontos proporcionalmente!
+            </p>
+          </div>
+        </div>
+
         <div style={{ textAlign: 'center', color: '#a78bfa', fontSize: '0.9rem', lineHeight: 1.6, maxWidth: '500px', margin: '8px auto' }}>
           🏅 <strong>Pontuação Kahoot:</strong> Resposta correta = <strong style={{ color: '#fcd34d' }}>1.000 pts</strong> + até <strong style={{ color: '#fb923c' }}>+500 pts</strong> de bônus de velocidade para quem responder primeiro.
         </div>
@@ -2480,316 +2881,545 @@ export default function App() {
       <div id="tela-jogo" className={`tela ${tela === 'jogo' ? 'ativa' : ''}`}>
         {fila.length > 0 && rodAtual > 0 && (
           <div className="jogo-inner">
-            {/* PLACAR E TIMER */}
-            <div className="placar-bar">
-              <div className="pl-bloco pl-j1">
-                <div className="pl-nome">🔵 {nomeJ1}</div>
-                <div className="pl-pts">{pts[0].toLocaleString('pt-BR')} pts</div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div className="rod-info">Pergunta {rodAtual} de {fila.length}</div>
-                <div style={{ fontSize: '2.5rem', fontWeight: 900, color: (timerSeg !== null && timerSeg <= 4) ? '#ef4444' : '#a78bfa', transition: 'color 0.3s ease', fontFamily: 'monospace' }}>
-                  {timerSeg !== null ? timerSeg : '∞'}
+            {modoApostas && faseJogo === 'aposta' ? (
+              <div className="fase-aposta-container" style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '24px', alignItems: 'center', padding: '10px 0' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fb923c', borderColor: 'rgba(245, 158, 11, 0.3)', fontSize: '0.9rem', padding: '6px 16px', borderRadius: '20px', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                    🎰 Fase de Aposta Secreta
+                  </span>
+                  <h2 style={{ fontSize: '2rem', marginTop: '14px', marginBottom: '8px', color: '#fff' }}>
+                    Próxima Categoria: <span style={{ color: '#a78bfa' }}>{fila[rodAtual - 1].mat}</span>
+                  </h2>
+                  <p style={{ color: '#f472b6', fontSize: '1.1rem', margin: 0, fontWeight: 'bold' }}>
+                    🏷️ Assunto: {fila[rodAtual - 1].tema || 'Geral'}
+                  </p>
                 </div>
-              </div>
-              <div className="pl-bloco pl-j2">
-                <div className="pl-nome">🩷 {nomeJ2}</div>
-                <div className="pl-pts">{pts[1].toLocaleString('pt-BR')} pts</div>
-              </div>
-            </div>
 
-            {/* BARRA DO TIMER */}
-            <div className="timer-bar">
-              <div 
-                className="timer-fill" 
-                style={{ 
-                  width: timerSeg === null ? '100%' : `${(timerSeg / (obterLimiteTempo(fila[rodAtual - 1]) || 15)) * 100}%`,
-                  background: (timerSeg !== null && timerSeg <= 4) ? 'linear-gradient(90deg, #ef4444, #b91c1c)' : 'linear-gradient(90deg, #7c3aed, #4f46e5)'
-                }}
-              ></div>
-            </div>
+                <div style={{ display: 'flex', gap: '30px', width: '100%', maxWidth: '800px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  {/* COLUNA JOGADOR 1 */}
+                  <div className="card" style={{ flex: 1, minWidth: '280px', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', transition: 'all 0.3s ease', boxShadow: apostasConfirmadas[0] ? '0 0 20px rgba(59, 130, 246, 0.15)' : 'none' }}>
+                    <h3 style={{ fontSize: '1.4rem', color: '#60a5fa', margin: 0 }}>🔵 {nomeJ1}</h3>
+                    <div style={{ fontSize: '0.85rem', color: '#9ca3af' }}>Saldo Atual: {pts[0].toLocaleString('pt-BR')} pts</div>
 
-            {/* BOTÃO GLOBAL DE PONTOS DUPLOS DO MODERADOR */}
-            <div style={{ textAlign: 'center', margin: '14px 0 10px' }}>
-              {efeitosRodada.rodadaDupla ? (
-                <div 
-                  className="rodada-dupla-alerta"
-                  style={{ 
-                    display: 'inline-flex', 
-                    alignItems: 'center', 
-                    gap: '8px',
-                    background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(245, 158, 11, 0.2))', 
-                    border: '2px solid #f59e0b', 
-                    color: '#fb923c', 
-                    padding: '8px 24px', 
-                    borderRadius: '30px', 
-                    fontSize: '1.05rem', 
-                    fontWeight: 'bold',
-                    boxShadow: '0 0 15px rgba(245, 158, 11, 0.3)',
-                    animation: 'pulse 1.5s infinite alternate'
-                  }}
-                >
-                  🔥 RODADA VALENDO PONTOS DUPLOS! (+100% Pontos)
-                  {(!rodDescanso && (fila[rodAtual - 1].tipo === 'veloc' ? velocBateu === null : (respJ[0] === null && respJ[1] === null))) && (
-                    <button 
-                      style={{ background: 'rgba(255, 255, 255, 0.15)', border: 'none', color: '#fff', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', marginLeft: '10px' }}
-                      onClick={() => setEfeitosRodada(prev => ({ ...prev, rodadaDupla: false }))}
-                    >
-                      Cancelar
-                    </button>
-                  )}
+                    {revelandoApostas ? (
+                      <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#fb923c', animation: 'pulse 0.5s infinite alternate' }}>
+                        🔥 {apostasRodada[0]}x
+                      </div>
+                    ) : apostasConfirmadas[0] ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: '#4ade80' }}>
+                        <span style={{ fontSize: '2rem' }}>🔒</span>
+                        <strong style={{ fontSize: '1.1rem' }}>Aposta Feita!</strong>
+                        <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>Aguardando oponente...</span>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                        <span style={{ fontSize: '0.85rem', color: '#9ca3af', marginBottom: '4px' }}>Escolha o multiplicador:</span>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                          <button 
+                            className="btn-poder" 
+                            style={{ background: 'rgba(251, 191, 36, 0.1)', borderColor: '#fbbf24', color: '#fbbf24', fontSize: '0.85rem', padding: '10px' }}
+                            onClick={() => {
+                              const novasApostas = [...apostasRodada];
+                              novasApostas[0] = 0.5;
+                              setApostasRodada(novasApostas);
+                              const novasConfirmadas = [...apostasConfirmadas];
+                              novasConfirmadas[0] = true;
+                              setApostasConfirmadas(novasConfirmadas);
+                              playSound('click');
+                              if (novasConfirmadas[1]) revelarELiberarPergunta();
+                            }}
+                          >
+                            🟡 0.5x (Baixo)
+                          </button>
+                          <button 
+                            className="btn-poder" 
+                            style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: '#ef4444', color: '#ef4444', fontSize: '0.85rem', padding: '10px' }}
+                            onClick={() => {
+                              const novasApostas = [...apostasRodada];
+                              novasApostas[0] = 1.0;
+                              setApostasRodada(novasApostas);
+                              const novasConfirmadas = [...apostasConfirmadas];
+                              novasConfirmadas[0] = true;
+                              setApostasConfirmadas(novasConfirmadas);
+                              playSound('click');
+                              if (novasConfirmadas[1]) revelarELiberarPergunta();
+                            }}
+                          >
+                            🔴 1.0x (Médio)
+                          </button>
+                          <button 
+                            className="btn-poder" 
+                            style={{ background: 'rgba(59, 130, 246, 0.1)', borderColor: '#3b82f6', color: '#3b82f6', fontSize: '0.85rem', padding: '10px' }}
+                            onClick={() => {
+                              const novasApostas = [...apostasRodada];
+                              novasApostas[0] = 2.0;
+                              setApostasRodada(novasApostas);
+                              const novasConfirmadas = [...apostasConfirmadas];
+                              novasConfirmadas[0] = true;
+                              setApostasConfirmadas(novasConfirmadas);
+                              playSound('click');
+                              if (novasConfirmadas[1]) revelarELiberarPergunta();
+                            }}
+                          >
+                            🔵 2.0x (Alto)
+                          </button>
+                          <button 
+                            className="btn-poder" 
+                            style={{ background: 'rgba(16, 185, 129, 0.1)', borderColor: '#10b981', color: '#10b981', fontSize: '0.85rem', padding: '10px' }}
+                            onClick={() => {
+                              const novasApostas = [...apostasRodada];
+                              novasApostas[0] = 3.0;
+                              setApostasRodada(novasApostas);
+                              const novasConfirmadas = [...apostasConfirmadas];
+                              novasConfirmadas[0] = true;
+                              setApostasConfirmadas(novasConfirmadas);
+                              playSound('click');
+                              if (novasConfirmadas[1]) revelarELiberarPergunta();
+                            }}
+                          >
+                            🟢 3.0x (Risco!)
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* COLUNA JOGADOR 2 */}
+                  <div className="card" style={{ flex: 1, minWidth: '280px', background: 'rgba(236, 72, 153, 0.05)', border: '1px solid rgba(236, 72, 153, 0.2)', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', transition: 'all 0.3s ease', boxShadow: apostasConfirmadas[1] ? '0 0 20px rgba(236, 72, 153, 0.15)' : 'none' }}>
+                    <h3 style={{ fontSize: '1.4rem', color: '#f472b6', margin: 0 }}>🩷 {nomeJ2}</h3>
+                    <div style={{ fontSize: '0.85rem', color: '#9ca3af' }}>Saldo Atual: {pts[1].toLocaleString('pt-BR')} pts</div>
+
+                    {revelandoApostas ? (
+                      <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#fb923c', animation: 'pulse 0.5s infinite alternate' }}>
+                        🔥 {apostasRodada[1]}x
+                      </div>
+                    ) : apostasConfirmadas[1] ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: '#4ade80' }}>
+                        <span style={{ fontSize: '2rem' }}>🔒</span>
+                        <strong style={{ fontSize: '1.1rem' }}>Aposta Feita!</strong>
+                        <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>Aguardando oponente...</span>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                        <span style={{ fontSize: '0.85rem', color: '#9ca3af', marginBottom: '4px' }}>Escolha o multiplicador:</span>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                          <button 
+                            className="btn-poder" 
+                            style={{ background: 'rgba(251, 191, 36, 0.1)', borderColor: '#fbbf24', color: '#fbbf24', fontSize: '0.85rem', padding: '10px' }}
+                            onClick={() => {
+                              const novasApostas = [...apostasRodada];
+                              novasApostas[1] = 0.5;
+                              setApostasRodada(novasApostas);
+                              const novasConfirmadas = [...apostasConfirmadas];
+                              novasConfirmadas[1] = true;
+                              setApostasConfirmadas(novasConfirmadas);
+                              playSound('click');
+                              if (novasConfirmadas[0]) revelarELiberarPergunta();
+                            }}
+                          >
+                            🟡 0.5x (Baixo)
+                          </button>
+                          <button 
+                            className="btn-poder" 
+                            style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: '#ef4444', color: '#ef4444', fontSize: '0.85rem', padding: '10px' }}
+                            onClick={() => {
+                              const novasApostas = [...apostasRodada];
+                              novasApostas[1] = 1.0;
+                              setApostasRodada(novasApostas);
+                              const novasConfirmadas = [...apostasConfirmadas];
+                              novasConfirmadas[1] = true;
+                              setApostasConfirmadas(novasConfirmadas);
+                              playSound('click');
+                              if (novasConfirmadas[0]) revelarELiberarPergunta();
+                            }}
+                          >
+                            🔴 1.0x (Médio)
+                          </button>
+                          <button 
+                            className="btn-poder" 
+                            style={{ background: 'rgba(59, 130, 246, 0.1)', borderColor: '#3b82f6', color: '#3b82f6', fontSize: '0.85rem', padding: '10px' }}
+                            onClick={() => {
+                              const novasApostas = [...apostasRodada];
+                              novasApostas[1] = 2.0;
+                              setApostasRodada(novasApostas);
+                              const novasConfirmadas = [...apostasConfirmadas];
+                              novasConfirmadas[1] = true;
+                              setApostasConfirmadas(novasConfirmadas);
+                              playSound('click');
+                              if (novasConfirmadas[0]) revelarELiberarPergunta();
+                            }}
+                          >
+                            🔵 2.0x (Alto)
+                          </button>
+                          <button 
+                            className="btn-poder" 
+                            style={{ background: 'rgba(16, 185, 129, 0.1)', borderColor: '#10b981', color: '#10b981', fontSize: '0.85rem', padding: '10px' }}
+                            onClick={() => {
+                              const novasApostas = [...apostasRodada];
+                              novasApostas[1] = 3.0;
+                              setApostasRodada(novasApostas);
+                              const novasConfirmadas = [...apostasConfirmadas];
+                              novasConfirmadas[1] = true;
+                              setApostasConfirmadas(novasConfirmadas);
+                              playSound('click');
+                              if (novasConfirmadas[0]) revelarELiberarPergunta();
+                            }}
+                          >
+                            🟢 3.0x (Risco!)
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                (!rodDescanso && (fila[rodAtual - 1].tipo === 'veloc' ? velocBateu === null : (respJ[0] === null && respJ[1] === null))) ? (
-                  <button 
-                    className="btn-poder"
+
+                {!revelandoApostas && (
+                  <p style={{ color: '#9ca3af', fontSize: '0.85rem', background: 'rgba(0,0,0,0.2)', padding: '10px 20px', borderRadius: '30px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    🎮 Dica: Pressione no controle físico: 🟡 Amarelo (0.5x), 🔴 Vermelho (1.0x), 🔵 Azul (2.0x) ou 🟢 Verde (3.0x)
+                  </p>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* PLACAR E TIMER */}
+                <div className="placar-bar">
+                  <div className="pl-bloco pl-j1">
+                    <div className="pl-nome">🔵 {nomeJ1}</div>
+                    <div className="pl-pts">{pts[0].toLocaleString('pt-BR')} pts</div>
+                    {modoApostas && faseJogo === 'pergunta' && apostasRodada[0] !== null && (
+                      <div className="pl-aposta-badge" style={{ fontSize: '0.78rem', color: '#fb923c', marginTop: '4px', fontWeight: 'bold', background: 'rgba(251, 146, 60, 0.1)', padding: '2px 8px', borderRadius: '12px', border: '1px solid rgba(251, 146, 60, 0.2)', display: 'inline-block' }}>
+                        💰 Aposta: {apostasRodada[0]}x
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div className="rod-info">Pergunta {rodAtual} de {fila.length}</div>
+                    <div style={{ fontSize: '2.5rem', fontWeight: 900, color: (timerSeg !== null && timerSeg <= 4) ? '#ef4444' : '#a78bfa', transition: 'color 0.3s ease', fontFamily: 'monospace' }}>
+                      {timerSeg !== null ? timerSeg : '∞'}
+                    </div>
+                  </div>
+                  <div className="pl-bloco pl-j2">
+                    <div className="pl-nome">🩷 {nomeJ2}</div>
+                    <div className="pl-pts">{pts[1].toLocaleString('pt-BR')} pts</div>
+                    {modoApostas && faseJogo === 'pergunta' && apostasRodada[1] !== null && (
+                      <div className="pl-aposta-badge" style={{ fontSize: '0.78rem', color: '#fb923c', marginTop: '4px', fontWeight: 'bold', background: 'rgba(251, 146, 60, 0.1)', padding: '2px 8px', borderRadius: '12px', border: '1px solid rgba(251, 146, 60, 0.2)', display: 'inline-block' }}>
+                        💰 Aposta: {apostasRodada[1]}x
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* BARRA DO TIMER */}
+                <div className="timer-bar">
+                  <div 
+                    className="timer-fill" 
                     style={{ 
-                      padding: '8px 24px', 
-                      borderRadius: '20px', 
-                      fontSize: '0.9rem', 
-                      background: 'rgba(245, 158, 11, 0.1)', 
-                      borderColor: '#fb923c', 
-                      color: '#fb923c',
-                      width: 'auto',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: 'pointer'
+                      width: timerSeg === null ? '100%' : `${(timerSeg / (obterLimiteTempo(fila[rodAtual - 1]) || 15)) * 100}%`,
+                      background: (timerSeg !== null && timerSeg <= 4) ? 'linear-gradient(90deg, #ef4444, #b91c1c)' : 'linear-gradient(90deg, #7c3aed, #4f46e5)'
                     }}
-                    onClick={() => setEfeitosRodada(prev => ({ ...prev, rodadaDupla: true }))}
-                  >
-                    🔥 Ativar Pontos Duplos (Moderador)
-                  </button>
-                ) : null
-              )}
-            </div>
-
-            {/* PAINEL DE CARTAS DE PODER */}
-            <div className="painel-poderes">
-              {/* PODERES JOGADOR 1 */}
-              <div className="poderes-col">
-                <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#60a5fa', marginBottom: '6px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⚡ Cartas de Poder {nomeJ1}</div>
-                <div className="poderes-lista">
-                  <button 
-                    className={`btn-poder ${poderes[0].block ? 'disponivel' : 'usado'} ${efeitosRodada.bloqueado === 1 ? 'ativo' : ''}`}
-                    disabled={poderes[0].block === 0 || rodDescanso}
-                    onClick={() => usarPoder(0, 'block')}
-                    title="Bloquear oponente por esta rodada (Botão Especial 1 no Controle)"
-                  >
-                    🚫 Bloquear
-                  </button>
-                  <button 
-                    className={`btn-poder ${poderes[0].half ? 'disponivel' : 'usado'} ${efeitosRodada.dica[0] ? 'ativo' : ''}`}
-                    disabled={poderes[0].half === 0 || rodDescanso || fila[rodAtual - 1].tipo !== 'mc'}
-                    onClick={() => usarPoder(0, 'half')}
-                    title="Riscar 2 opções erradas (Botão Especial 2 no Controle)"
-                  >
-                    💡 Dica 50/50
-                  </button>
+                  ></div>
                 </div>
-              </div>
 
-              {/* DIVISOR */}
-              <div className="divisor-poderes"></div>
-
-              {/* PODERES JOGADOR 2 */}
-              <div className="poderes-col">
-                <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#f472b6', marginBottom: '6px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⚡ Cartas de Poder {nomeJ2}</div>
-                <div className="poderes-lista">
-                  <button 
-                    className={`btn-poder ${poderes[1].block ? 'disponivel' : 'usado'} ${efeitosRodada.bloqueado === 0 ? 'ativo' : ''}`}
-                    disabled={poderes[1].block === 0 || rodDescanso}
-                    onClick={() => usarPoder(1, 'block')}
-                    title="Bloquear oponente por esta rodada (Botão Especial 1 no Controle)"
-                  >
-                    🚫 Bloquear
-                  </button>
-                  <button 
-                    className={`btn-poder ${poderes[1].half ? 'disponivel' : 'usado'} ${efeitosRodada.dica[1] ? 'ativo' : ''}`}
-                    disabled={poderes[1].half === 0 || rodDescanso || fila[rodAtual - 1].tipo !== 'mc'}
-                    onClick={() => usarPoder(1, 'half')}
-                    title="Riscar 2 opções erradas (Botão Especial 2 no Controle)"
-                  >
-                    💡 Dica 50/50
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* ENUNCIADO CENTRAL */}
-            <div className="pergunta-central">
-              <span className={`tipo-label ${fila[rodAtual - 1].tipo === 'mc' ? 'tl-mc' : fila[rodAtual - 1].tipo === 'vf' ? 'tl-vf' : 'tl-veloc'}`}>
-                {fila[rodAtual - 1].tipo === 'mc' ? 'Múltipla Escolha' : fila[rodAtual - 1].tipo === 'vf' ? 'Verdadeiro ou Falso' : '⚡ Disputa de Velocidade'}
-              </span>
-              <div className="perg-txt"><MathText text={fila[rodAtual - 1].txt} /></div>
-            </div>
-
-            {/* ÁREA DE RESPOSTA ATIVA */}
-            <div id="arena" style={{ margin: '10px 0' }}>
-              {/* CASO 1: MÚLTIPLA ESCOLHA */}
-              {fila[rodAtual - 1].tipo === 'mc' && (
-                <div className="grade-respostas">
-                  {fila[rodAtual - 1].alts.map((alt, idx) => {
-                    const correta = fila[rodAtual - 1].resp === idx;
-                    let clsAdicional = '';
-                    if (rodDescanso) {
-                      clsAdicional = correta ? 'correto' : 'errado';
-                    } else {
-                      // Se algum jogador já respondeu e estamos aguardando
-                      const respondeuJ1 = respJ[0] === idx;
-                      const respondeuJ2 = respJ[1] === idx;
-                      if (respondeuJ1 || respondeuJ2) {
-                        clsAdicional = ''; // Mantém sem destaque até fechar
-                      }
-                    }
-                    if (dicaExcluidas.includes(idx)) {
-                      clsAdicional += ' dica-escondida';
-                    }
-
-                    return (
-                      <button 
-                        key={idx}
-                        className={`resp-btn ${KAHOOT[idx].cls} ${clsAdicional}`}
-                        disabled={rodDescanso}
-                        onClick={() => {
-                          // Se o moderador clicar diretamente via mouse
-                          // Simula a resposta do jogador ativo baseado na rodada
-                          if (respJ[0] === null) {
-                            responderPerguntaMC(0, idx);
-                          } else if (respJ[1] === null) {
-                            responderPerguntaMC(1, idx);
-                          }
-                        }}
-                      >
-                        <span style={{ fontSize: '1.4rem' }}>{KAHOOT[idx].label}</span>
-                        <span><MathText text={alt} /></span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* CASO 2: VERDADEIRO OU FALSO */}
-              {fila[rodAtual - 1].tipo === 'vf' && (
-                <div className="grade-respostas">
-                  {/* VERDADEIRO */}
-                  <button 
-                    className={`resp-btn vf-btn-v ${rodDescanso ? (fila[rodAtual - 1].resp === 'v' ? 'correto' : 'errado') : ''}`}
-                    disabled={rodDescanso}
-                    onClick={() => {
-                      if (respJ[0] === null) responderPerguntaVF(0, 'v');
-                      else if (respJ[1] === null) responderPerguntaVF(1, 'v');
-                    }}
-                  >
-                    <span style={{ fontSize: '1.4rem' }}>🔵</span>
-                    <span>Verdadeiro</span>
-                  </button>
-
-                  {/* FALSO */}
-                  <button 
-                    className={`resp-btn vf-btn-f ${rodDescanso ? (fila[rodAtual - 1].resp === 'f' ? 'correto' : 'errado') : ''}`}
-                    disabled={rodDescanso}
-                    onClick={() => {
-                      if (respJ[0] === null) responderPerguntaVF(0, 'f');
-                      else if (respJ[1] === null) responderPerguntaVF(1, 'f');
-                    }}
-                  >
-                    <span style={{ fontSize: '1.4rem' }}>🔴</span>
-                    <span>Falso</span>
-                  </button>
-                </div>
-              )}
-
-              {/* CASO 3: DISPUTA DE VELOCIDADE */}
-              {fila[rodAtual - 1].tipo === 'veloc' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
-                  {velocBateu === null ? (
-                    <div style={{ display: 'flex', gap: '16px' }}>
-                      <button className="btn-veloc-grande bvg-j1" onClick={() => baterVelocidade(0)}>
-                        🔵 {nomeJ1} bater!
-                      </button>
-                      <button className="btn-veloc-grande bvg-j2" onClick={() => baterVelocidade(1)}>
-                        🩷 {nomeJ2} bater!
-                      </button>
+                {/* BOTÃO GLOBAL DE PONTOS DUPLOS DO MODERADOR */}
+                <div style={{ textAlign: 'center', margin: '14px 0 10px' }}>
+                  {efeitosRodada.rodadaDupla ? (
+                    <div 
+                      className="rodada-dupla-alerta"
+                      style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: '8px',
+                        background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(245, 158, 11, 0.2))', 
+                        border: '2px solid #f59e0b', 
+                        color: '#fb923c', 
+                        padding: '8px 24px', 
+                        borderRadius: '30px', 
+                        fontSize: '1.05rem', 
+                        fontWeight: 'bold',
+                        boxShadow: '0 0 15px rgba(245, 158, 11, 0.3)',
+                        animation: 'pulse 1.5s infinite alternate'
+                      }}
+                    >
+                      🔥 RODADA VALENDO PONTOS DUPLOS! (+100% Pontos)
+                      {(!rodDescanso && (fila[rodAtual - 1].tipo === 'veloc' ? velocBateu === null : (respJ[0] === null && respJ[1] === null))) && (
+                        <button 
+                          style={{ background: 'rgba(255, 255, 255, 0.15)', border: 'none', color: '#fff', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', marginLeft: '10px' }}
+                          onClick={() => setEfeitosRodada(prev => ({ ...prev, rodadaDupla: false }))}
+                        >
+                          Cancelar
+                        </button>
+                      )}
                     </div>
                   ) : (
-                    <div className="card" style={{ border: '2px solid #fb923c', background: 'rgba(245, 158, 11, 0.05)', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
-                      <h3 style={{ fontSize: '1.6rem', color: '#fb923c', margin: 0 }}>
-                        ⚡ {velocBateu === 0 ? nomeJ1 : nomeJ2} bateu primeiro!
-                      </h3>
-                      
-                      <p style={{ color: '#e5e7eb', fontSize: '1.2rem', margin: 0, fontWeight: 700 }}>
-                        📢 Responda oralmente à pergunta!
-                      </p>
+                    (!rodDescanso && (fila[rodAtual - 1].tipo === 'veloc' ? velocBateu === null : (respJ[0] === null && respJ[1] === null))) ? (
+                      <button 
+                        className="btn-poder"
+                        style={{ 
+                          padding: '8px 24px', 
+                          borderRadius: '20px', 
+                          fontSize: '0.9rem', 
+                          background: 'rgba(245, 158, 11, 0.1)', 
+                          borderColor: '#fb923c', 
+                          color: '#fb923c',
+                          width: 'auto',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => setEfeitosRodada(prev => ({ ...prev, rodadaDupla: true }))}
+                      >
+                        🔥 Ativar Pontos Duplos (Moderador)
+                      </button>
+                    ) : null
+                  )}
+                </div>
 
-                      {!velocRevelado && !rodDescanso ? (
-                        <button 
-                          className="btn-prox" 
-                          style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)', margin: '10px 0 0' }}
-                          onClick={() => setVelocRevelado(true)}
-                        >
-                          👁️ Revelar Resposta Correta
-                        </button>
+                {/* PAINEL DE CARTAS DE PODER */}
+                <div className="painel-poderes">
+                  {/* PODERES JOGADOR 1 */}
+                  <div className="poderes-col">
+                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#60a5fa', marginBottom: '6px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⚡ Cartas de Poder {nomeJ1}</div>
+                    <div className="poderes-lista">
+                      <button 
+                        className={`btn-poder ${poderes[0].block ? 'disponivel' : 'usado'} ${efeitosRodada.bloqueado === 1 ? 'ativo' : ''}`}
+                        disabled={poderes[0].block === 0 || rodDescanso || efeitosRodada.bloqueado === 0}
+                        onClick={() => usarPoder(0, 'block')}
+                        title="Bloquear oponente por esta rodada (Botão Especial 1 no Controle)"
+                      >
+                        🚫 Bloquear
+                      </button>
+                      <button 
+                        className={`btn-poder ${poderes[0].half ? 'disponivel' : 'usado'} ${efeitosRodada.dica[0] ? 'ativo' : ''}`}
+                        disabled={poderes[0].half === 0 || rodDescanso || fila[rodAtual - 1].tipo !== 'mc' || efeitosRodada.bloqueado === 0}
+                        onClick={() => usarPoder(0, 'half')}
+                        title="Riscar 2 opções erradas (Botão Especial 2 no Controle)"
+                      >
+                        💡 Dica 50/50
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* DIVISOR */}
+                  <div className="divisor-poderes"></div>
+
+                  {/* PODERES JOGADOR 2 */}
+                  <div className="poderes-col">
+                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#f472b6', marginBottom: '6px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⚡ Cartas de Poder {nomeJ2}</div>
+                    <div className="poderes-lista">
+                      <button 
+                        className={`btn-poder ${poderes[1].block ? 'disponivel' : 'usado'} ${efeitosRodada.bloqueado === 0 ? 'ativo' : ''}`}
+                        disabled={poderes[1].block === 0 || rodDescanso || efeitosRodada.bloqueado === 1}
+                        onClick={() => usarPoder(1, 'block')}
+                        title="Bloquear oponente por esta rodada (Botão Especial 1 no Controle)"
+                      >
+                        🚫 Bloquear
+                      </button>
+                      <button 
+                        className={`btn-poder ${poderes[1].half ? 'disponivel' : 'usado'} ${efeitosRodada.dica[1] ? 'ativo' : ''}`}
+                        disabled={poderes[1].half === 0 || rodDescanso || fila[rodAtual - 1].tipo !== 'mc' || efeitosRodada.bloqueado === 1}
+                        onClick={() => usarPoder(1, 'half')}
+                        title="Riscar 2 opções erradas (Botão Especial 2 no Controle)"
+                      >
+                        💡 Dica 50/50
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ENUNCIADO CENTRAL */}
+                <div className="pergunta-central">
+                  <span className={`tipo-label ${fila[rodAtual - 1].tipo === 'mc' ? 'tl-mc' : fila[rodAtual - 1].tipo === 'vf' ? 'tl-vf' : 'tl-veloc'}`}>
+                    {fila[rodAtual - 1].tipo === 'mc' ? 'Múltipla Escolha' : fila[rodAtual - 1].tipo === 'vf' ? 'Verdadeiro ou Falso' : '⚡ Disputa de Velocidade'}
+                  </span>
+                  <div className="perg-txt"><MathText text={fila[rodAtual - 1].txt} /></div>
+                </div>
+
+                {/* ÁREA DE RESPOSTA ATIVA */}
+                <div id="arena" style={{ margin: '10px 0' }}>
+                  {/* CASO 1: MÚLTIPLA ESCOLHA */}
+                  {fila[rodAtual - 1].tipo === 'mc' && (
+                    <div className="grade-respostas">
+                      {fila[rodAtual - 1].alts.map((alt, idx) => {
+                        const correta = fila[rodAtual - 1].resp === idx;
+                        let clsAdicional = '';
+                        if (rodDescanso) {
+                          clsAdicional = correta ? 'correto' : 'errado';
+                        } else {
+                          // Se algum jogador já respondeu e estamos aguardando
+                          const respondeuJ1 = respJ[0] === idx;
+                          const respondeuJ2 = respJ[1] === idx;
+                          if (respondeuJ1 || respondeuJ2) {
+                            clsAdicional = ''; // Mantém sem destaque até fechar
+                          }
+                        }
+                        if (dicaExcluidas.includes(idx)) {
+                          clsAdicional += ' dica-escondida';
+                        }
+
+                        return (
+                          <button 
+                            key={idx}
+                            className={`resp-btn ${KAHOOT[idx].cls} ${clsAdicional}`}
+                            disabled={rodDescanso}
+                            onClick={() => {
+                              // Se o moderador clicar diretamente via mouse, respeita o bloqueio absoluto
+                              if (respJ[0] === null && efeitosRodada.bloqueado !== 0) {
+                                responderPerguntaMC(0, idx);
+                              } else if (respJ[1] === null && efeitosRodada.bloqueado !== 1) {
+                                responderPerguntaMC(1, idx);
+                              }
+                            }}
+                          >
+                            <span style={{ fontSize: '1.4rem' }}>{KAHOOT[idx].label}</span>
+                            <span><MathText text={alt} /></span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* CASO 2: VERDADEIRO OU FALSO */}
+                  {fila[rodAtual - 1].tipo === 'vf' && (
+                    <div className="grade-respostas">
+                      {/* VERDADEIRO */}
+                      <button 
+                        className={`resp-btn vf-btn-v ${rodDescanso ? (fila[rodAtual - 1].resp === 'v' ? 'correto' : 'errado') : ''}`}
+                        disabled={rodDescanso}
+                        onClick={() => {
+                          if (respJ[0] === null && efeitosRodada.bloqueado !== 0) responderPerguntaVF(0, 'v');
+                          else if (respJ[1] === null && efeitosRodada.bloqueado !== 1) responderPerguntaVF(1, 'v');
+                        }}
+                      >
+                        <span style={{ fontSize: '1.4rem' }}>🔵</span>
+                        <span>Verdadeiro</span>
+                      </button>
+
+                      {/* FALSO */}
+                      <button 
+                        className={`resp-btn vf-btn-f ${rodDescanso ? (fila[rodAtual - 1].resp === 'f' ? 'correto' : 'errado') : ''}`}
+                        disabled={rodDescanso}
+                        onClick={() => {
+                          if (respJ[0] === null && efeitosRodada.bloqueado !== 0) responderPerguntaVF(0, 'f');
+                          else if (respJ[1] === null && efeitosRodada.bloqueado !== 1) responderPerguntaVF(1, 'f');
+                        }}
+                      >
+                        <span style={{ fontSize: '1.4rem' }}>🔴</span>
+                        <span>Falso</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* CASO 3: DISPUTA DE VELOCIDADE */}
+                  {fila[rodAtual - 1].tipo === 'veloc' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+                      {velocBateu === null ? (
+                        <div style={{ display: 'flex', gap: '16px' }}>
+                          <button 
+                            className="btn-veloc-grande bvg-j1" 
+                            onClick={() => baterVelocidade(0)}
+                            disabled={efeitosRodada.bloqueado === 0}
+                            style={{ 
+                              opacity: efeitosRodada.bloqueado === 0 ? 0.3 : 1, 
+                              cursor: efeitosRodada.bloqueado === 0 ? 'not-allowed' : 'pointer',
+                              filter: efeitosRodada.bloqueado === 0 ? 'grayscale(1)' : 'none'
+                            }}
+                          >
+                            🔵 {nomeJ1} bater!
+                          </button>
+                          <button 
+                            className="btn-veloc-grande bvg-j2" 
+                            onClick={() => baterVelocidade(1)}
+                            disabled={efeitosRodada.bloqueado === 1}
+                            style={{ 
+                              opacity: efeitosRodada.bloqueado === 1 ? 0.3 : 1, 
+                              cursor: efeitosRodada.bloqueado === 1 ? 'not-allowed' : 'pointer',
+                              filter: efeitosRodada.bloqueado === 1 ? 'grayscale(1)' : 'none'
+                            }}
+                          >
+                            🩷 {nomeJ2} bater!
+                          </button>
+                        </div>
                       ) : (
-                        <>
-                          <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '12px 24px', borderRadius: '12px', width: '100%', maxWidth: '400px' }}>
-                            <span style={{ color: '#9ca3af', fontSize: '0.9rem', display: 'block', marginBottom: '4px' }}>Gabarito na tela:</span>
-                            <strong style={{ fontSize: '1.3rem', color: '#4ade80' }}><MathText text={fila[rodAtual - 1].resp} /></strong>
-                          </div>
+                        <div className="card" style={{ border: '2px solid #fb923c', background: 'rgba(245, 158, 11, 0.05)', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+                          <h3 style={{ fontSize: '1.6rem', color: '#fb923c', margin: 0 }}>
+                            ⚡ {velocBateu === 0 ? nomeJ1 : nomeJ2} bateu primeiro!
+                          </h3>
+                          
+                          <p style={{ color: '#e5e7eb', fontSize: '1.2rem', margin: 0, fontWeight: 700 }}>
+                            📢 Responda oralmente à pergunta!
+                          </p>
 
-                          {!rodDescanso ? (
-                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', width: '100%' }}>
-                              <button className="btn-ac btn-add" style={{ background: '#16a34a', padding: '12px 30px' }} onClick={() => julgarVelocidade(true)}>
-                                ✅ Respondeu correto (+1.200 pts)
-                              </button>
-                              <button className="btn-ac" style={{ background: '#dc2626', color: '#fff', padding: '12px 30px' }} onClick={() => { julgarVelocidade(false); setVelocRevelado(true); }}>
-                                ❌ Errou / Não respondeu
-                              </button>
-                            </div>
+                          {!velocRevelado && !rodDescanso ? (
+                            <button 
+                              className="btn-prox" 
+                              style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)', margin: '10px 0 0' }}
+                              onClick={() => setVelocRevelado(true)}
+                            >
+                              👁️ Revelar Resposta Correta
+                            </button>
                           ) : (
-                            <div className="msg-ok" style={{ width: 'fit-content', margin: '0 auto' }}>
-                              Avaliação da velocidade concluída.
-                            </div>
+                            <>
+                              <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '12px 24px', borderRadius: '12px', width: '100%', maxWidth: '400px' }}>
+                                <span style={{ color: '#9ca3af', fontSize: '0.9rem', display: 'block', marginBottom: '4px' }}>Gabarito na tela:</span>
+                                <strong style={{ fontSize: '1.3rem', color: '#4ade80' }}><MathText text={fila[rodAtual - 1].resp} /></strong>
+                              </div>
+
+                              {!rodDescanso ? (
+                                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', width: '100%' }}>
+                                  <button className="btn-ac btn-add" style={{ background: '#16a34a', padding: '12px 30px' }} onClick={() => julgarVelocidade(true)}>
+                                    ✅ Respondeu correto (+1.200 pts)
+                                  </button>
+                                  <button className="btn-ac" style={{ background: '#dc2626', color: '#fff', padding: '12px 30px' }} onClick={() => { julgarVelocidade(false); setVelocRevelado(true); }}>
+                                    ❌ Errou / Não respondeu
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="msg-ok" style={{ width: 'fit-content', margin: '0 auto' }}>
+                                  Avaliação da velocidade concluída.
+                                </div>
+                              )}
+                            </>
                           )}
-                        </>
+                        </div>
                       )}
                     </div>
                   )}
                 </div>
+
+                {timerSeg === null && !rodDescanso && (
+                <div style={{ textAlign: 'center', margin: '14px 0 20px' }}>
+                  <button 
+                    className="btn-prox" 
+                    style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)' }}
+                    onClick={encerrarRodadaPorTempo}
+                  >
+                    ⏳ Encerrar Tempo Manualmente
+                  </button>
+                </div>
               )}
-            </div>
 
-            {timerSeg === null && !rodDescanso && (
-              <div style={{ textAlign: 'center', margin: '14px 0 20px' }}>
-                <button 
-                  className="btn-prox" 
-                  style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)' }}
-                  onClick={encerrarRodadaPorTempo}
-                >
-                  ⏳ Encerrar Tempo Manualmente
+              {/* STATUS DOS JOGADORES NA RODADA */}
+              {fila[rodAtual - 1].tipo !== 'veloc' && (
+                <div className="status-jogadores">
+                  <div className={`sj-card ${efeitosRodada.bloqueado === 0 ? 'bloqueado' : respJ[0] !== null ? 'respondeu' : 'aguardando'}`}>
+                    🔵 {nomeJ1}: {efeitosRodada.bloqueado === 0 ? '🚫 BLOQUEADO!' : respJ[0] !== null ? (rodDescanso ? `Escolheu ${fila[rodAtual - 1].tipo === 'mc' ? KAHOOT[respJ[0]].name : respJ[0] === 'v' ? 'Verdadeiro' : 'Falso'}` : 'Pronto!') : 'Aguardando...'}
+                  </div>
+                  <div className={`sj-card ${efeitosRodada.bloqueado === 1 ? 'bloqueado' : respJ[1] !== null ? 'respondeu' : 'aguardando'}`}>
+                    🩷 {nomeJ2}: {efeitosRodada.bloqueado === 1 ? '🚫 BLOQUEADO!' : respJ[1] !== null ? (rodDescanso ? `Escolheu ${fila[rodAtual - 1].tipo === 'mc' ? KAHOOT[respJ[1]].name : respJ[1] === 'v' ? 'Verdadeiro' : 'Falso'}` : 'Pronto!') : 'Aguardando...'}
+                  </div>
+                </div>
+              )}
+
+              {/* BOTÃO PROXIMA PERGUNTA */}
+              {rodDescanso && (
+                <button className="btn-prox" onClick={avancarPergunta}>
+                  {rodAtual >= fila.length ? 'Finalizar Duelo 🏁' : 'Próxima pergunta →'}
                 </button>
-              </div>
-            )}
-
-            {/* STATUS DOS JOGADORES NA RODADA */}
-            {fila[rodAtual - 1].tipo !== 'veloc' && (
-              <div className="status-jogadores">
-                <div className={`sj-card ${efeitosRodada.bloqueado === 0 ? 'bloqueado' : respJ[0] !== null ? 'respondeu' : 'aguardando'}`}>
-                  🔵 {nomeJ1}: {efeitosRodada.bloqueado === 0 ? '🚫 BLOQUEADO!' : respJ[0] !== null ? (rodDescanso ? `Escolheu ${fila[rodAtual - 1].tipo === 'mc' ? KAHOOT[respJ[0]].name : respJ[0] === 'v' ? 'Verdadeiro' : 'Falso'}` : 'Pronto!') : 'Aguardando...'}
-                </div>
-                <div className={`sj-card ${efeitosRodada.bloqueado === 1 ? 'bloqueado' : respJ[1] !== null ? 'respondeu' : 'aguardando'}`}>
-                  🩷 {nomeJ2}: {efeitosRodada.bloqueado === 1 ? '🚫 BLOQUEADO!' : respJ[1] !== null ? (rodDescanso ? `Escolheu ${fila[rodAtual - 1].tipo === 'mc' ? KAHOOT[respJ[1]].name : respJ[1] === 'v' ? 'Verdadeiro' : 'Falso'}` : 'Pronto!') : 'Aguardando...'}
-                </div>
-              </div>
-            )}
-
-            {/* BOTÃO PROXIMA PERGUNTA */}
-            {rodDescanso && (
-              <button className="btn-prox" onClick={avancarPergunta}>
-                {rodAtual >= fila.length ? 'Finalizar Duelo 🏁' : 'Próxima pergunta →'}
-              </button>
-            )}
-          </div>
+              )}
+            </>
+          )}
+        </div>
         )}
       </div>
 
@@ -2839,7 +3469,7 @@ export default function App() {
           <button className="btn-start" onClick={iniciarJogoDuelo}>
             Jogar novamente 🔄
           </button>
-          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadown: 'none' }} onClick={() => setTela('menu')}>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('menu')}>
             Voltar ao Menu 🏠
           </button>
         </div>
