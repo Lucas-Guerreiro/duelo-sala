@@ -316,7 +316,98 @@ const PERGUNTAS_PADRAO = [
   { mat: 'Conhecimentos Gerais', tipo: 'veloc', txt: 'Qual é o maior oceano do planeta Terra?', resp: 'Oceano Pacífico' }
 ];
 
+const PISTAS_PADRAO = [
+  {
+    cat: 'Pessoa',
+    resp: 'Albert Einstein',
+    pistas: [
+      { txt: 'Nasci na Alemanha em 1879 e sou amplamente considerado um dos maiores físicos da história.', efeito: null },
+      { txt: 'Minha fórmula mais famosa relaciona energia, massa e velocidade da luz: E=mc².', efeito: 'avance_1' },
+      { txt: 'Ganhei o Prêmio Nobel de Física em 1921 pela minha explicação do efeito fotoelétrico.', efeito: null },
+      { txt: 'Recusei formalmente a presidência do Estado de Israel em 1952.', efeito: 'recue_1' },
+      { txt: 'Desenvolvi a Teoria da Relatividade Geral e sou famoso pelo meu cabelo despenteado e foto mostrando a língua.', efeito: null }
+    ]
+  },
+  {
+    cat: 'Lugar',
+    resp: 'Paris',
+    pistas: [
+      { txt: 'Sou uma capital europeia cortada pelo Rio Sena.', efeito: null },
+      { txt: 'Tenho um monumento de ferro construído originalmente para a Exposição Universal de 1889.', efeito: 'avance_2' },
+      { txt: 'Sou mundialmente conhecida como a "Cidade Luz" e centro global de arte, moda e gastronomia.', efeito: null },
+      { txt: 'Abrigo o Museu do Louvre, onde está exposta a famosa Mona Lisa de Leonardo da Vinci.', efeito: 'oponente_recue_1' },
+      { txt: 'Minha avenida mais charmosa é a Champs-Élysées e possuo o Arco do Triunfo.', efeito: null }
+    ]
+  },
+  {
+    cat: 'Coisa',
+    resp: 'Smartphone',
+    pistas: [
+      { txt: 'Fui criado a partir da fusão de várias tecnologias móveis, de computação e telefonia.', efeito: null },
+      { txt: 'Meu primeiro modelo de grande sucesso moderno foi apresentado por Steve Jobs em 2007 (iPhone).', efeito: 'avance_1' },
+      { txt: 'Minha tela é sensível ao toque (touchscreen) e rodo aplicativos (apps) diversos.', efeito: null },
+      { txt: 'Muitas pessoas me desbloqueiam dezenas de vezes ao dia por reconhecimento facial ou biometria.', efeito: 'recue_1' },
+      { txt: 'Substituí câmeras fotográficas, calculadoras, agendas e tocadores de música em um único bolso.', efeito: null }
+    ]
+  },
+  {
+    cat: 'Ano',
+    resp: '1969',
+    pistas: [
+      { txt: 'Sou um ano da década de 60 do século XX.', efeito: null },
+      { txt: 'Neste ano ocorreu o lentário festival de música de Woodstock nos EUA.', efeito: 'avance_2' },
+      { txt: 'O homem pisou na Lua pela primeira vez com a missão Apollo 11 de Neil Armstrong.', efeito: null },
+      { txt: 'Foi o ano em que a rede precursora da internet, a ARPANET, realizou sua primeira conexão.', efeito: 'oponente_recue_2' },
+      { txt: 'No Brasil, foi editado o Ato Institucional Número Cinco (AI-5) no final do ano anterior, marcando este ano pelo auge da ditadura.', efeito: null }
+    ]
+  },
+  {
+    cat: 'Animal',
+    resp: 'Ornitorrinco',
+    pistas: [
+      { txt: 'Sou um mamífero semiaquático nativo do leste da Austrália.', efeito: null },
+      { txt: 'Sou uma das poucas espécies de mamíferos que põem ovos (monotremados).', efeito: 'avance_2' },
+      { txt: 'Os machos possuem um esporão venenoso nas patas traseiras capaz de causar dores intensas.', efeito: null },
+      { txt: 'Possuo bico de pato, rabo de castor e patas com membranas interdigitais.', efeito: 'recue_2' },
+      { txt: 'Inspirei o famoso agente secreto "Perry" em um desenho animado moderno da Disney.', efeito: null }
+    ]
+  }
+];
+
 export default function App() {
+  // --- ESTADOS DO JOGO DAS TRÊS PISTAS ---
+  const [modoJogo, setModoJogo] = useState('duelo'); // 'duelo' | 'pistas'
+  const [cartasPistas, setCartasPistas] = useState(() => {
+    const saved = localStorage.getItem('dm_pistas');
+    return saved ? JSON.parse(saved) : PISTAS_PADRAO;
+  });
+  const [cartaPistaAtual, setCartaPistaAtual] = useState(0);
+  const [pistasFila, setPistasFila] = useState([]);
+  const [pistasPontuacao, setPistasPontuacao] = useState([1, 1]); // Posições no tabuleiro (1 a 30)
+  const [pistasEquipeVez, setPistasEquipeVez] = useState(0); // 0 ou 1
+  const [pistasReveladas, setPistasReveladas] = useState([false, false, false, false, false]);
+  const [pistasTentouAdivinhar, setPistasTentouAdivinhar] = useState([false, false]);
+  const [pistasEfeitoAtivo, setPistasEfeitoAtivo] = useState(null); // { equipe, desc, tipo }
+  const [pistasFluxoPalpite, setPistasFluxoPalpite] = useState(null); // null | 'palpite' | 'revelado'
+  const [pistasVezPassada, setPistasVezPassada] = useState(false);
+  const [iaAba, setIaAba] = useState('duelo'); // 'duelo' | 'pistas'
+  const [iaPistasGeradas, setIaPistasGeradas] = useState([]);
+  const [pistasQtdRodadas, setPistasQtdRodadas] = useState(5);
+  const [pistasTimerSeg, setPistasTimerSeg] = useState(null);
+  const pistasTimerIntRef = useRef(null);
+
+  // --- ESTADOS DO CADASTRO MANUAL DO TRÊS PISTAS ---
+  const [cadGerenciadorAba, setCadGerenciadorAba] = useState('duelo'); // 'duelo' | 'pistas'
+  const [cadPistasCat, setCadPistasCat] = useState('');
+  const [cadPistasResp, setCadPistasResp] = useState('');
+  const [cadPistasTextos, setCadPistasTextos] = useState(['', '', '', '', '']);
+  const [cadPistasEfeitos, setCadPistasEfeitos] = useState([null, null, null, null, null]);
+
+  // Salvar cartas de pistas no localStorage
+  useEffect(() => {
+    localStorage.setItem('dm_pistas', JSON.stringify(cartasPistas));
+  }, [cartasPistas]);
+
   // --- ESTADOS DE BANCO DE DADOS (LOCAL STORAGE) ---
   const [materias, setMaterias] = useState(() => {
     const saved = localStorage.getItem('dm_mat');
@@ -670,7 +761,7 @@ export default function App() {
       return;
     }
     const materia = iaMateria.trim() || 'Geral';
-    if (!iaTipoMC && !iaTipoVF && !iaTipoVel) {
+    if (iaAba === 'duelo' && !iaTipoMC && !iaTipoVF && !iaTipoVel) {
       setIaFeedback({ txt: '❌ Selecione pelo menos um tipo de pergunta para gerar!', tipo: 'err' });
       return;
     }
@@ -678,14 +769,15 @@ export default function App() {
     setIaLoading(true);
     setIaFeedback({ txt: iaSourceMode === 'file' ? '⏳ Analisando arquivo e formulando perguntas...' : '⏳ Rastreando link e formulando perguntas...', tipo: 'warn' });
     setIaPergsGeradas([]);
+    setIaPistasGeradas([]);
 
     const tiposDisponiveis = [];
     if (iaTipoMC) tiposDisponiveis.push('mc');
     if (iaTipoVF) tiposDisponiveis.push('vf');
     if (iaTipoVel) tiposDisponiveis.push('veloc');
 
-    // Prompt detalhado
-    const promptBase = `Analise o conteúdo fornecido e gere exatamente ${iaQtd} perguntas sobre o tema "${materia}".\n`
+    // Prompt de Duelo
+    const promptBaseDuelo = `Analise o conteúdo fornecido e gere exatamente ${iaQtd} perguntas sobre o tema "${materia}".\n`
       + `Utilize exclusivamente os seguintes tipos selecionados: ${tiposDisponiveis.join(', ')}.\n`
       + `Distribua de forma variada entre os tipos selecionados.\n\n`
       + (iaPromptInstrucao.trim() ? `INSTRUÇÃO DE PERSONALIZAÇÃO ADICIONAL DO USUÁRIO QUE DEVE SER SEGUIDA RIGOROSAMENTE:\n"${iaPromptInstrucao.trim()}"\n\n` : '')
@@ -699,7 +791,7 @@ export default function App() {
       + `    "tipo": "mc",\n`
       + `    "txt": "Texto da pergunta?",\n`
       + `    "alts": ["Opção A", "Opção B", "Opção C", "Opção D"],\n`
-      + `    "resp": 0\n` // 0 a 3
+      + `    "resp": 0\n`
       + `  },\n`
       + `  {\n`
       + `    "turma": "${iaTurma.trim() || 'Sem Turma'}",\n`
@@ -707,7 +799,7 @@ export default function App() {
       + `    "tema": "${iaTema.trim() || 'Geral'}",\n`
       + `    "tipo": "vf",\n`
       + `    "txt": "Fato ou afirmação?",\n`
-      + `    "resp": "v"\n` // "v" ou "f"
+      + `    "resp": "v"\n`
       + `  },\n`
       + `  {\n`
       + `    "turma": "${iaTurma.trim() || 'Sem Turma'}",\n`
@@ -718,6 +810,28 @@ export default function App() {
       + `    "resp": "Resposta correta curta"\n`
       + `  }\n`
       + `]`;
+
+    // Prompt de Três Pistas
+    const promptBasePistas = `Analise o conteúdo fornecido (ou o tema informado) e gere exatamente ${iaQtd} cartas de pistas estruturadas para o jogo de tabuleiro clássico Três Pistas (estilo Perfil) sobre o tema "${materia}".\n`
+      + `Cada carta deve possuir uma Categoria ampla (ex: Pessoa, Lugar, Animal, Coisa, Ano, Objeto, Evento), um Segredo/Resposta exata e exatamente 5 pistas textuais associadas, organizadas em ordem de dificuldade estritamente decrescente (a Pista 1 é muito difícil/misteriosa, a Pista 5 é muito fácil e quase entrega a resposta de bandeja).\n\n`
+      + (iaPromptInstrucao.trim() ? `INSTRUÇÃO DE PERSONALIZAÇÃO ADICIONAL DO USUÁRIO QUE DEVE SER SEGUIDA RIGOROSAMENTE:\n"${iaPromptInstrucao.trim()}"\n\n` : '')
+      + `Você também pode, opcionalmente, associar um efeito clássico de tabuleiro a algumas pistas normais da carta para criar pistas bônus ou penalidades surpresa! Os efeitos válidos em JSON são: "avance_1", "avance_2", "recue_1", "recue_2", "oponente_avance_1", "oponente_recue_1", "oponente_recue_2". Se uma pista for apenas dica normal sem efeito, defina-a com "efeito": null.\n\n`
+      + `Responda unicamente no formato JSON estrito, sem markdown, sem textos adicionais, respeitando esta estrutura exata:\n`
+      + `[\n`
+      + `  {\n`
+      + `    "cat": "Categoria",\n`
+      + `    "resp": "Segredo/Resposta",\n`
+      + `    "pistas": [\n`
+      + `      { "txt": "Pista 1 super difícil", "efeito": null },\n`
+      + `      { "txt": "Pista 2 difícil", "efeito": "avance_1" },\n`
+      + `      { "txt": "Pista 3 média", "efeito": null },\n`
+      + `      { "txt": "Pista 4 fácil", "efeito": "recue_1" },\n`
+      + `      { "txt": "Pista 5 muito óbvia", "efeito": null }\n`
+      + `    ]\n`
+      + `  }\n`
+      + `]`;
+
+    const promptBase = iaAba === 'pistas' ? promptBasePistas : promptBaseDuelo;
 
     const prompt = iaSourceMode === 'file' 
       ? `Analise o conteúdo deste arquivo.\n\n${promptBase}`
@@ -758,25 +872,45 @@ export default function App() {
         const parsed = JSON.parse(text);
         if (!Array.isArray(parsed) || !parsed.length) throw new Error('O retorno da IA não é um array válido.');
 
-        const validadas = parsed.filter(p => {
-          if (!p.tipo || !p.txt) return false;
-          if (p.tipo === 'mc') return Array.isArray(p.alts) && p.alts.length === 4 && p.resp >= 0 && p.resp <= 3;
-          if (p.tipo === 'vf') return p.resp === 'v' || p.resp === 'f';
-          if (p.tipo === 'veloc') return !!p.resp;
-          return false;
-        }).map(p => ({ 
-          ...p, 
-          turma: p.turma || iaTurma.trim() || 'Sem Turma', 
-          mat: p.mat || materia, 
-          tema: p.tema || iaTema.trim() || 'Geral' 
-        }));
+        if (iaAba === 'pistas') {
+          const validadasPistas = parsed.filter(c => {
+            return c.cat && c.resp && Array.isArray(c.pistas) && c.pistas.length === 5 && c.pistas.every(p => p.txt);
+          }).map(c => ({
+            cat: c.cat,
+            resp: c.resp,
+            pistas: c.pistas.map(p => ({
+              txt: p.txt,
+              efeito: p.efeito || null
+            }))
+          }));
 
-        if (!validadas.length) throw new Error('Nenhuma pergunta gerada atendeu aos critérios de validação.');
+          if (!validadasPistas.length) throw new Error('Nenhuma carta de pistas gerada atendeu aos critérios de validação.');
 
-        setIaPergsGeradas(validadas);
-        setIaFeedback({ txt: `✅ ${validadas.length} perguntas formuladas com sucesso diretamente do seu documento pela IA do Gemini!`, tipo: 'ok' });
-        setIaLoading(false);
-        return;
+          setIaPistasGeradas(validadasPistas);
+          setIaFeedback({ txt: `✅ ${validadasPistas.length} cartas de Três Pistas geradas com sucesso pela IA do Gemini!`, tipo: 'ok' });
+          setIaLoading(false);
+          return;
+        } else {
+          const validadas = parsed.filter(p => {
+            if (!p.tipo || !p.txt) return false;
+            if (p.tipo === 'mc') return Array.isArray(p.alts) && p.alts.length === 4 && p.resp >= 0 && p.resp <= 3;
+            if (p.tipo === 'vf') return p.resp === 'v' || p.resp === 'f';
+            if (p.tipo === 'veloc') return !!p.resp;
+            return false;
+          }).map(p => ({ 
+            ...p, 
+            turma: p.turma || iaTurma.trim() || 'Sem Turma', 
+            mat: p.mat || materia, 
+            tema: p.tema || iaTema.trim() || 'Geral' 
+          }));
+
+          if (!validadas.length) throw new Error('Nenhuma pergunta gerada atendeu aos critérios de validação.');
+
+          setIaPergsGeradas(validadas);
+          setIaFeedback({ txt: `✅ ${validadas.length} perguntas de Duelo formuladas com sucesso pela IA do Gemini!`, tipo: 'ok' });
+          setIaLoading(false);
+          return;
+        }
       } catch (err) {
         console.error('Erro na API do Gemini:', err);
         setIaFeedback({ txt: `⚠️ Falha na API do Gemini: ${err.message}. Ativando simulação local...`, tipo: 'warn' });
@@ -786,6 +920,93 @@ export default function App() {
 
     // Fallback Local se a API não estiver configurada ou falhar
     setTimeout(() => {
+      if (iaAba === 'pistas') {
+        const bancoMockPistas = {
+          'História': [
+            {
+              cat: 'Pessoa',
+              resp: 'Dom Pedro II',
+              pistas: [
+                { txt: 'Fui o segundo e último imperador do Império do Brasil, reinando por 58 anos.', efeito: null },
+                { txt: 'Meu reinado foi marcado pela consolidação nacional e pela abolição da escravidão por minha filha.', efeito: 'avance_1' },
+                { txt: 'Subi ao trono com apenas 5 anos de idade após a abdicação de meu pai em 1831.', efeito: null },
+                { txt: 'Fui deposto em 1889 pela Proclamação da República e exilado na Europa.', efeito: 'recue_1' },
+                { txt: 'Sou conhecido pela alcunha de "O Magnânimo" e por meu amor às artes e ciências.', efeito: null }
+              ]
+            },
+            {
+              cat: 'Lugar',
+              resp: 'Brasília',
+              pistas: [
+                { txt: 'Sou uma cidade planejada construída a partir do zero no meio do Planalto Central brasileiro.', efeito: null },
+                { txt: 'Minha arquitetura inovadora e futurista foi desenhada por Oscar Niemeyer.', efeito: 'avance_2' },
+                { txt: 'Fui inaugurada em 1960 pelo então presidente Juscelino Kubitschek.', efeito: null },
+                { txt: 'Meu desenho urbano original assemelha-se ao formato de um avião (Plano Piloto).', efeito: 'oponente_recue_1' },
+                { txt: 'Substituí a cidade do Rio de Janeiro como capital federal do Brasil.', efeito: null }
+              ]
+            },
+            {
+              cat: 'Ano',
+              resp: '1500',
+              pistas: [
+                { txt: 'Sou o ano que marca o início do século XVI.', efeito: null },
+                { txt: 'Neste ano, uma expedição liderada por Pedro Álvares Cabral chegou às terras que hoje formam o Brasil.', efeito: 'avance_1' },
+                { txt: 'Foi o ano em que Pero Vaz de Caminha escreveu sua famosa carta relatando as belezas da nova terra.', efeito: null },
+                { txt: 'O rei de Portugal na época desta grande expedição era Dom Manuel I.', efeito: 'oponente_recue_1' },
+                { txt: 'Meu número é composto pelo algarismo 1 seguido de 5 e dois zeros.', efeito: null }
+              ]
+            }
+          ],
+          'Ciências': [
+            {
+              cat: 'Coisa',
+              resp: 'DNA',
+              pistas: [
+                { txt: 'Sou a molécula que carrega as instruções genéticas para o desenvolvimento e funcionamento de todos os seres vivos.', efeito: null },
+                { txt: 'Minha estrutura tridimensional característica em dupla hélice foi descoberta por Watson e Crick em 1953.', efeito: 'avance_1' },
+                { txt: 'Sou composto por quatro bases nitrogenadas principais: Adenina, Timina, Citosina e Guanina.', efeito: null },
+                { txt: 'Fico localizado principalmente no interior do núcleo das células eucarióticas.', efeito: 'recue_1' },
+                { txt: 'Minha sigla em português significa Ácido Desoxirribonucleico.', efeito: null }
+              ]
+            },
+            {
+              cat: 'Animal',
+              resp: 'Dinossauro',
+              pistas: [
+                { txt: 'Fomos um grupo diversificado de répteis que dominaram a Terra durante a Era Mesozoica.', efeito: null },
+                { txt: 'Nossa extinção em massa ocorreu há aproximadamente 66 milhões de anos, provavelmente por impacto de asteroide.', efeito: 'avance_2' },
+                { txt: 'O Tiranossauro Rex e o Tricerátops são algumas de nossas espécies mais célebres.', efeito: null },
+                { txt: 'Nossos restos fossilizados são estudados com entusiasmo por paleontólogos no mundo todo.', efeito: 'recue_1' },
+                { txt: 'Fomos popularizados na cultura moderna por franquias de ficção científica como "Jurassic Park".', efeito: null }
+              ]
+            }
+          ]
+        };
+
+        const temaEncontradoPistas = Object.keys(bancoMockPistas).find(k => k.toLowerCase() === materia.toLowerCase());
+        let poolPistas = temaEncontradoPistas ? bancoMockPistas[temaEncontradoPistas] : null;
+
+        if (!poolPistas) {
+          poolPistas = [];
+          Object.keys(bancoMockPistas).forEach(key => {
+            poolPistas = poolPistas.concat(bancoMockPistas[key]);
+          });
+        }
+
+        const embaralhadasPistas = [...poolPistas].sort(() => Math.random() - 0.5);
+        const selecionadasPistas = embaralhadasPistas.slice(0, Math.min(iaQtd, embaralhadasPistas.length));
+
+        setIaPistasGeradas(selecionadasPistas);
+        setIaFeedback({
+          txt: geminiKey.trim()
+            ? `✨ Modo Simulação Ativo: A API do Gemini falhou. Geramos cartas de pistas simuladas para o tema "${materia}"!`
+            : `✨ Modo Simulação: Para ler PDFs reais, insira sua chave do Gemini. Geramos cartas de pistas simuladas para o tema "${materia}"!`,
+          tipo: 'ok'
+        });
+        setIaLoading(false);
+        return;
+      }
+
       const bancoMock = {
         'História': [
           { tipo: 'mc', txt: 'Quem assinou a abolição da escravidão no Brasil através da Lei Áurea?', alts: ['D. Pedro II', 'D. João VI', 'Princesa Isabel', 'José do Patrocínio'], resp: 2 },
@@ -885,6 +1106,17 @@ export default function App() {
     setIaPergsGeradas([]);
   };
 
+  const confirmarImportacaoPistasIA = (modo) => {
+    if (!iaPistasGeradas.length) return;
+    if (modo === 'sub') {
+      setCartasPistas(iaPistasGeradas);
+    } else {
+      setCartasPistas(prev => [...prev, ...iaPistasGeradas]);
+    }
+    setIaFeedback({ txt: `✅ ${iaPistasGeradas.length} cartas de Três Pistas importadas com sucesso ao banco!`, tipo: 'ok' });
+    setIaPistasGeradas([]);
+  };
+
   // --- CADASTRO MANUAL E IMPORTAÇÃO ---
   const adicionarMateriaManual = () => {
     const text = cadMateriaText.trim();
@@ -956,6 +1188,47 @@ export default function App() {
 
   const deletarPergunta = (idx) => {
     setPerguntas(perguntas.filter((_, i) => i !== idx));
+  };
+
+  const adicionarCartaPistasManual = () => {
+    const cat = cadPistasCat.trim();
+    const resp = cadPistasResp.trim();
+    if (!cat) {
+      alert('Por favor, informe a Categoria do segredo (ex: Pessoa, Lugar)!');
+      return;
+    }
+    if (!resp) {
+      alert('Por favor, informe o Segredo/Resposta (ex: Albert Einstein)!');
+      return;
+    }
+    if (cadPistasTextos.some(t => !t.trim())) {
+      alert('Por favor, preencha o texto de todas as 5 pistas!');
+      return;
+    }
+
+    const novaCarta = {
+      cat: cat,
+      resp: resp,
+      pistas: cadPistasTextos.map((txt, idx) => ({
+        txt: txt.trim(),
+        efeito: cadPistasEfeitos[idx]
+      }))
+    };
+
+    setCartasPistas([...cartasPistas, novaCarta]);
+    
+    // Reseta formulário
+    setCadPistasCat('');
+    setCadPistasResp('');
+    setCadPistasTextos(['', '', '', '', '']);
+    setCadPistasEfeitos([null, null, null, null, null]);
+    
+    alert('Carta de pistas cadastrada com sucesso!');
+  };
+
+  const deletarCartaPistas = (idx) => {
+    if (!window.confirm('Deseja excluir permanentemente esta carta de pistas?')) return;
+    setCartasPistas(cartasPistas.filter((_, i) => i !== idx));
   };
 
   const limparTodasPerguntas = () => {
@@ -1341,83 +1614,78 @@ export default function App() {
     setRodDescanso(true);
     if (timerIntRef.current) clearInterval(timerIntRef.current);
 
-    // Avaliar e pontuar respostas dadas até o momento
-    setRespJ(prev => {
-      const p = fila[rodAtual - 1];
-      const novasPontuacoes = [...pts];
-      const limite = (p && p.tempo !== undefined && p.tempo !== null) ? p.tempo : (globalTimerEnabled ? globalTempo : null);
-      const limiteEficaz = limite !== null ? limite : 0;
-      let alguemAcertou = false;
+    const p = fila[rodAtual - 1];
+    if (!p) return;
 
-      // Calcular quem pontua nas de Múltipla Escolha e V/F
-      if (p.tipo === 'mc' || p.tipo === 'vf') {
-        const respostaCerta = p.resp;
-        const acertos = [false, false];
+    const novasPontuacoes = [...pts];
+    const limite = (p && p.tempo !== undefined && p.tempo !== null) ? p.tempo : (globalTimerEnabled ? globalTempo : null);
+    const limiteEficaz = limite !== null ? limite : 0;
+    let alguemAcertou = false;
 
-        for (let j = 0; j < 2; j++) {
-          const apostaMult = (modoApostas && apostasRodada[j] !== null) ? apostasRodada[j] : 1.0;
-          if (prev[j] !== null) {
-            const acertou = String(prev[j]) === String(respostaCerta);
-            acertos[j] = acertou;
-            if (acertou) {
-              alguemAcertou = true;
-              // Fórmula Kahoot: 1000 a 500 pontos dependendo do tempo gasto individual
-              let ganho = 1000;
-              if (limiteEficaz > 0) {
-                const tempoGasto = temposRespRef.current[j] !== null ? temposRespRef.current[j] : limiteEficaz;
-                const proporcao = Math.max(0, Math.min(1, tempoGasto / limiteEficaz));
-                ganho = Math.round((1 - (proporcao / 2)) * 1000);
-              }
-              // Dobrar se pontos duplos estiver ativo na rodada (moderador)!
-              if (efeitosRodada.rodadaDupla) {
-                ganho *= 2;
-              }
-              if (modoApostas) {
-                ganho = Math.round(ganho * apostaMult);
-              }
-              novasPontuacoes[j] += ganho;
-            } else {
-              // Errou a resposta
-              if (modoApostas) {
-                const perda = Math.round(1000 * apostaMult);
-                novasPontuacoes[j] = Math.max(0, novasPontuacoes[j] - perda);
-              }
+    // Calcular quem pontua nas de Múltipla Escolha e V/F
+    if (p.tipo === 'mc' || p.tipo === 'vf') {
+      const respostaCerta = p.resp;
+
+      for (let j = 0; j < 2; j++) {
+        const apostaMult = (modoApostas && apostasRodada[j] !== null) ? apostasRodada[j] : 1.0;
+        if (respJ[j] !== null) {
+          const acertou = String(respJ[j]) === String(respostaCerta);
+          if (acertou) {
+            alguemAcertou = true;
+            // Fórmula Kahoot: 1000 a 500 pontos dependendo do tempo gasto individual
+            let ganho = 1000;
+            if (limiteEficaz > 0) {
+              const tempoGasto = temposRespRef.current[j] !== null ? temposRespRef.current[j] : limiteEficaz;
+              const proporcao = Math.max(0, Math.min(1, tempoGasto / limiteEficaz));
+              ganho = Math.round((1 - (proporcao / 2)) * 1000);
             }
+            // Dobrar se pontos duplos estiver ativo na rodada (moderador)!
+            if (efeitosRodada.rodadaDupla) {
+              ganho *= 2;
+            }
+            if (modoApostas) {
+              ganho = Math.round(ganho * apostaMult);
+            }
+            novasPontuacoes[j] += ganho;
           } else {
-            // Não respondeu (tempo esgotado no Modo Apostas)
-            if (modoApostas && efeitosRodada.bloqueado !== j) {
+            // Errou a resposta
+            if (modoApostas) {
               const perda = Math.round(1000 * apostaMult);
               novasPontuacoes[j] = Math.max(0, novasPontuacoes[j] - perda);
             }
           }
-        }
-        setPts(novasPontuacoes);
-        if (alguemAcertou) {
-          playSound('success');
         } else {
-          playSound('error');
+          // Não respondeu (tempo esgotado no Modo Apostas)
+          if (modoApostas && efeitosRodada.bloqueado !== j) {
+            const perda = Math.round(1000 * apostaMult);
+            novasPontuacoes[j] = Math.max(0, novasPontuacoes[j] - perda);
+          }
         }
+      }
+      setPts(novasPontuacoes);
+      if (alguemAcertou) {
+        playSound('success');
       } else {
-        // Velocidade que estourou o tempo (Se modo aposta ativo, penaliza quem não bateu se houver regra de aposta, mas em velocidade a omissão de batida de ambos não penaliza)
         playSound('error');
       }
+    } else {
+      // Velocidade que estourou o tempo
+      playSound('error');
+    }
 
-      // Adicionar no histórico
-      const j1Desc = prev[0] !== null ? (p.tipo === 'mc' ? KAHOOT[prev[0]].name : prev[0] === 'v' ? 'Verdadeiro' : 'Falso') : 'Não respondeu';
-      const j2Desc = prev[1] !== null ? (p.tipo === 'mc' ? KAHOOT[prev[1]].name : prev[1] === 'v' ? 'Verdadeiro' : 'Falso') : 'Não respondeu';
-      const histItem = {
-        rodada: rodAtual,
-        txt: p.txt,
-        tipo: p.tipo,
-        j1: j1Desc,
-        j2: j2Desc,
-        correta: p.tipo === 'mc' ? KAHOOT[p.resp].name : p.tipo === 'vf' ? (p.resp === 'v' ? 'Verdadeiro' : 'Falso') : p.resp,
-        pontos: [...novasPontuacoes]
-      };
-      setHistorico(h => [...h, histItem]);
-
-      return prev;
-    });
+    // Adicionar no histórico
+    const j1Desc = respJ[0] !== null ? (p.tipo === 'mc' ? (KAHOOT[respJ[0]]?.name || respJ[0]) : respJ[0] === 'v' ? 'Verdadeiro' : 'Falso') : 'Não respondeu';
+    const j2Desc = respJ[1] !== null ? (p.tipo === 'mc' ? (KAHOOT[respJ[1]]?.name || respJ[1]) : respJ[1] === 'v' ? 'Verdadeiro' : 'Falso') : 'Não respondeu';
+    const histItem = {
+      rodada: rodAtual,
+      txt: p.txt,
+      tipo: p.tipo,
+      j1: j1Desc,
+      j2: j2Desc,
+      correta: p.tipo === 'mc' ? (KAHOOT[p.resp]?.name || p.resp) : p.tipo === 'vf' ? (p.resp === 'v' ? 'Verdadeiro' : 'Falso') : p.resp,
+      pontos: [...novasPontuacoes]
+    };
+    setHistorico(h => [...h, histItem]);
   };
 
   // --- FUNÇÃO PARA ACIONAR CARTAS DE PODER ---
@@ -1621,8 +1889,8 @@ export default function App() {
       playSound('error');
     }
 
-    const j1Desc = respostasFinais[0] !== null ? (p.tipo === 'mc' ? KAHOOT[respostasFinais[0]].name : respostasFinais[0] === 'v' ? 'Verdadeiro' : 'Falso') : 'Não respondeu';
-    const j2Desc = respostasFinais[1] !== null ? (p.tipo === 'mc' ? KAHOOT[respostasFinais[1]].name : respostasFinais[1] === 'v' ? 'Verdadeiro' : 'Falso') : 'Não respondeu';
+    const j1Desc = respostasFinais[0] !== null ? (p.tipo === 'mc' ? (KAHOOT[respostasFinais[0]]?.name || respostasFinais[0]) : respostasFinais[0] === 'v' ? 'Verdadeiro' : 'Falso') : 'Não respondeu';
+    const j2Desc = respostasFinais[1] !== null ? (p.tipo === 'mc' ? (KAHOOT[respostasFinais[1]]?.name || respostasFinais[1]) : respostasFinais[1] === 'v' ? 'Verdadeiro' : 'Falso') : 'Não respondeu';
 
     const histItem = {
       rodada: rodAtual,
@@ -1630,7 +1898,7 @@ export default function App() {
       tipo: p.tipo,
       j1: j1Desc,
       j2: j2Desc,
-      correta: p.tipo === 'mc' ? KAHOOT[p.resp].name : p.tipo === 'vf' ? (p.resp === 'v' ? 'Verdadeiro' : 'Falso') : p.resp,
+      correta: p.tipo === 'mc' ? (KAHOOT[p.resp]?.name || p.resp) : p.tipo === 'vf' ? (p.resp === 'v' ? 'Verdadeiro' : 'Falso') : p.resp,
       pontos: [...novasPontuacoes]
     };
     setHistorico(h => [...h, histItem]);
@@ -1685,28 +1953,396 @@ export default function App() {
     }, 2000);
   };
 
+  // --- FUNÇÕES E LÓGICAS DO JOGO DAS TRÊS PISTAS ---
+  
+  const moverPeaoGradual = (equipeIndex, posicaoFinal, callback = null) => {
+    // Foca suavemente no tabuleiro rolando a tela se necessário
+    setTimeout(() => {
+      document.getElementById('pistas-tabuleiro-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+
+    const executarPasso = (posAtual) => {
+      if (posAtual === posicaoFinal) {
+        if (callback) callback();
+        return;
+      }
+
+      // Determina se avança ou recua
+      const proximo = posAtual < posicaoFinal ? posAtual + 1 : posAtual - 1;
+      
+      setPistasPontuacao(prev => {
+        const nova = [...prev];
+        nova[equipeIndex] = proximo;
+        return nova;
+      });
+
+      playSound('tick');
+
+      // Executa o próximo passo após 350ms
+      setTimeout(() => {
+        executarPasso(proximo);
+      }, 350);
+    };
+
+    // Pega a posição inicial daquela equipe de forma segura
+    setPistasPontuacao(prev => {
+      const posPartida = prev[equipeIndex];
+      setTimeout(() => {
+        executarPasso(posPartida);
+      }, 50);
+      return prev;
+    });
+  };
+
+  const iniciarPartidaPistas = () => {
+    if (cartasPistas.length === 0) {
+      alert('Nenhuma carta de pistas cadastrada no banco de dados! Cadastre no menu primeiro.');
+      return;
+    }
+    
+    // Limpa cronômetros de palpite se houver
+    if (pistasTimerIntRef.current) clearInterval(pistasTimerIntRef.current);
+    setPistasTimerSeg(null);
+
+    // Embaralhar cartas e limitar à quantidade de rodadas escolhida
+    const totalRodadasDesejadas = Math.min(pistasQtdRodadas, cartasPistas.length);
+    const filaEmbaralhada = [...cartasPistas].sort(() => Math.random() - 0.5).slice(0, totalRodadasDesejadas);
+    
+    // Configurar pistas bônus dinamicamente nas rodadas pares de forma revezada
+    let indexRevezado = 0;
+    const filaConfigurada = filaEmbaralhada.map((carta, index) => {
+      // As cartas nos índices ímpares da fila (rodada 2, 4, 6...) terão 1 pista bônus secreta.
+      if (index % 2 === 1) {
+        const cartaComBonus = {
+          ...carta,
+          pistaBonusIdx: indexRevezado
+        };
+        // Revesa o index da pista bônus (0 a 4) em ciclo para a próxima
+        indexRevezado = (indexRevezado + 1) % 5;
+        return cartaComBonus;
+      } else {
+        return {
+          ...carta,
+          pistaBonusIdx: null
+        };
+      }
+    });
+    
+    setPistasFila(filaConfigurada);
+    
+    // Reseta peões na casa 1
+    setPistasPontuacao([1, 1]);
+    
+    // Configura a primeira carta e limpa estados (Nenhuma pista começa revelada)
+    setCartaPistaAtual(1);
+    setPistasReveladas([false, false, false, false, false]);
+    setPistasTentouAdivinhar([false, false]);
+    setPistasEfeitoAtivo(null);
+    setPistasFluxoPalpite(null);
+    setPistasVezPassada(false);
+    
+    // Sorteia ou define a vez inicial (Equipe 1 começa)
+    setPistasEquipeVez(0);
+    
+    setModoJogo('pistas');
+    irParaTela('pistas-jogo');
+  };
+
+  const processarEfeitoPista = (efeito, equipeIndex) => {
+    if (!efeito) return;
+    
+    const oponenteIndex = equipeIndex === 0 ? 1 : 0;
+    let desc = '';
+    let tipo = 'bonus';
+    let targetEquipe = equipeIndex;
+    let posFinal = pistasPontuacao[targetEquipe];
+    
+    if (efeito === 'avance_1') {
+      posFinal = Math.min(30, pistasPontuacao[equipeIndex] + 1);
+      desc = `✨ Bônus: ${equipeIndex === 0 ? nomeJ1 : nomeJ2} avançou 1 casa!`;
+      playSound('success');
+    } else if (efeito === 'avance_2') {
+      posFinal = Math.min(30, pistasPontuacao[equipeIndex] + 2);
+      desc = `🔥 Super Bônus: ${equipeIndex === 0 ? nomeJ1 : nomeJ2} avançou 2 casas!`;
+      playSound('success');
+    } else if (efeito === 'recue_1') {
+      posFinal = Math.max(1, pistasPontuacao[equipeIndex] - 1);
+      desc = `⚠️ Obstáculo: ${equipeIndex === 0 ? nomeJ1 : nomeJ2} recuou 1 casa!`;
+      tipo = 'penalidade';
+      playSound('error');
+    } else if (efeito === 'recue_2') {
+      posFinal = Math.max(1, pistasPontuacao[equipeIndex] - 2);
+      desc = `💥 Armadilha: ${equipeIndex === 0 ? nomeJ1 : nomeJ2} recuou 2 casas!`;
+      tipo = 'penalidade';
+      playSound('error');
+    } else if (efeito === 'oponente_avance_1') {
+      targetEquipe = oponenteIndex;
+      posFinal = Math.min(30, pistasPontuacao[oponenteIndex] + 1);
+      desc = `🎁 Generosidade: Oponente (${oponenteIndex === 0 ? nomeJ1 : nomeJ2}) avançou 1 casa!`;
+      playSound('success');
+    } else if (efeito === 'oponente_recue_1') {
+      targetEquipe = oponenteIndex;
+      posFinal = Math.max(1, pistasPontuacao[oponenteIndex] - 1);
+      desc = `🎯 Ataque: Oponente (${oponenteIndex === 0 ? nomeJ1 : nomeJ2}) recuou 1 casa!`;
+      tipo = 'penalidade';
+      playSound('error');
+    } else if (efeito === 'oponente_recue_2') {
+      targetEquipe = oponenteIndex;
+      posFinal = Math.max(1, pistasPontuacao[oponenteIndex] - 2);
+      desc = `⚡ Raio Tático: Oponente (${oponenteIndex === 0 ? nomeJ1 : nomeJ2}) recuou 2 casas!`;
+      tipo = 'penalidade';
+      playSound('error');
+    }
+
+    setPistasEfeitoAtivo({ equipe: equipeIndex, desc, tipo });
+    
+    // Executa a movimentação lenta e gradual
+    moverPeaoGradual(targetEquipe, posFinal, () => {
+      if (posFinal >= 30) {
+        setTimeout(() => {
+          finalizarPartidaPistas();
+        }, 1500);
+      }
+    });
+
+    // Tira o popup do efeito após 3.5 segundos
+    setTimeout(() => {
+      setPistasEfeitoAtivo(null);
+    }, 3500);
+  };
+
+  const revelarPista = (pistaIndex) => {
+    if (pistasReveladas[pistaIndex] || pistasEfeitoAtivo || pistasFluxoPalpite) return;
+    
+    // Obter o número total de pistas que já foram reveladas na carta
+    const totalReveladas = pistasReveladas.filter(Boolean).length;
+
+    // Se já houver alguma pista revelada, as próximas só abrem se a equipe passou a vez
+    if (totalReveladas > 0 && !pistasVezPassada) {
+      alert("A equipe atual precisa passar a vez antes de revelar a próxima pista!");
+      return;
+    }
+    
+    const novasReveladas = [...pistasReveladas];
+    novasReveladas[pistaIndex] = true;
+    setPistasReveladas(novasReveladas);
+    
+    // Se não for a primeira pista da rodada, reseta o indicador de passagem de vez
+    if (totalReveladas > 0) {
+      setPistasVezPassada(false);
+    }
+    
+    // Ao revelar, reseta a trava de tentativa de resposta da equipe da vez 
+    setPistasTentouAdivinhar([false, false]);
+    
+    playSound('reveal');
+    
+    const carta = pistasFila[cartaPistaAtual - 1];
+    if (carta) {
+      // Se for a Pista Bônus Secreta configurada para esta carta
+      if (carta.pistaBonusIdx === pistaIndex) {
+        const efeitosBotoes = ['avance_1', 'avance_2', 'recue_1', 'oponente_recue_1'];
+        const efeitoSorteado = efeitosBotoes[Math.floor(Math.random() * efeitosBotoes.length)];
+        processarEfeitoPista(efeitoSorteado, pistasEquipeVez);
+      } else {
+        // Se for pista normal, processa o efeito original caso cadastrado
+        const efeito = carta.pistas[pistaIndex]?.efeito;
+        if (efeito) {
+          processarEfeitoPista(efeito, pistasEquipeVez);
+        }
+      }
+    }
+  };
+
+  const julgarPalpitePistas = (acertou) => {
+    if (pistasEfeitoAtivo) return;
+    
+    // Limpar timer do palpite
+    if (pistasTimerIntRef.current) clearInterval(pistasTimerIntRef.current);
+    setPistasTimerSeg(null);
+
+    const carta = pistasFila[cartaPistaAtual - 1] || cartasPistas[0];
+    const temBonus = carta && carta.pistaBonusIdx !== null && carta.pistaBonusIdx !== undefined;
+    
+    // Total de pistas normais de dica (4 se tem bônus, 5 se não)
+    const totalPistasNormais = temBonus ? 4 : 5;
+    
+    // Quantidade de pistas normais que foram de fato reveladas
+    const totalPistasNormaisReveladas = pistasReveladas.filter((rev, idx) => {
+      if (!rev) return false;
+      if (temBonus && idx === carta.pistaBonusIdx) return false; // Bônus não conta como pista normal
+      return true;
+    }).length;
+    
+    // Casas conquistadas = pistas normais restantes (pista normais totais - pistas normais reveladas)
+    const casasGanhas = Math.max(1, totalPistasNormais - totalPistasNormaisReveladas);
+    
+    const oponenteIndex = pistasEquipeVez === 0 ? 1 : 0;
+    
+    setPistasFluxoPalpite(null);
+    
+    if (acertou) {
+      playSound('victory');
+      const posFinal = Math.min(30, pistasPontuacao[pistasEquipeVez] + casasGanhas);
+      
+      moverPeaoGradual(pistasEquipeVez, posFinal, () => {
+        if (posFinal >= 30) {
+          finalizarPartidaPistas();
+          return;
+        }
+        alert(`🎉 Correto! ${pistasEquipeVez === 0 ? nomeJ1 : nomeJ2} acertou e avançou ${casasGanhas} casa(s) restantes!`);
+        avancarCartaPistas();
+      });
+      
+    } else {
+      playSound('error');
+      const posFinal = Math.min(30, pistasPontuacao[oponenteIndex] + casasGanhas);
+      
+      moverPeaoGradual(oponenteIndex, posFinal, () => {
+        if (posFinal >= 30) {
+          finalizarPartidaPistas();
+          return;
+        }
+        alert(`❌ Incorreto! A resposta estava errada. A equipe adversária (${oponenteIndex === 0 ? nomeJ1 : nomeJ2}) herdou os pontos e avançou ${casasGanhas} casa(s) restantes!`);
+        avancarCartaPistas();
+      });
+    }
+  };
+
+  const tratarEsgotamentoTempoPalpitePistas = () => {
+    if (pistasTimerIntRef.current) clearInterval(pistasTimerIntRef.current);
+    setPistasTimerSeg(null);
+    setPistasFluxoPalpite(null);
+    
+    playSound('error');
+    
+    const oponenteIndex = pistasEquipeVez === 0 ? 1 : 0;
+    const carta = pistasFila[cartaPistaAtual - 1] || cartasPistas[0];
+    const temBonus = carta && carta.pistaBonusIdx !== null && carta.pistaBonusIdx !== undefined;
+    const totalPistasNormais = temBonus ? 4 : 5;
+    const totalPistasNormaisReveladas = pistasReveladas.filter((rev, idx) => {
+      if (!rev) return false;
+      if (temBonus && idx === carta.pistaBonusIdx) return false;
+      return true;
+    }).length;
+    const casasGanhas = Math.max(1, totalPistasNormais - totalPistasNormaisReveladas);
+    
+    const posFinal = Math.min(30, pistasPontuacao[oponenteIndex] + casasGanhas);
+    
+    moverPeaoGradual(oponenteIndex, posFinal, () => {
+      if (posFinal >= 30) {
+        finalizarPartidaPistas();
+        return;
+      }
+      alert(`⏰ Tempo Esgotado! A equipe da vez não respondeu a tempo. A equipe adversária (${oponenteIndex === 0 ? nomeJ1 : nomeJ2}) herdou os pontos e avançou ${casasGanhas} casa(s) restantes!`);
+      avancarCartaPistas();
+    });
+  };
+
+  const iniciarTimerPalpitePistas = () => {
+    if (pistasTimerIntRef.current) clearInterval(pistasTimerIntRef.current);
+    setPistasTimerSeg(15); // 15 segundos regulamentares para resposta oral
+    pistasTimerIntRef.current = setInterval(() => {
+      setPistasTimerSeg(prev => {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          clearInterval(pistasTimerIntRef.current);
+          tratarEsgotamentoTempoPalpitePistas();
+          return 0;
+        }
+        if (prev <= 6) {
+          playSound('tick');
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const passarVezPistas = () => {
+    if (pistasEfeitoAtivo || pistasFluxoPalpite) return;
+    playSound('click');
+    const proximo = pistasEquipeVez === 0 ? 1 : 0;
+    setPistasEquipeVez(proximo);
+    setPistasVezPassada(true);
+  };
+
+  const avancarCartaPistas = () => {
+    setPistasFluxoPalpite(null);
+    if (pistasTimerIntRef.current) clearInterval(pistasTimerIntRef.current);
+    setPistasTimerSeg(null);
+    if (cartaPistaAtual >= pistasFila.length) {
+      finalizarPartidaPistas();
+    } else {
+      setCartaPistaAtual(prev => prev + 1);
+      setPistasReveladas([false, false, false, false, false]);
+      setPistasTentouAdivinhar([false, false]);
+      setPistasEfeitoAtivo(null);
+      setPistasVezPassada(false);
+      
+      // Alterna a vez de quem começa a rodada
+      setPistasEquipeVez(cartaPistaAtual % 2); 
+    }
+  };
+
+  const finalizarPartidaPistas = () => {
+    if (pistasTimerIntRef.current) clearInterval(pistasTimerIntRef.current);
+    setPistasTimerSeg(null);
+    playSound('victory');
+    setTela('pistas-fim');
+  };
+
   // --- RENDERS DE TELAS ---
 
   return (
     <div style={{ width: '100%' }}>
       {/* 1. TELA MENU */}
       <div id="tela-menu" className={`tela ${tela === 'menu' ? 'ativa' : ''}`}>
-        <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(124, 58, 237, 0.4))' }}>🏆</div>
-        <h1>Duelo na Sala</h1>
-        <p>Jogo de disputa interativo para duas equipes</p>
+        <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(124, 58, 237, 0.45))' }}>🏆</div>
+        <h1 style={{ textAlign: 'center' }}>Arena de Jogos</h1>
+        <p style={{ textAlign: 'center', marginBottom: '30px' }}>Selecione a modalidade que deseja jogar na sala de aula</p>
         
-        <button className="btn-menu btn-play" onClick={() => { setMateriasSelecionadas([]); irParaTela('selecao'); }}>
-          ▶ Jogar Duelo
-        </button>
-        <button className="btn-menu btn-outline" onClick={() => { setIaPergsGeradas([]); setIaFeedback(null); irParaTela('ia'); }}>
-          ✨ Gerar perguntas com IA
-        </button>
-        <button className="btn-menu btn-outline" onClick={() => { setFeedbackControles(null); setDetectMode(null); irParaTela('controles'); }}>
-          🎮 Configurar controles
-        </button>
-        <button className="btn-menu btn-outline" onClick={() => { setCadTab('manual'); irParaTela('cadastro'); }}>
-          ⚙️ Gerenciar perguntas
-        </button>
+        <div className="jogos-selecao-grid" style={{ width: '100%', maxWidth: '850px', margin: '0 auto 30px' }}>
+          {/* Card Duelo */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(79, 70, 229, 0.25)', boxShadow: '0 8px 32px rgba(79, 70, 229, 0.15)' }}>
+            <div>
+              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>⚔️</div>
+              <h3 style={{ fontSize: '1.4rem', color: '#60a5fa', marginBottom: '10px', fontFamily: 'Outfit' }}>Duelo na Sala</h3>
+              <p style={{ fontSize: '0.85rem', color: '#c4b5fd', lineHeight: '1.5' }}>
+                Responda rápido, ganhe pontos e use poderes (Bloqueio, 50/50, Pontos Duplos) usando o Gamepad ou controles na tela!
+              </p>
+            </div>
+            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%' }} onClick={() => { setMateriasSelecionadas([]); irParaTela('selecao'); }}>
+              ▶ Jogar Duelo
+            </button>
+          </div>
+
+          {/* Card Três Pistas */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(139, 92, 246, 0.25)', boxShadow: '0 8px 32px rgba(139, 92, 246, 0.15)' }}>
+            <div>
+              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>🗺️</div>
+              <h3 style={{ fontSize: '1.4rem', color: '#ec4899', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo das Três Pistas</h3>
+              <p style={{ fontSize: '0.85rem', color: '#f472b6', lineHeight: '1.5' }}>
+                Jogo clássico de tabuleiro estilo Perfil. Revele até 5 pistas, movimente seus peões de 1 a 30 e tome cuidado com bônus e penalidades!
+              </p>
+            </div>
+            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #ec4899, #7c3aed)', boxShadow: '0 8px 30px rgba(236, 72, 153, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('pistas-nomes'); }}>
+              ▶ Jogar Três Pistas
+            </button>
+          </div>
+        </div>
+
+        {/* Opções utilitárias inferiores */}
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: '850px' }}>
+          <button className="btn-menu btn-outline" style={{ flex: '1 1 200px', fontSize: '0.9rem', padding: '12px 20px' }} onClick={() => { setIaPergsGeradas([]); setIaFeedback(null); irParaTela('ia'); }}>
+            ✨ Gerar com IA
+          </button>
+          <button className="btn-menu btn-outline" style={{ flex: '1 1 200px', fontSize: '0.9rem', padding: '12px 20px' }} onClick={() => { setFeedbackControles(null); setDetectMode(null); irParaTela('controles'); }}>
+            🎮 Controles Gamepad
+          </button>
+          <button className="btn-menu btn-outline" style={{ flex: '1 1 200px', fontSize: '0.9rem', padding: '12px 20px' }} onClick={() => { setCadTab('manual'); irParaTela('cadastro'); }}>
+            ⚙️ Gerenciar Conteúdo
+          </button>
+        </div>
       </div>
 
       {/* 2. TELA GERADOR IA */}
@@ -1714,6 +2350,22 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
           <button className="btn-volta" onClick={() => irParaTela('menu')}>← Voltar ao Menu</button>
           <h2 style={{ fontSize: '1.6rem', fontWeight: 900 }}>✨ Gerar perguntas com IA</h2>
+        </div>
+
+        {/* Abas superiores do gerador de IA */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <button 
+            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: iaAba === 'duelo' ? '#4f46e5' : 'transparent', color: iaAba === 'duelo' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            onClick={() => { setIaAba('duelo'); setIaFeedback(null); }}
+          >
+            ⚔️ Perguntas de Duelo
+          </button>
+          <button 
+            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: iaAba === 'pistas' ? '#7c3aed' : 'transparent', color: iaAba === 'pistas' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            onClick={() => { setIaAba('pistas'); if (iaQtd > 10) setIaQtd(10); setIaFeedback(null); }}
+          >
+            🗺️ Cartas de Três Pistas
+          </button>
         </div>
 
         <div className="card">
@@ -1856,39 +2508,46 @@ export default function App() {
             }}
           />
 
-          <label style={{ marginTop: '14px' }}>Quantidade de perguntas: <span className="range-val">{iaQtd}</span></label>
+          <label style={{ marginTop: '14px' }}>
+            {iaAba === 'pistas' ? 'Quantidade de cartas a gerar: ' : 'Quantidade de perguntas: '} 
+            <span className="range-val">{iaQtd > (iaAba === 'pistas' ? 10 : 20) ? (iaAba === 'pistas' ? 10 : 20) : iaQtd}</span>
+          </label>
           <div className="range-group">
             <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>1</span>
             <input 
               type="range" 
               id="ia-qtd" 
               min="1" 
-              max="20" 
-              value={iaQtd} 
+              max={iaAba === 'pistas' ? 10 : 20} 
+              value={iaQtd > (iaAba === 'pistas' ? 10 : 20) ? (iaAba === 'pistas' ? 10 : 20) : iaQtd} 
               onChange={(e) => setIaQtd(Number(e.target.value))}
             />
-            <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>20</span>
+            <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>{iaAba === 'pistas' ? 10 : 20}</span>
           </div>
 
-          <label style={{ marginTop: '14px' }}>Tipos de Pergunta Desejados</label>
-          <div style={{ display: 'flex', gap: '12px', marginTop: '6px', flexWrap: 'wrap' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, cursor: 'pointer', fontSize: '0.9rem' }}>
-              <input type="checkbox" checked={iaTipoMC} onChange={(e) => setIaTipoMC(e.target.checked)} style={{ width: 'auto' }} />
-              <span className="ia-chip ia-chip-mc">Múltipla escolha</span>
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, cursor: 'pointer', fontSize: '0.9rem' }}>
-              <input type="checkbox" checked={iaTipoVF} onChange={(e) => setIaTipoVF(e.target.checked)} style={{ width: 'auto' }} />
-              <span className="ia-chip ia-chip-vf">Verdadeiro/Falso</span>
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, cursor: 'pointer', fontSize: '0.9rem' }}>
-              <input type="checkbox" checked={iaTipoVel} onChange={(e) => setIaTipoVel(e.target.checked)} style={{ width: 'auto' }} />
-              <span className="ia-chip ia-chip-vel">Velocidade</span>
-            </label>
-          </div>
+          {iaAba === 'duelo' && (
+            <>
+              <label style={{ marginTop: '14px' }}>Tipos de Pergunta Desejados</label>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '6px', flexWrap: 'wrap' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, cursor: 'pointer', fontSize: '0.9rem' }}>
+                  <input type="checkbox" checked={iaTipoMC} onChange={(e) => setIaTipoMC(e.target.checked)} style={{ width: 'auto' }} />
+                  <span className="ia-chip ia-chip-mc">Múltipla escolha</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, cursor: 'pointer', fontSize: '0.9rem' }}>
+                  <input type="checkbox" checked={iaTipoVF} onChange={(e) => setIaTipoVF(e.target.checked)} style={{ width: 'auto' }} />
+                  <span className="ia-chip ia-chip-vf">Verdadeiro/Falso</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, cursor: 'pointer', fontSize: '0.9rem' }}>
+                  <input type="checkbox" checked={iaTipoVel} onChange={(e) => setIaTipoVel(e.target.checked)} style={{ width: 'auto' }} />
+                  <span className="ia-chip ia-chip-vel">Velocidade</span>
+                </label>
+              </div>
+            </>
+          )}
 
           <div style={{ marginTop: '24px', textAlign: 'center' }}>
             <button className="btn-ia" onClick={gerarPerguntasIA} disabled={iaLoading}>
-              {iaLoading ? <><span className="ia-spinner"></span> Gerando...</> : '✨ Gerar perguntas com IA'}
+              {iaLoading ? <><span className="ia-spinner"></span> Gerando...</> : (iaAba === 'pistas' ? '✨ Gerar cartas com IA' : '✨ Gerar perguntas com IA')}
             </button>
           </div>
 
@@ -1943,6 +2602,71 @@ export default function App() {
               </button>
               <button className="btn-importar" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => confirmarImportacaoIA('sub')}>
                 ⬆ Substituir banco completo
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Preview das cartas de pistas da IA */}
+        {iaPistasGeradas.length > 0 && (
+          <div className="card" id="ia-pistas-resultado" style={{ marginTop: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'space-between', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div className="sec" style={{ margin: 0 }}>Cartas de Três Pistas Formuladas pela IA</div>
+              <div className="ia-counter" style={{ background: '#7c3aed', color: '#fff', padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                {iaPistasGeradas.length} carta(s) prontas
+              </div>
+            </div>
+            
+            <div id="ia-lista-pistas-preview" style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '6px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {iaPistasGeradas.map((c, i) => (
+                <div key={i} className="ia-perg-preview" style={{ borderLeft: '4px solid #7c3aed', padding: '16px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '0.9rem', color: '#a78bfa', fontWeight: 800 }}>Carta #{i + 1}</span>
+                    <span style={{ background: 'rgba(124, 58, 237, 0.2)', color: '#c4b5fd', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                      📂 {c.cat}
+                    </span>
+                  </div>
+                  
+                  <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#10b981', marginBottom: '12px' }}>
+                    🔑 Segredo/Resposta: {c.resp}
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '8px' }}>
+                    {c.pistas.map((p, pi) => (
+                      <div key={pi} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.9rem', background: 'rgba(255,255,255,0.01)', padding: '8px', borderRadius: '6px' }}>
+                        <span style={{ fontWeight: 'bold', color: '#8b5cf6', minWidth: '70px' }}>Pista {pi + 1}:</span>
+                        <span style={{ flex: 1, color: '#e5e7eb' }}>{p.txt}</span>
+                        {p.efeito && (
+                          <span style={{ 
+                            fontSize: '0.75rem', 
+                            padding: '2px 6px', 
+                            borderRadius: '4px', 
+                            fontWeight: 'bold',
+                            background: p.efeito.includes('recue') ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                            color: p.efeito.includes('recue') ? '#f87171' : '#34d399'
+                          }}>
+                            {p.efeito === 'avance_1' && '⚡ Avance 1'}
+                            {p.efeito === 'avance_2' && '🔥 Avance 2'}
+                            {p.efeito === 'recue_1' && '⚠️ Recue 1'}
+                            {p.efeito === 'recue_2' && '💥 Recue 2'}
+                            {p.efeito === 'oponente_avance_1' && '🎁 Adv. Avance 1'}
+                            {p.efeito === 'oponente_recue_1' && '🎯 Adv. Recue 1'}
+                            {p.efeito === 'oponente_recue_2' && '⚡ Adv. Recue 2'}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
+              <button className="btn-importar" style={{ background: 'linear-gradient(90deg, #7c3aed, #4f46e5)' }} onClick={() => confirmarImportacaoPistasIA('add')}>
+                ➕ Adicionar ao Banco de Cartas
+              </button>
+              <button className="btn-importar" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => confirmarImportacaoPistasIA('sub')}>
+                ⬆ Substituir Banco de Cartas Completo
               </button>
             </div>
           </div>
@@ -2046,12 +2770,30 @@ export default function App() {
 
       {/* 4. TELA CADASTRO */}
       <div id="tela-cadastro" className={`tela ${tela === 'cadastro' ? 'ativa' : ''}`}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
           <button className="btn-volta" onClick={() => irParaTela('menu')}>← Voltar ao Menu</button>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: 900 }}>⚙️ Gerenciar Matérias e Perguntas</h2>
+          <h2 style={{ fontSize: '1.6rem', fontWeight: 900 }}>⚙️ Gerenciar Conteúdo do Jogo</h2>
         </div>
 
-        <div className="tabs">
+        {/* Abas superiores do gerenciador geral */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <button 
+            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'duelo' ? '#4f46e5' : 'transparent', color: cadGerenciadorAba === 'duelo' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            onClick={() => setCadGerenciadorAba('duelo')}
+          >
+            ⚔️ Perguntas do Duelo
+          </button>
+          <button 
+            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'pistas' ? '#7c3aed' : 'transparent', color: cadGerenciadorAba === 'pistas' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            onClick={() => setCadGerenciadorAba('pistas')}
+          >
+            🗺️ Cartas de Três Pistas
+          </button>
+        </div>
+
+        {cadGerenciadorAba === 'duelo' ? (
+          <>
+            <div className="tabs">
           <button className={`tab ${cadTab === 'manual' ? 'ativa' : ''}`} onClick={() => setCadTab('manual')}>✏️ Manual</button>
           <button className={`tab ${cadTab === 'importar' ? 'ativa' : ''}`} onClick={() => setCadTab('importar')}>📥 Importar Planilha</button>
           <button className={`tab ${cadTab === 'lista' ? 'ativa' : ''}`} onClick={() => setCadTab('lista')}>📋 Perguntas ({perguntas.length})</button>
@@ -2486,6 +3228,122 @@ export default function App() {
             </div>
           );
         })()}
+          </>
+        ) : (
+          /* GERENCIADOR DO JOGO DAS TRÊS PISTAS */
+          <div className="tab-panel ativa">
+            <div className="card">
+              <div className="sec">➕ Cadastrar Carta de Três Pistas</div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div>
+                  <label>Categoria</label>
+                  <input 
+                    placeholder="Ex: Pessoa, Lugar, Animal, Coisa, Ano..." 
+                    value={cadPistasCat}
+                    onChange={(e) => setCadPistasCat(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label>Resposta / Segredo</label>
+                  <input 
+                    placeholder="Ex: Albert Einstein, Paris, Celular..." 
+                    value={cadPistasResp}
+                    onChange={(e) => setCadPistasResp(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* 5 inputs para as pistas */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {Array.from({ length: 5 }).map((_, idx) => (
+                  <div key={idx} style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#a78bfa' }}>Pista {idx + 1} (Vale {5 - idx} casas)</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
+                      <input 
+                        placeholder={`Digite a pista ${idx + 1}...`}
+                        value={cadPistasTextos[idx]}
+                        onChange={(e) => {
+                          const novosTextos = [...cadPistasTextos];
+                          novosTextos[idx] = e.target.value;
+                          setCadPistasTextos(novosTextos);
+                        }}
+                      />
+                      <select 
+                        value={cadPistasEfeitos[idx] || ''}
+                        onChange={(e) => {
+                          const novosEfeitos = [...cadPistasEfeitos];
+                          novosEfeitos[idx] = e.target.value || null;
+                          setCadPistasEfeitos(novosEfeitos);
+                        }}
+                        style={{ fontSize: '0.85rem' }}
+                      >
+                        <option value="">Nenhum Efeito</option>
+                        <option value="avance_1">✨ Avance 1 casa</option>
+                        <option value="avance_2">🔥 Avance 2 casas (Super)</option>
+                        <option value="recue_1">⚠️ Recue 1 casa</option>
+                        <option value="recue_2">💥 Recue 2 casas (Armadilha)</option>
+                        <option value="oponente_avance_1">🎁 Oponente avance 1 casa</option>
+                        <option value="oponente_recue_1">🎯 Oponente recue 1 casa</option>
+                        <option value="oponente_recue_2">⚡ Oponente recue 2 casas</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button 
+                className="btn-ac btn-add" 
+                style={{ width: '100%', marginTop: '20px', background: 'linear-gradient(90deg, #7c3aed, #4f46e5)', padding: '14px' }}
+                onClick={adicionarCartaPistasManual}
+              >
+                🗺️ Salvar Carta de Pistas
+              </button>
+            </div>
+
+            {/* Listagem de Cartas Salvas */}
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div className="sec" style={{ margin: 0 }}>Cartas no Banco ({cartasPistas.length})</div>
+                <button 
+                  className="btn-del" 
+                  onClick={() => {
+                    if (window.confirm('Deseja realmente restaurar as cartas padrão e apagar todas as customizadas?')) {
+                      setCartasPistas(PISTAS_PADRAO);
+                    }
+                  }}
+                >
+                  🔄 Restaurar Padrão
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }}>
+                {cartasPistas.length === 0 ? (
+                  <div className="lista-vazia">Nenhuma carta de pistas cadastrada.</div>
+                ) : (
+                  cartasPistas.map((c, i) => (
+                    <div key={i} className="item-row">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                        <span className="badge" style={{ background: 'rgba(124, 58, 237, 0.15)', color: '#a78bfa', fontSize: '0.75rem', padding: '2px 8px' }}>
+                          🔍 {c.cat}
+                        </span>
+                        <strong style={{ fontSize: '0.9rem', color: '#e5e7eb', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                          {c.resp}
+                        </strong>
+                        <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>
+                          ({c.pistas.filter(p => p.efeito).length} efeito(s))
+                        </span>
+                      </div>
+                      <button className="btn-del" onClick={() => deletarCartaPistas(i)}>✕</button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 5. TELA SELEÇÃO DE MATÉRIA */}
@@ -3235,6 +4093,67 @@ export default function App() {
                   <div className="perg-txt"><MathText text={fila[rodAtual - 1].txt} /></div>
                 </div>
 
+                {/* PAINEL DE FEEDBACK DE FIM DE RODADA / TEMPO ESGOTADO */}
+                {rodDescanso && (
+                  <div className="card" style={{ 
+                    background: 'rgba(22, 33, 62, 0.75)', 
+                    border: '2px solid rgba(139, 92, 246, 0.4)', 
+                    borderRadius: '16px', 
+                    padding: '20px', 
+                    textAlign: 'center', 
+                    marginBottom: '16px',
+                    animation: 'fadeIn 0.4s ease-out',
+                    boxShadow: '0 8px 32px rgba(124, 58, 237, 0.25)'
+                  }}>
+                    {((fila[rodAtual - 1].tipo === 'veloc' ? velocBateu === null : (respJ[0] === null && respJ[1] === null))) ? (
+                      <div>
+                        <h3 style={{ fontSize: '1.6rem', color: '#f87171', margin: '0 0 10px 0', fontWeight: '900' }}>
+                          ⏰ TEMPO ESGOTADO!
+                        </h3>
+                        <p style={{ color: '#c4b5fd', fontSize: '1.05rem', margin: '0 0 16px 0' }}>
+                          Ninguém respondeu a tempo e ninguém pontuou nesta rodada.
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <h3 style={{ fontSize: '1.6rem', color: '#34d399', margin: '0 0 10px 0', fontWeight: '900' }}>
+                          🏁 RODADA CONCLUÍDA!
+                        </h3>
+                        <p style={{ color: '#c4b5fd', fontSize: '1.05rem', margin: '0 0 16px 0' }}>
+                          Veja abaixo o desempenho e a resposta certa.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Resposta Correta destacada */}
+                    <div style={{ 
+                      background: 'rgba(16, 185, 129, 0.1)', 
+                      border: '2px solid #10b981', 
+                      borderRadius: '12px', 
+                      padding: '14px 28px', 
+                      display: 'inline-block',
+                      boxShadow: '0 0 20px rgba(16, 185, 129, 0.2)',
+                      animation: 'pulse 1.5s infinite alternate'
+                    }}>
+                      <span style={{ fontSize: '0.85rem', color: '#a7f3d0', display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                        🟢 Resposta Correta:
+                      </span>
+                      <strong style={{ fontSize: '1.6rem', color: '#10b981', fontFamily: 'Outfit, sans-serif' }}>
+                        {fila[rodAtual - 1].tipo === 'mc' ? (
+                          <>
+                            <span style={{ marginRight: '8px' }}>{KAHOOT[fila[rodAtual - 1].resp]?.label || ''}</span>
+                            <MathText text={fila[rodAtual - 1].alts[fila[rodAtual - 1].resp] || fila[rodAtual - 1].resp || ''} />
+                          </>
+                        ) : fila[rodAtual - 1].tipo === 'vf' ? (
+                          fila[rodAtual - 1].resp === 'v' ? '🔵 Verdadeiro' : '🔴 Falso'
+                        ) : (
+                          <MathText text={fila[rodAtual - 1].resp || ''} />
+                        )}
+                      </strong>
+                    </div>
+                  </div>
+                )}
+
                 {/* ÁREA DE RESPOSTA ATIVA */}
                 <div id="arena" style={{ margin: '10px 0' }}>
                   {/* CASO 1: MÚLTIPLA ESCOLHA */}
@@ -3314,32 +4233,38 @@ export default function App() {
                   {fila[rodAtual - 1].tipo === 'veloc' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
                       {velocBateu === null ? (
-                        <div style={{ display: 'flex', gap: '16px' }}>
-                          <button 
-                            className="btn-veloc-grande bvg-j1" 
-                            onClick={() => baterVelocidade(0)}
-                            disabled={efeitosRodada.bloqueado === 0}
-                            style={{ 
-                              opacity: efeitosRodada.bloqueado === 0 ? 0.3 : 1, 
-                              cursor: efeitosRodada.bloqueado === 0 ? 'not-allowed' : 'pointer',
-                              filter: efeitosRodada.bloqueado === 0 ? 'grayscale(1)' : 'none'
-                            }}
-                          >
-                            🔵 {nomeJ1} bater!
-                          </button>
-                          <button 
-                            className="btn-veloc-grande bvg-j2" 
-                            onClick={() => baterVelocidade(1)}
-                            disabled={efeitosRodada.bloqueado === 1}
-                            style={{ 
-                              opacity: efeitosRodada.bloqueado === 1 ? 0.3 : 1, 
-                              cursor: efeitosRodada.bloqueado === 1 ? 'not-allowed' : 'pointer',
-                              filter: efeitosRodada.bloqueado === 1 ? 'grayscale(1)' : 'none'
-                            }}
-                          >
-                            🩷 {nomeJ2} bater!
-                          </button>
-                        </div>
+                        !rodDescanso ? (
+                          <div style={{ display: 'flex', gap: '16px' }}>
+                            <button 
+                              className="btn-veloc-grande bvg-j1" 
+                              onClick={() => baterVelocidade(0)}
+                              disabled={efeitosRodada.bloqueado === 0}
+                              style={{ 
+                                opacity: efeitosRodada.bloqueado === 0 ? 0.3 : 1, 
+                                cursor: efeitosRodada.bloqueado === 0 ? 'not-allowed' : 'pointer',
+                                filter: efeitosRodada.bloqueado === 0 ? 'grayscale(1)' : 'none'
+                              }}
+                            >
+                              🔵 {nomeJ1} bater!
+                            </button>
+                            <button 
+                              className="btn-veloc-grande bvg-j2" 
+                              onClick={() => baterVelocidade(1)}
+                              disabled={efeitosRodada.bloqueado === 1}
+                              style={{ 
+                                opacity: efeitosRodada.bloqueado === 1 ? 0.3 : 1, 
+                                cursor: efeitosRodada.bloqueado === 1 ? 'not-allowed' : 'pointer',
+                                filter: efeitosRodada.bloqueado === 1 ? 'grayscale(1)' : 'none'
+                              }}
+                            >
+                              🩷 {nomeJ2} bater!
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="msg-ok" style={{ width: 'fit-content', margin: '0 auto', background: 'rgba(239, 68, 68, 0.15)', color: '#fca5a5', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                            Tempo limite esgotado antes de qualquer batida.
+                          </div>
+                        )
                       ) : (
                         <div className="card" style={{ border: '2px solid #fb923c', background: 'rgba(245, 158, 11, 0.05)', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
                           <h3 style={{ fontSize: '1.6rem', color: '#fb923c', margin: 0 }}>
@@ -3402,11 +4327,11 @@ export default function App() {
               {/* STATUS DOS JOGADORES NA RODADA */}
               {fila[rodAtual - 1].tipo !== 'veloc' && (
                 <div className="status-jogadores">
-                  <div className={`sj-card ${efeitosRodada.bloqueado === 0 ? 'bloqueado' : respJ[0] !== null ? 'respondeu' : 'aguardando'}`}>
-                    🔵 {nomeJ1}: {efeitosRodada.bloqueado === 0 ? '🚫 BLOQUEADO!' : respJ[0] !== null ? (rodDescanso ? `Escolheu ${fila[rodAtual - 1].tipo === 'mc' ? KAHOOT[respJ[0]].name : respJ[0] === 'v' ? 'Verdadeiro' : 'Falso'}` : 'Pronto!') : 'Aguardando...'}
+                  <div className={`sj-card ${efeitosRodada.bloqueado === 0 ? 'bloqueado' : respJ[0] !== null ? 'respondeu' : rodDescanso ? 'bloqueado' : 'aguardando'}`}>
+                    🔵 {nomeJ1}: {efeitosRodada.bloqueado === 0 ? '🚫 BLOQUEADO!' : respJ[0] !== null ? (rodDescanso ? `Escolheu ${fila[rodAtual - 1].tipo === 'mc' ? (KAHOOT[respJ[0]]?.name || respJ[0]) : respJ[0] === 'v' ? 'Verdadeiro' : 'Falso'}` : 'Pronto!') : (rodDescanso ? '❌ Não respondeu!' : 'Aguardando...')}
                   </div>
-                  <div className={`sj-card ${efeitosRodada.bloqueado === 1 ? 'bloqueado' : respJ[1] !== null ? 'respondeu' : 'aguardando'}`}>
-                    🩷 {nomeJ2}: {efeitosRodada.bloqueado === 1 ? '🚫 BLOQUEADO!' : respJ[1] !== null ? (rodDescanso ? `Escolheu ${fila[rodAtual - 1].tipo === 'mc' ? KAHOOT[respJ[1]].name : respJ[1] === 'v' ? 'Verdadeiro' : 'Falso'}` : 'Pronto!') : 'Aguardando...'}
+                  <div className={`sj-card ${efeitosRodada.bloqueado === 1 ? 'bloqueado' : respJ[1] !== null ? 'respondeu' : rodDescanso ? 'bloqueado' : 'aguardando'}`}>
+                    🩷 {nomeJ2}: {efeitosRodada.bloqueado === 1 ? '🚫 BLOQUEADO!' : respJ[1] !== null ? (rodDescanso ? `Escolheu ${fila[rodAtual - 1].tipo === 'mc' ? (KAHOOT[respJ[1]]?.name || respJ[1]) : respJ[1] === 'v' ? 'Verdadeiro' : 'Falso'}` : 'Pronto!') : (rodDescanso ? '❌ Não respondeu!' : 'Aguardando...')}
                   </div>
                 </div>
               )}
@@ -3468,6 +4393,457 @@ export default function App() {
         <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '10px' }}>
           <button className="btn-start" onClick={iniciarJogoDuelo}>
             Jogar novamente 🔄
+          </button>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('menu')}>
+            Voltar ao Menu 🏠
+          </button>
+        </div>
+      </div>
+
+      {/* 9. TELA CONFIGURAÇÃO DE NOMES TRÊS PISTAS */}
+      <div id="tela-pistas-nomes" className={`tela ${tela === 'pistas-nomes' ? 'ativa' : ''}`} style={{ alignItems: 'center', textAlign: 'center' }}>
+        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'flex-start' }}>← Voltar ao Menu</button>
+        <div style={{ fontSize: '4rem', filter: 'drop-shadow(0 0 25px rgba(236, 72, 153, 0.45))', margin: '20px 0', width: '100%' }}>🗺️</div>
+        <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%' }}>Configurar Equipes (Três Pistas)</h2>
+        <p style={{ color: '#c4b5fd', fontSize: '1.05rem', textAlign: 'center', width: '100%', marginTop: '4px' }}>Informe o nome das duas equipes rivais que disputarão o tabuleiro</p>
+
+        <div className="dupla" style={{ margin: '30px auto', width: '100%', maxWidth: '600px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
+          <div className="jcard j1" style={{ flex: 1 }}>
+            <h3>🔵 Equipe 1</h3>
+            <input 
+              value={nomeJ1}
+              onChange={(e) => setNomeJ1(e.target.value)}
+              placeholder="Ex: Equipe Azul"
+            />
+          </div>
+          <div className="jcard j2" style={{ flex: 1 }}>
+            <h3>🩷 Equipe 2</h3>
+            <input 
+              value={nomeJ2}
+              onChange={(e) => setNomeJ2(e.target.value)}
+              placeholder="Ex: Equipe Rosa"
+            />
+          </div>
+        </div>
+
+        {/* Painel de Configuração do Número de Rodadas */}
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '0 auto 24px', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'left', border: '1px solid rgba(236, 72, 153, 0.15)' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f472b6', marginBottom: '10px', borderLeft: '3px solid #ec4899', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            ⚙️ Duração da Partida (Número de Rodadas)
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontSize: '0.88rem', color: '#c4b5fd', fontWeight: 'bold' }}>
+              Quantidade de cartas/rodadas: <span style={{ color: '#fb923c', fontSize: '1.05rem' }}>{pistasQtdRodadas} rodada(s)</span>
+            </span>
+            <input 
+              type="range" 
+              min="1" 
+              max={Math.max(1, cartasPistas.length)} 
+              step="1"
+              value={pistasQtdRodadas}
+              onChange={(e) => setPistasQtdRodadas(Number(e.target.value))}
+              style={{ accentColor: '#ec4899', height: '6px', background: 'rgba(255, 255, 255, 0.1)', border: 'none', cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontStyle: 'italic' }}>
+              * Selecione quantas cartas de pistas aleatórias serão sorteadas da pool total do banco de dados (máximo de {cartasPistas.length} cadastradas).
+            </span>
+          </div>
+        </div>
+
+        <button className="btn-start" style={{ width: '100%', maxWidth: '300px', padding: '14px 28px', background: 'linear-gradient(90deg, #ec4899, #7c3aed)', boxShadow: '0 8px 30px rgba(236, 72, 153, 0.45)', margin: '10px auto' }} onClick={iniciarPartidaPistas}>
+          Iniciar Partida 🚀
+        </button>
+      </div>
+
+      {/* 10. ARENA DO JOGO DAS TRÊS PISTAS */}
+      <div id="tela-pistas-jogo" className={`tela ${tela === 'pistas-jogo' ? 'ativa' : ''}`} style={{ alignItems: 'center' }}>
+        {/* Popups e Efeitos de Tabuleiro das Três Pistas */}
+        {pistasEfeitoAtivo && (
+          <div 
+            className="efeito-popup"
+            style={{ 
+              position: 'fixed', 
+              top: '50%', 
+              left: '50%', 
+              transform: 'translate(-50%, -50%)', 
+              zIndex: 9999,
+              background: pistasEfeitoAtivo.tipo === 'bonus' ? 'rgba(16, 185, 129, 0.95)' : 'rgba(220, 38, 38, 0.95)',
+              border: '3px solid #fff',
+              borderRadius: '20px',
+              padding: '24px 40px',
+              boxShadow: '0 0 50px rgba(255,255,255,0.4)',
+              textAlign: 'center',
+              color: '#ffffff',
+              animation: 'bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+              pointerEvents: 'none'
+            }}
+          >
+            <div style={{ fontSize: '3rem', marginBottom: '8px' }}>
+              {pistasEfeitoAtivo.tipo === 'bonus' ? '🔥' : '💥'}
+            </div>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 900, fontFamily: 'Outfit' }}>
+              {pistasEfeitoAtivo.desc}
+            </h2>
+          </div>
+        )}
+
+        <div className="jogo-inner" style={{ maxWidth: '950px' }}>
+          {/* Cabeçalho com Placar e Posições */}
+          <div className="placar-bar" style={{ width: '100%', marginBottom: '16px' }}>
+            <div className="pl-bloco pl-j1">
+              <div className="pl-nome">🔵 {nomeJ1}</div>
+              <div className="pl-pts">Casa {pistasPontuacao[0]} / 30</div>
+            </div>
+            <div className="rod-info">
+              Três Pistas 🗺️
+            </div>
+            <div className="pl-bloco pl-j2">
+              <div className="pl-nome">🩷 {nomeJ2}</div>
+              <div className="pl-pts">Casa {pistasPontuacao[1]} / 30</div>
+            </div>
+          </div>
+
+          {/* Wrapper Layout Lado a Lado (PC) / Empilhado (Celular) */}
+          <div className="pistas-layout">
+            
+            {/* Coluna do Tabuleiro */}
+            <div id="pistas-tabuleiro-container" className="pistas-col-tabuleiro">
+              <div style={{ fontSize: '0.9rem', color: '#a78bfa', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px', textAlign: 'center' }}>
+                🗺️ Tabuleiro (1 a 30)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))', gap: '6px', width: '100%' }}>
+                {Array.from({ length: 30 }, (_, idx) => {
+                  const casa = idx + 1;
+                  const temJ1 = pistasPontuacao[0] === casa;
+                  const temJ2 = pistasPontuacao[1] === casa;
+                  return (
+                    <div 
+                      key={casa} 
+                      className="tab-casa"
+                      style={{ 
+                        height: '60px', 
+                        borderRadius: '8px', 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        position: 'relative',
+                        background: casa === 30 ? 'linear-gradient(135deg, #f59e0b, #d97706)' : casa % 2 === 0 ? 'rgba(30, 41, 59, 0.6)' : 'rgba(15, 23, 42, 0.6)', 
+                        border: casa === 30 ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.08)',
+                        color: casa === 30 ? '#000' : '#e5e7eb',
+                        fontWeight: 'bold',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      {casa === 30 ? '🏁 30' : casa}
+                      <div style={{ display: 'flex', gap: '4px', position: 'absolute', bottom: '4px' }}>
+                        {temJ1 && <span className="peon" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#3b82f6', border: '1.5px solid #fff', boxShadow: '0 0 8px #3b82f6' }} title={nomeJ1}></span>}
+                        {temJ2 && <span className="peon" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ec4899', border: '1.5px solid #fff', boxShadow: '0 0 8px #ec4899' }} title={nomeJ2}></span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Coluna do Conteúdo do Jogo (Pistas e Moderação) */}
+            <div className="pistas-col-conteudo">
+              {(() => {
+                const carta = pistasFila[cartaPistaAtual - 1] || cartasPistas[0];
+                if (!carta) return (
+                  <div className="card text-center" style={{ width: '100%' }}>
+                    <p>Nenhuma carta de pistas carregada. Por favor reinicie o jogo.</p>
+                    <button className="btn-prox" onClick={() => irParaTela('menu')}>Voltar ao Menu</button>
+                  </div>
+                );
+                
+                return (
+                  <div className="card" style={{ width: '100%', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 12px 40px rgba(0,0,0,0.4)', background: 'rgba(22, 33, 62, 0.55)', padding: '24px', margin: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px', marginBottom: '20px' }}>
+                      <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fcd34d', letterSpacing: '0.5px' }}>
+                        🔍 CATEGORIA: <span style={{ textTransform: 'uppercase', color: '#fff' }}>{carta.cat}</span>
+                      </span>
+                      <span className="badge" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#a78bfa' }}>
+                        Carta {cartaPistaAtual} de {pistasFila.length || cartasPistas.length}
+                      </span>
+                    </div>
+                    
+                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                      <div style={{ fontSize: '0.85rem', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 'bold' }}>Equipe da Vez:</div>
+                      <div style={{ fontSize: '1.6rem', fontWeight: 900, color: pistasEquipeVez === 0 ? '#60a5fa' : '#f472b6', textShadow: '0 2px 10px rgba(0,0,0,0.3)', marginTop: '4px' }}>
+                        {pistasEquipeVez === 0 ? `🔵 ${nomeJ1}` : `🩷 ${nomeJ2}`}
+                      </div>
+                    </div>
+
+                    {/* Grid das 5 Pistas */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                      {carta.pistas.map((p, idx) => {
+                        const revelada = pistasReveladas[idx];
+                        const isPistaBonus = carta.pistaBonusIdx === idx;
+                        
+                        return (
+                          <div 
+                            key={idx}
+                            style={{ 
+                              background: revelada ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.25)', 
+                              border: revelada ? '1px solid rgba(167, 139, 250, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
+                              borderRadius: '12px',
+                              padding: '14px 18px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '16px',
+                              transition: 'all 0.25s ease'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                              <span style={{ 
+                                width: '32px', 
+                                height: '32px', 
+                                borderRadius: '50%', 
+                                background: revelada ? '#7c3aed' : 'rgba(255,255,255,0.06)', 
+                                color: '#fff', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                fontWeight: 'bold',
+                                fontSize: '0.85rem',
+                                flexShrink: 0
+                              }}>
+                                {idx + 1}
+                              </span>
+                              
+                              {revelada ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, minWidth: 0 }}>
+                                  {isPistaBonus ? (
+                                    <span style={{ fontSize: '1rem', color: '#fbbf24', fontWeight: 'bold' }}>
+                                      🎁 BÔNUS SECRETO REVELADO! (Efeito de Tabuleiro Ativado)
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontSize: '1rem', color: '#ffffff', lineHeight: '1.4' }}>
+                                      <MathText text={p.txt} />
+                                    </span>
+                                  )}
+                                  {/* Caso a pista normal tenha efeito customizado */}
+                                  {!isPistaBonus && p.efeito && (
+                                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: p.efeito.includes('oponente') ? '#ef4444' : p.efeito.includes('recue') ? '#fca5a5' : '#4ade80' }}>
+                                      {p.efeito === 'avance_1' && '✨ Efeito: Avance 1 casa!'}
+                                      {p.efeito === 'avance_2' && '🔥 Super Bônus: Avance 2 casas!'}
+                                      {p.efeito === 'recue_1' && '⚠️ Efeito: Recue 1 casa!'}
+                                      {p.efeito === 'recue_2' && '💥 Efeito: Recue 2 casas!'}
+                                      {p.efeito === 'oponente_avance_1' && '🎁 Efeito: Oponente avance 1 casa!'}
+                                      {p.efeito === 'oponente_recue_1' && '🎯 Efeito: Oponente recue 1 casa!'}
+                                      {p.efeito === 'oponente_recue_2' && '⚡ Efeito: Oponente recue 2 casas!'}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '0.95rem', color: '#6b7280', fontStyle: 'italic' }}>
+                                  🔍 Pista de Dica Oculta...
+                                </span>
+                              )}
+                            </div>
+                            
+                            {!revelada && (
+                              <button 
+                                className="btn-ac btn-add" 
+                                style={{ padding: '8px 16px', fontSize: '0.82rem', borderRadius: '8px', flexShrink: 0, background: '#4f46e5' }}
+                                onClick={() => revelarPista(idx)}
+                              >
+                                👁️ Revelar Pista
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Ações de Moderação */}
+                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center', width: '100%' }}>
+                      <div style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 'bold', letterSpacing: '0.5px' }}>PAINEL DO PROFESSOR / MODERADOR:</div>
+                      
+                      {(() => {
+                        const temBonus = carta.pistaBonusIdx !== null && carta.pistaBonusIdx !== undefined;
+                        const totalPistasNormais = temBonus ? 4 : 5;
+                        const totalPistasNormaisReveladas = pistasReveladas.filter((rev, idx) => {
+                          if (!rev) return false;
+                          if (temBonus && idx === carta.pistaBonusIdx) return false;
+                          return true;
+                        }).length;
+                        const casasAtuais = Math.max(1, totalPistasNormais - totalPistasNormaisReveladas);
+                        
+                        if (pistasFluxoPalpite === null) {
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', alignItems: 'center' }}>
+                              <div style={{ fontSize: '0.9rem', color: '#fb923c', fontWeight: 'bold', background: 'rgba(245,158,11,0.08)', padding: '6px 16px', borderRadius: '20px', border: '1px solid rgba(245,158,11,0.2)' }}>
+                                🎯 O palpite correto vale atualmente: <strong>{casasAtuais} {casasAtuais === 1 ? 'casa' : 'casas'}</strong>
+                              </div>
+                              
+                              <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
+                                <button 
+                                  className="btn-start" 
+                                  style={{ 
+                                    flex: 1, 
+                                    padding: '14px 28px', 
+                                    fontSize: '1rem', 
+                                    background: 'linear-gradient(90deg, #10b981, #059669)', 
+                                    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                                  }}
+                                  onClick={() => {
+                                    if (pistasReveladas.filter(Boolean).length === 0) {
+                                      alert('Revele pelo menos uma pista antes de palpitar!');
+                                      return;
+                                    }
+                                    setPistasFluxoPalpite('palpite');
+                                    iniciarTimerPalpitePistas();
+                                  }}
+                                >
+                                  🎤 Palpitar / Chutar
+                                </button>
+                                
+                                <button 
+                                  className="btn-start" 
+                                  style={{ flex: 1, padding: '14px 28px', fontSize: '1rem', background: 'linear-gradient(90deg, #3b82f6, #1d4ed8)', boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)' }}
+                                  onClick={passarVezPistas}
+                                >
+                                  👉 Passar a Vez
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+                        
+                        if (pistasFluxoPalpite === 'palpite') {
+                          return (
+                            <div className="card" style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1.5px solid #ec4899', boxShadow: '0 0 20px rgba(236,72,153,0.15)', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', margin: 0 }}>
+                              <h3 style={{ fontSize: '1.3rem', fontWeight: 900, color: '#f472b6', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                🎤 {pistasEquipeVez === 0 ? nomeJ1 : nomeJ2} Palpite / Chute!
+                              </h3>
+                              
+                              {/* Visualização do Cronômetro do Palpite das Pistas */}
+                              <div style={{ margin: '6px 0 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', width: '100%' }}>
+                                <div style={{ fontSize: '2.4rem', fontWeight: 900, color: pistasTimerSeg <= 5 ? '#ef4444' : '#a78bfa', fontFamily: 'monospace', textShadow: pistasTimerSeg <= 5 ? '0 0 10px rgba(239,68,68,0.5)' : 'none', animation: pistasTimerSeg <= 5 ? 'pulse 0.5s infinite alternate' : 'none' }}>
+                                  ⏱️ {pistasTimerSeg}s
+                                </div>
+                                <div className="timer-bar" style={{ width: '100%', maxWidth: '240px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${(pistasTimerSeg / 15) * 100}%`, height: '100%', background: pistasTimerSeg <= 5 ? '#ef4444' : 'linear-gradient(90deg, #ec4899, #7c3aed)', transition: 'width 1s linear' }}></div>
+                                </div>
+                              </div>
+
+                              <p style={{ fontSize: '0.9rem', color: '#d1d5db', textAlign: 'center', lineHeight: '1.5' }}>
+                                A equipe da vez deve falar o seu palpite oralmente agora.<br/>
+                                Após a resposta, o moderador clica no botão abaixo para revelar o gabarito.
+                              </p>
+                              <div style={{ fontSize: '1rem', color: '#fb923c', fontWeight: 'bold', marginBottom: '6px' }}>
+                                Valendo: {casasAtuais} {casasAtuais === 1 ? 'casa' : 'casas'} (se errar, oponente ganha!)
+                              </div>
+                              
+                              <button 
+                                className="btn-start"
+                                style={{ padding: '12px 32px', fontSize: '0.95rem', background: 'linear-gradient(90deg, #ec4899, #7c3aed)', boxShadow: '0 6px 20px rgba(236,72,153,0.3)' }}
+                                onClick={() => { 
+                                  playSound('click'); 
+                                  if (pistasTimerIntRef.current) clearInterval(pistasTimerIntRef.current);
+                                  setPistasTimerSeg(null);
+                                  setPistasFluxoPalpite('revelado'); 
+                                }}
+                              >
+                                👁️ Revelar Resposta
+                              </button>
+                            </div>
+                          );
+                        }
+                        
+                        if (pistasFluxoPalpite === 'revelado') {
+                          return (
+                            <div className="card" style={{ width: '100%', background: 'rgba(0,0,0,0.45)', border: '1.5px solid #10b981', boxShadow: '0 0 20px rgba(16,185,129,0.2)', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', margin: 0 }}>
+                              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                GABARITO DA CARTA
+                              </h3>
+                              <div style={{ fontSize: '2.2rem', fontWeight: 950, color: '#10b981', background: 'rgba(16,185,129,0.08)', padding: '12px 24px', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.25)', textShadow: '0 2px 15px rgba(16,185,129,0.35)', marginBottom: '4px', textTransform: 'uppercase' }}>
+                                {carta.resp}
+                              </div>
+                              
+                              <p style={{ fontSize: '0.95rem', color: '#d1d5db', textAlign: 'center', fontWeight: 'bold' }}>
+                                A equipe [ {pistasEquipeVez === 0 ? nomeJ1 : nomeJ2} ] respondeu corretamente?
+                              </p>
+                              
+                              <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
+                                <button 
+                                  className="btn-start"
+                                  style={{ flex: 1, padding: '12px 24px', fontSize: '0.95rem', background: 'linear-gradient(90deg, #10b981, #059669)', boxShadow: '0 6px 18px rgba(16,185,129,0.3)' }}
+                                  onClick={() => julgarPalpitePistas(true)}
+                                >
+                                  ✅ Certo (+{casasAtuais} {casasAtuais === 1 ? 'casa' : 'casas'})
+                                </button>
+                                <button 
+                                  className="btn-start"
+                                  style={{ flex: 1, padding: '12px 24px', fontSize: '0.95rem', background: 'linear-gradient(90deg, #dc2626, #b91c1c)', boxShadow: '0 6px 18px rgba(220,38,38,0.3)' }}
+                                  onClick={() => julgarPalpitePistas(false)}
+                                >
+                                  ❌ Errado (Oponente ganha)
+                                </button>
+                              </div>
+                              
+                              <button 
+                                className="btn-resetar"
+                                style={{ width: 'auto', padding: '4px 12px', fontSize: '0.78rem', marginTop: '6px' }}
+                                onClick={() => { playSound('click'); setPistasFluxoPalpite('palpite'); }}
+                              >
+                                ↩️ Voltar ao Palpite
+                              </button>
+                            </div>
+                          );
+                        }
+                        
+                        return null;
+                      })()}
+                      
+                      <button 
+                        className="btn-resetar" 
+                        style={{ width: 'auto', padding: '6px 16px', fontSize: '0.8rem', marginTop: '10px' }}
+                        onClick={() => {
+                          if (window.confirm('Deseja realmente abandonar a partida atual de Três Pistas e voltar ao menu?')) {
+                            irParaTela('menu');
+                          }
+                        }}
+                      >
+                        🚪 Abandonar Partida
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            
+          </div>
+        </div>
+      </div>
+
+      {/* 11. TELA FIM DE PARTIDA TRÊS PISTAS */}
+      <div id="tela-pistas-fim" className={`tela ${tela === 'pistas-fim' ? 'ativa' : ''}`} style={{ alignItems: 'center' }}>
+        <div className="trofeu">🏆</div>
+        <h2>Resultado Final do Tabuleiro</h2>
+        
+        <div className="venc-final" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #ec4899 50%, #7c3aed 100%)', webkitBackgroundClip: 'text', webkitTextFillColor: 'transparent', textAlign: 'center' }}>
+          {pistasPontuacao[0] >= 30 ? `🎉 ${nomeJ1} é a Campeã! 🏆` : `🎉 ${nomeJ2} é a Campeã! 🏆`}
+        </div>
+
+        <div className="placar-final">
+          <div className="pf-item">
+            <div className="pf-nome" style={{ color: '#60a5fa' }}>🔵 {nomeJ1}</div>
+            <div className="pf-pts" style={{ color: '#60a5fa' }}>Casa {pistasPontuacao[0]}</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', color: '#a78bfa', fontSize: '1.6rem', fontWeight: 800 }}>×</div>
+          <div className="pf-item">
+            <div className="pf-nome" style={{ color: '#f472b6' }}>🩷 {nomeJ2}</div>
+            <div className="pf-pts" style={{ color: '#f472b6' }}>Casa {pistasPontuacao[1]}</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '10px' }}>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #ec4899, #7c3aed)', boxShadow: '0 8px 30px rgba(236, 72, 153, 0.45)' }} onClick={iniciarPartidaPistas}>
+            Jogar Novamente 🔄
           </button>
           <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('menu')}>
             Voltar ao Menu 🏠
