@@ -1780,18 +1780,17 @@ input::placeholder, textarea::placeholder {
   transform-style: preserve-3d;
 }
 
-/* Animação Chacoalhar Dado */
+/* Animação Giro 3D do Dado */
 .dado-virtual.rolando {
-  animation: chacoalhar-dado 0.8s ease-in-out infinite alternate;
+  animation: girar-dado-3d 0.5s linear infinite;
 }
 
-@keyframes chacoalhar-dado {
-  0% { transform: scale(1) rotateX(0deg) rotateY(0deg) translateY(0); }
-  20% { transform: scale(1.05) rotateX(15deg) rotateY(-15deg) translateY(-8px); }
-  40% { transform: scale(0.95) rotateX(-20deg) rotateY(10deg) translateY(4px); }
-  60% { transform: scale(1.1) rotateX(10deg) rotateY(25deg) translateY(-10px); }
-  80% { transform: scale(0.9) rotateX(-10deg) rotateY(-20deg) translateY(2px); }
-  100% { transform: scale(1.05) rotateX(20deg) rotateY(15deg) translateY(-6px); }
+@keyframes girar-dado-3d {
+  0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); }
+  25% { transform: rotateX(180deg) rotateY(90deg) rotateZ(45deg) scale(1.08); }
+  50% { transform: rotateX(360deg) rotateY(180deg) rotateZ(90deg) scale(0.92); }
+  75% { transform: rotateX(540deg) rotateY(270deg) rotateZ(135deg) scale(1.08); }
+  100% { transform: rotateX(720deg) rotateY(360deg) rotateZ(180deg) scale(1); }
 }
 
 /* Cores Neon do Dado de Categoria conforme o resultado */

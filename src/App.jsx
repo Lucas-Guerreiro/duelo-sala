@@ -440,7 +440,7 @@ const IMAGEM_ACAO_PADRAO = [
 ];
 
 const obterCatCasaImAcao = (numeroCasa) => {
-  if (numeroCasa === 6 || numeroCasa === 12 || numeroCasa === 18 || numeroCasa === 24) {
+  if (numeroCasa === 4 || numeroCasa === 9 || numeroCasa === 17 || numeroCasa === 19 || numeroCasa === 24 || numeroCasa === 28) {
     return 'Todos Jogam';
   }
   const cats = ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'];
@@ -516,9 +516,11 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    let projetor = false;
     if (params.get('projetor') === 'true') {
       setIsProjetorMode(true);
       setTela('ia-projetor');
+      projetor = true;
     }
 
     const channel = new BroadcastChannel('imagem_acao_channel');
@@ -529,19 +531,120 @@ export default function App() {
       tratarMensagemProjetor(type, data);
     };
 
+    // Se for o projetor, solicita sincronização imediatamente após abrir o canal para obter o estado atual
+    if (projetor) {
+      setTimeout(() => {
+        if (channel) {
+          channel.postMessage({ type: 'SOLICITAR_SINCRONIZACAO', data: {} });
+        }
+      }, 300);
+    }
+
     return () => {
       channel.close();
       if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
     };
   }, []);
 
-  const enviarMsgProjetor = (type, data) => {
+  const enviarMsgProjetor = (type, data = {}) => {
     if (imAcaoChannelRef.current) {
-      imAcaoChannelRef.current.postMessage({ type, data });
+      // Injeta incondicionalmente todos os estados críticos da partida de Imagem e Ação para sincronização atômica
+      const dataSinc = {
+        ...data,
+        _sinc: {
+          carta: imAcaoCartaAtual,
+          opcaoSelecionada: imAcaoOpcaoSelecionada,
+          modo: imAcaoModoRepresentacao,
+          pontuacao: imAcaoPontuacao,
+          rodada: imAcaoRodada,
+          equipeVez: imAcaoEquipeVez,
+          fluxo: imAcaoFluxo,
+          timer: imAcaoTimer,
+          maxTimer: imAcaoMaxTimer,
+          dadoCat: imAcaoDadoCategoria,
+          dadoMov: imAcaoDadoMovimentacao,
+          dadosRolando: imAcaoDadosRolando,
+          cartaRevelada: imAcaoCartaRevelada,
+          projetorRevelado: imAcaoProjetorRevelado,
+          nomeJ1,
+          nomeJ2
+        }
+      };
+      imAcaoChannelRef.current.postMessage({ type, data: dataSinc });
     }
   };
 
   const tratarMensagemProjetor = (type, data) => {
+    // 1. Handshake: Solicitação de sincronização de estado (Projetor -> Moderador)
+    if (type === 'SOLICITAR_SINCRONIZACAO') {
+      if (!isProjetorMode) {
+        enviarMsgProjetor('SINCRONIZAR_ESTADO', {
+          pontuacao: imAcaoPontuacao,
+          rodada: imAcaoRodada,
+          carta: imAcaoCartaAtual,
+          equipeVez: imAcaoEquipeVez,
+          maxTimer: imAcaoMaxTimer,
+          timer: imAcaoTimer,
+          fluxo: imAcaoFluxo,
+          opcaoSelecionada: imAcaoOpcaoSelecionada,
+          modo: imAcaoModoRepresentacao,
+          dadoCat: imAcaoDadoCategoria,
+          dadoMov: imAcaoDadoMovimentacao,
+          dadosRolando: imAcaoDadosRolando,
+          cartaRevelada: imAcaoCartaRevelada,
+          projetorRevelado: imAcaoProjetorRevelado,
+          nomeJ1,
+          nomeJ2
+        });
+      }
+      return;
+    }
+
+    // 2. Handshake: Carregamento do Estado Completo Síncrono (Moderador -> Projetor)
+    if (type === 'SINCRONIZAR_ESTADO') {
+      if (isProjetorMode && data) {
+        setTela('ia-projetor');
+        if (data.pontuacao !== undefined) setImAcaoPontuacao(data.pontuacao);
+        if (data.rodada !== undefined) setImAcaoRodada(data.rodada);
+        if (data.carta !== undefined) setImAcaoCartaAtual(data.carta);
+        if (data.equipeVez !== undefined) setImAcaoEquipeVez(data.equipeVez);
+        if (data.maxTimer !== undefined) setImAcaoMaxTimer(data.maxTimer);
+        if (data.timer !== undefined) setImAcaoTimer(data.timer);
+        if (data.fluxo !== undefined) setImAcaoFluxo(data.fluxo);
+        if (data.opcaoSelecionada !== undefined) setImAcaoOpcaoSelecionada(data.opcaoSelecionada);
+        if (data.modo !== undefined) setImAcaoModoRepresentacao(data.modo);
+        if (data.dadoCat !== undefined) setImAcaoDadoCategoria(data.dadoCat);
+        if (data.dadoMov !== undefined) setImAcaoDadoMovimentacao(data.dadoMov);
+        if (data.dadosRolando !== undefined) setImAcaoDadosRolando(data.dadosRolando);
+        if (data.cartaRevelada !== undefined) setImAcaoCartaRevelada(data.cartaRevelada);
+        if (data.projetorRevelado !== undefined) setImAcaoProjetorRevelado(data.projetorRevelado);
+        if (data.nomeJ1 !== undefined) setNomeJ1(data.nomeJ1);
+        if (data.nomeJ2 !== undefined) setNomeJ2(data.nomeJ2);
+      }
+      return;
+    }
+
+    // 3. Auto-sincronização passiva por mensagem para o projetor
+    if (isProjetorMode && data && data._sinc) {
+      const s = data._sinc;
+      if (s.carta !== undefined) setImAcaoCartaAtual(s.carta);
+      if (s.opcaoSelecionada !== undefined && type !== 'ROLAR_DADOS') setImAcaoOpcaoSelecionada(s.opcaoSelecionada);
+      if (s.modo !== undefined) setImAcaoModoRepresentacao(s.modo);
+      if (s.pontuacao !== undefined) setImAcaoPontuacao(s.pontuacao);
+      if (s.rodada !== undefined) setImAcaoRodada(s.rodada);
+      if (s.equipeVez !== undefined) setImAcaoEquipeVez(s.equipeVez);
+      if (s.nomeJ1 !== undefined) setNomeJ1(s.nomeJ1);
+      if (s.nomeJ2 !== undefined) setNomeJ2(s.nomeJ2);
+      if (s.fluxo !== undefined) setImAcaoFluxo(s.fluxo);
+      if (s.maxTimer !== undefined) setImAcaoMaxTimer(s.maxTimer);
+
+      if (type !== 'ROLAR_DADOS') {
+        if (s.dadoCat !== undefined) setImAcaoDadoCategoria(s.dadoCat);
+        if (s.dadoMov !== undefined) setImAcaoDadoMovimentacao(s.dadoMov);
+        if (s.dadosRolando !== undefined) setImAcaoDadosRolando(s.dadosRolando);
+      }
+    }
+
     switch (type) {
       case 'INICIAR_PARTIDA':
         setTela('ia-projetor');
@@ -578,6 +681,10 @@ export default function App() {
       case 'REVELAR_PROJETOR':
         setImAcaoProjetorRevelado(true);
         break;
+      case 'OCULTAR_PROJETOR':
+        setImAcaoCartaRevelada(false);
+        setImAcaoProjetorRevelado(false);
+        break;
       case 'PROXIMA_RODADA':
         setImAcaoRodada(data.rodada);
         setImAcaoCartaAtual(data.carta);
@@ -589,6 +696,9 @@ export default function App() {
         break;
       case 'FLUXO_JULGADA':
         setImAcaoFluxo('julgada');
+        break;
+      case 'ATUALIZAR_PONTUACAO':
+        setImAcaoPontuacao(data.pontuacao);
         break;
       case 'INICIAR_TIMER':
         setImAcaoFluxo('jogando');
@@ -630,6 +740,18 @@ export default function App() {
         setTela('ia-projetor-fim');
         break;
       case 'ROLAR_DADOS':
+        setImAcaoCartaRevelada(false);
+        setImAcaoProjetorRevelado(false);
+        
+        // Se a rodada avançou, atualiza os dados da rodada/carta/vez de forma atômica
+        if (data.avancouRodada) {
+          setImAcaoRodada(data.rodada);
+          setImAcaoCartaAtual(data.carta);
+          setImAcaoEquipeVez(data.equipeVez);
+          setImAcaoTimer(data.maxTimer);
+          setImAcaoFluxo('preparacao');
+        }
+
         setImAcaoDadoCategoria(data.dadoCat);
         setImAcaoDadoMovimentacao(data.dadoMov);
         setImAcaoDadosRolando(true);
@@ -641,7 +763,7 @@ export default function App() {
           if (data.dadoCat <= 5) {
             setImAcaoOpcaoSelecionada(data.dadoCat - 1);
           }
-        }, 800);
+        }, 3000);
         break;
       case 'SELECIONAR_OPCAO':
         setImAcaoOpcaoSelecionada(data.opcaoIdx);
@@ -664,7 +786,7 @@ export default function App() {
       if (tempo <= 0) {
         clearInterval(imAcaoTimerIntRef.current);
         playSound('error');
-        setImAcaoFluxo('preparacao');
+        setImAcaoFluxo('julgada');
         setImAcaoProjetorRevelado(true);
         enviarMsgProjetor('REVELAR_PROJETOR', {});
       }
@@ -677,11 +799,18 @@ export default function App() {
     playSound('click');
     setImAcaoDadosRolando(true);
 
+    // Oculta a carta imediatamente no clique dos dados
+    setImAcaoCartaRevelada(false);
+    setImAcaoProjetorRevelado(false);
+    enviarMsgProjetor('OCULTAR_PROJETOR', {});
+
     const oponente = imAcaoEquipeVez === 0 ? 1 : 0;
     let proximaRodada = imAcaoRodada;
     let novaCarta = imAcaoCartaAtual;
+    let avancouRodada = false;
 
     if (imAcaoFluxo === 'julgada') {
+      avancouRodada = true;
       // Avança a rodada e passa a vez de fato!
       proximaRodada = imAcaoRodada + 1;
       setImAcaoRodada(proximaRodada);
@@ -701,21 +830,21 @@ export default function App() {
 
       // Redefine fluxo para preparação
       setImAcaoFluxo('preparacao');
-
-      // Notifica o projetor para virar a carta para baixo e carregar a nova rodada/equipe
-      enviarMsgProjetor('PROXIMA_RODADA', {
-        rodada: proximaRodada,
-        carta: novaCarta,
-        equipeVez: oponente,
-        maxTimer: imAcaoMaxTimer
-      });
     }
 
     const dadoCat = Math.floor(Math.random() * 6) + 1;
     const dadoMov = Math.floor(Math.random() * 6) + 1;
     
-    // Transmitir a rolagem para o projetor
-    enviarMsgProjetor('ROLAR_DADOS', { dadoCat, dadoMov });
+    // Transmitir a rolagem e os dados da nova rodada (se aplicável) de forma atômica para o projetor
+    enviarMsgProjetor('ROLAR_DADOS', {
+      dadoCat,
+      dadoMov,
+      avancouRodada,
+      rodada: proximaRodada,
+      carta: novaCarta,
+      equipeVez: oponente,
+      maxTimer: imAcaoMaxTimer
+    });
     
     // Animação de som chacoalhando local
     let chacoalharSons = setInterval(() => playSound('dice'), 110);
@@ -731,7 +860,7 @@ export default function App() {
         setImAcaoOpcaoSelecionada(dadoCat - 1);
         enviarMsgProjetor('SELECIONAR_OPCAO', { opcaoIdx: dadoCat - 1, modo: imAcaoModoRepresentacao });
       }
-    }, 800);
+    }, 3000);
   };
 
   const selecionarOpcaoImAcao = (idx) => {
@@ -832,53 +961,17 @@ export default function App() {
           return;
         }
         
-        const proximaRodada = imAcaoRodada + 1;
-        setImAcaoRodada(proximaRodada);
-        setImAcaoEquipeVez(oponente);
-        setImAcaoCartaRevelada(false);
-        setImAcaoProjetorRevelado(false);
-        setImAcaoFluxo('preparacao');
-        setImAcaoOpcaoSelecionada(0);
-        setImAcaoDadoCategoria(1);
-        setImAcaoDadoMovimentacao(2);
-        
-        const index = proximaRodada % imAcaoFila.length;
-        const proxCarta = imAcaoFila[index];
-        setImAcaoCartaAtual(proxCarta);
-        setImAcaoTimer(imAcaoMaxTimer);
-
-        enviarMsgProjetor('PONTUAR_EQUIPE', {
-          pontuacao: imAcaoEquipeVez === 0 ? [posFinal, imAcaoPontuacao[1]] : [imAcaoPontuacao[0], posFinal],
-          rodada: proximaRodada,
-          carta: proxCarta,
-          equipeVez: oponente
-        });
+        // Define o fluxo como julgada e notifica o projetor.
+        // Desta forma a carta permanece aberta (virada para cima) e a rodada não avança
+        // até que a próxima equipe chacoalhe os dados!
+        setImAcaoFluxo('julgada');
+        enviarMsgProjetor('FLUXO_JULGADA', {});
       });
     } else {
       playSound('error');
-      // No erro, aguarda 3.5 segundos para transicionar o turno e carta, dando tempo dos alunos verem o segredo
-      setTimeout(() => {
-        const proximaRodada = imAcaoRodada + 1;
-        setImAcaoRodada(proximaRodada);
-        setImAcaoEquipeVez(oponente);
-        setImAcaoCartaRevelada(false);
-        setImAcaoProjetorRevelado(false);
-        setImAcaoFluxo('preparacao');
-        setImAcaoOpcaoSelecionada(0);
-        setImAcaoDadoCategoria(1);
-        setImAcaoDadoMovimentacao(2);
-
-        const index = proximaRodada % imAcaoFila.length;
-        const proxCarta = imAcaoFila[index];
-        setImAcaoCartaAtual(proxCarta);
-        setImAcaoTimer(imAcaoMaxTimer);
-
-        enviarMsgProjetor('ERROU_RODADA', {
-          rodada: proximaRodada,
-          carta: proxCarta,
-          equipeVez: oponente
-        });
-      }, 3500);
+      // No erro, apenas define o fluxo como julgada e notifica o projetor, mantendo a carta aberta.
+      setImAcaoFluxo('julgada');
+      enviarMsgProjetor('FLUXO_JULGADA', {});
     }
   };
 
@@ -898,11 +991,9 @@ export default function App() {
         const novos = [...prev];
         novos[equipeIndex] = posAtual;
         
-        enviarMsgProjetor('PONTUAR_EQUIPE', {
-          pontuacao: novos,
-          rodada: imAcaoRodada,
-          carta: imAcaoCartaAtual,
-          equipeVez: imAcaoEquipeVez
+        // Sincroniza a posição dos peões de forma pura, sem reiniciar ou sumir com a revelação da carta
+        enviarMsgProjetor('ATUALIZAR_PONTUACAO', {
+          pontuacao: novos
         });
 
         return novos;
@@ -5525,30 +5616,30 @@ export default function App() {
       </div>
 
       {/* 12. TELA DE CONFIGURAÇÃO IMAGEM E AÇÃO */}
-      <div id="tela-ia-nomes" className={`tela ${tela === 'ia-nomes' ? 'ativa' : ''}`} style={{ alignItems: 'center', textAlign: 'center' }}>
-        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'flex-start' }}>← Voltar ao Menu</button>
-        <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(16, 185, 129, 0.45))', margin: '20px 0', width: '100%' }}>🎨</div>
+      <div id="tela-ia-nomes" className={`tela ${tela === 'ia-nomes' ? 'ativa' : ''}`} style={{ alignItems: 'center', textAlign: 'center', justifyContent: 'center' }}>
+        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'center', marginBottom: '14px' }}>← Voltar ao Menu</button>
+        <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(16, 185, 129, 0.45))', margin: '14px 0', width: '100%' }}>🎨</div>
         <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%', fontFamily: 'Outfit' }}>Configurar Equipes (Imagem e Ação)</h2>
         <p style={{ color: '#6ee7b7', fontSize: '1.05rem', textAlign: 'center', width: '100%', marginTop: '4px' }}>Configuração da disputa tática de desenho e mímica</p>
 
-        <div className="dupla" style={{ margin: '30px auto 20px', width: '100%', maxWidth: '600px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
-          <div className="jcard j1" style={{ flex: 1 }}>
-            <h3>🔵 Equipe 1</h3>
-            <input value={nomeJ1} onChange={(e) => setNomeJ1(e.target.value)} placeholder="Equipe Azul" />
+        <div className="dupla" style={{ margin: '24px auto 16px', width: '100%', maxWidth: '600px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
+          <div className="jcard j1" style={{ flex: 1, textAlign: 'center' }}>
+            <h3 style={{ textAlign: 'center', justifyContent: 'center' }}>🔵 Equipe 1</h3>
+            <input value={nomeJ1} onChange={(e) => setNomeJ1(e.target.value)} placeholder="Equipe Azul" style={{ textAlign: 'center' }} />
           </div>
-          <div className="jcard j2" style={{ flex: 1 }}>
-            <h3>🩷 Equipe 2</h3>
-            <input value={nomeJ2} onChange={(e) => setNomeJ2(e.target.value)} placeholder="Equipe Rosa" />
+          <div className="jcard j2" style={{ flex: 1, textAlign: 'center' }}>
+            <h3 style={{ textAlign: 'center', justifyContent: 'center' }}>🩷 Equipe 2</h3>
+            <input value={nomeJ2} onChange={(e) => setNomeJ2(e.target.value)} placeholder="Equipe Rosa" style={{ textAlign: 'center' }} />
           </div>
         </div>
 
         {/* Seletor de Tempo */}
-        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'left' }}>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981', marginBottom: '10px', borderLeft: '3px solid #10b981', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'center' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>
             ⏱️ Tempo Limite por Carta
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '0.85rem', color: '#6ee7b7', fontWeight: 'bold' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.85rem', color: '#6ee7b7', fontWeight: 'bold', textAlign: 'center' }}>
               Duração da rodada: <span style={{ color: '#fb923c', fontSize: '1rem' }}>{imAcaoMaxTimer} segundos</span>
             </span>
             <input 
@@ -5558,26 +5649,26 @@ export default function App() {
               step="15"
               value={imAcaoMaxTimer}
               onChange={(e) => setImAcaoMaxTimer(Number(e.target.value))}
-              style={{ accentColor: '#10b981', height: '6px', background: 'rgba(255, 255, 255, 0.1)', border: 'none' }}
+              style={{ accentColor: '#10b981', height: '6px', background: 'rgba(255, 255, 255, 0.1)', border: 'none', width: '100%', cursor: 'pointer' }}
             />
           </div>
         </div>
 
         {/* Botão de segunda tela */}
-        <div style={{ margin: '24px 0 10px' }}>
+        <div style={{ margin: '20px 0 10px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <button 
             className="btn-menu btn-outline" 
-            style={{ borderColor: '#10b981', color: '#10b981', background: 'rgba(16, 185, 129, 0.05)', fontSize: '1rem', padding: '12px 30px' }}
+            style={{ borderColor: '#10b981', color: '#10b981', background: 'rgba(16, 185, 129, 0.05)', fontSize: '1rem', padding: '12px 30px', alignSelf: 'center' }}
             onClick={() => window.open('?projetor=true', '_blank', 'width=1200,height=800')}
           >
             📺 Abrir Tela do Projetor (Segunda Tela)
           </button>
-          <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: '6px', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
+          <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: '6px', maxWidth: '400px', textAlign: 'center' }}>
             Dica: Abra esta segunda tela e arraste-a para o projetor/quadro da sala de aula antes de clicar em começar.
           </p>
         </div>
 
-        <button className="btn-start" style={{ background: 'linear-gradient(90deg, #10b981, #3b82f6)', boxShadow: '0 8px 30px rgba(16, 185, 129, 0.45)', padding: '16px 64px', marginTop: '20px' }} onClick={() => iniciarPartidaImAcao(imAcaoMaxTimer)}>
+        <button className="btn-start" style={{ background: 'linear-gradient(90deg, #10b981, #3b82f6)', boxShadow: '0 8px 30px rgba(16, 185, 129, 0.45)', padding: '16px 64px', marginTop: '20px', alignSelf: 'center' }} onClick={() => iniciarPartidaImAcao(imAcaoMaxTimer)}>
           Começar Disputa! 🚀
         </button>
       </div>
@@ -5618,7 +5709,9 @@ export default function App() {
                         position: 'relative'
                       }}
                     >
-                      <span style={{ fontSize: '0.72rem', fontWeight: 'bold', color: '#9ca3af' }}>{num === 30 ? '🏁 30' : num}</span>
+                      <span style={{ fontSize: num === 1 || num === 30 ? '0.62rem' : '0.72rem', fontWeight: 'bold', color: num === 1 || num === 30 ? '#10b981' : '#9ca3af', textTransform: 'uppercase' }}>
+                        {num === 1 ? '🚪 Saída' : num === 30 ? '🏁 Chegada' : num - 1}
+                      </span>
                       
                       {/* Categoria ou Ícone de Grupo */}
                       {catCasa === 'Todos Jogam' && num !== 30 ? (
@@ -5667,12 +5760,38 @@ export default function App() {
                   🎲 Dados Virtuais Síncronos
                 </div>
                 
+                {(imAcaoFluxo === 'julgada' || (imAcaoFluxo === 'preparacao' && imAcaoRodada === 1)) && (
+                  <div style={{
+                    background: 'rgba(245, 158, 11, 0.12)',
+                    border: '2.5px solid #f59e0b',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    color: '#fbe5a2',
+                    fontSize: '0.9rem',
+                    fontWeight: '900',
+                    textAlign: 'center',
+                    margin: '4px 0 10px 0',
+                    boxShadow: '0 0 15px rgba(245, 158, 11, 0.25)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    animation: 'pulse 1.2s infinite alternate'
+                  }}>
+                    {imAcaoFluxo === 'preparacao' && imAcaoRodada === 1 ? '🎲 Gire os dados para iniciar o jogo!' : '🎲 Jogue os dados para iniciar a próxima rodada!'}
+                  </div>
+                )}
+                
                 <div className="dados-area-flex">
                   <div className="dado-virtual-wrap">
                     <div className={`dado-virtual ${imAcaoDadosRolando ? 'rolando' : ''} dado-cat-${imAcaoDadoCategoria}`}>
                       <span style={{ fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Categoria</span>
                       <strong style={{ fontSize: '1.8rem', color: '#fff', margin: '2px 0' }}>{imAcaoDadoCategoria}</strong>
-                      <span style={{ fontSize: '0.62rem', color: obterCorCasaImAcao(imAcaoDadoCategoria === 6 ? 'Difícil' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]), fontWeight: 'bold', textTransform: 'uppercase' }}>
+                      <span style={{
+                        fontSize: imAcaoDadoCategoria === 4 ? '0.45rem' : '0.62rem',
+                        letterSpacing: imAcaoDadoCategoria === 4 ? '-0.3px' : 'normal',
+                        color: obterCorCasaImAcao(imAcaoDadoCategoria === 6 ? 'Difícil' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]),
+                        fontWeight: 'bold',
+                        textTransform: 'uppercase'
+                      }}>
                         {imAcaoDadoCategoria === 6 ? '🌟 Livre' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]}
                       </span>
                     </div>
@@ -5680,9 +5799,9 @@ export default function App() {
 
                   <div className="dado-virtual-wrap">
                     <div className={`dado-virtual dado-mov ${imAcaoDadosRolando ? 'rolando' : ''}`}>
-                      <span style={{ fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Casas</span>
-                      <strong style={{ fontSize: '2.4rem', color: '#3b82f6', margin: '2px 0' }}>{imAcaoDadoMovimentacao}</strong>
-                      <span style={{ fontSize: '0.62rem', color: '#60a5fa', fontWeight: 'bold' }}>AVANÇAR</span>
+                      <span style={{ fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Casas</span>
+                      <strong style={{ fontSize: '1.8rem', color: '#3b82f6', margin: '0px' }}>{imAcaoDadoMovimentacao}</strong>
+                      <span style={{ fontSize: '0.6rem', color: '#60a5fa', fontWeight: 'bold' }}>AVANÇAR</span>
                     </div>
                   </div>
                 </div>
@@ -5715,7 +5834,7 @@ export default function App() {
                       color: imAcaoModoRepresentacao === 'Mímica' ? '#c4b5fd' : '#9ca3af',
                       fontSize: '0.85rem'
                     }}
-                    onClick={() => selecionarModoRepresentacaoImAcao('Mímica')}
+                    onClick={() => { if (!imAcaoDadosRolando) selecionarModoRepresentacaoImAcao('Mímica'); }}
                   >
                     🎭 Fazer Mímica
                   </button>
@@ -5729,7 +5848,7 @@ export default function App() {
                       color: imAcaoModoRepresentacao === 'Desenho' ? '#6ee7b7' : '#9ca3af',
                       fontSize: '0.85rem'
                     }}
-                    onClick={() => selecionarModoRepresentacaoImAcao('Desenho')}
+                    onClick={() => { if (!imAcaoDadosRolando) selecionarModoRepresentacaoImAcao('Desenho'); }}
                   >
                     ✏️ Fazer Desenho
                   </button>
@@ -5762,7 +5881,7 @@ export default function App() {
                           cursor: 'pointer',
                           transition: 'all 0.2s'
                         }}
-                        onClick={() => selecionarOpcaoImAcao(idx)}
+                        onClick={() => { if (!imAcaoDadosRolando) selecionarOpcaoImAcao(idx); }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span style={{ 
@@ -5920,7 +6039,9 @@ export default function App() {
                           boxShadow: (j1Aqui || j2Aqui) ? `0 0 15px ${corCasa}` : 'none'
                         }}
                       >
-                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#9ca3af' }}>{num === 30 ? '🏁 30' : num}</span>
+                        <span style={{ fontSize: num === 1 || num === 30 ? '0.72rem' : '0.85rem', fontWeight: 'bold', color: num === 1 || num === 30 ? '#10b981' : '#9ca3af', textTransform: 'uppercase' }}>
+                          {num === 1 ? '🚪 Saída' : num === 30 ? '🏁 Chegada' : num - 1}
+                        </span>
                         
                         {/* Categoria ou Ícone de Grupo */}
                         {catCasa === 'Todos Jogam' && num !== 30 ? (
@@ -5962,6 +6083,26 @@ export default function App() {
                   🎭 Vez da Equipe: {imAcaoEquipeVez === 0 ? nomeJ1 : nomeJ2}
                 </div>
 
+                {(imAcaoFluxo === 'julgada' || (imAcaoFluxo === 'preparacao' && imAcaoRodada === 1)) && (
+                  <div style={{
+                    background: 'rgba(124, 58, 237, 0.1)',
+                    border: '2px dashed #7c3aed',
+                    borderRadius: '16px',
+                    padding: '12px 24px',
+                    color: '#d8b4fe',
+                    fontSize: '1.25rem',
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    boxShadow: '0 0 20px rgba(124, 58, 237, 0.15)',
+                    margin: '4px 0',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    animation: 'pulse 1.2s infinite alternate'
+                  }}>
+                    {imAcaoFluxo === 'preparacao' && imAcaoRodada === 1 ? '🎲 Gire os dados!' : '🎲 Jogue os dados!'}
+                  </div>
+                )}
+
                 {/* Dados Virtuais Síncronos no Projetor */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center', width: '100%' }}>
                   <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -5972,7 +6113,13 @@ export default function App() {
                       <div className={`dado-virtual ${imAcaoDadosRolando ? 'rolando' : ''} dado-cat-${imAcaoDadoCategoria}`}>
                         <span style={{ fontSize: '0.62rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Categoria</span>
                         <strong style={{ fontSize: '1.6rem', color: '#fff', margin: '1px 0' }}>{imAcaoDadoCategoria}</strong>
-                        <span style={{ fontSize: '0.55rem', color: obterCorCasaImAcao(imAcaoDadoCategoria === 6 ? 'Difícil' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]), fontWeight: 'bold', textTransform: 'uppercase' }}>
+                        <span style={{
+                          fontSize: imAcaoDadoCategoria === 4 ? '0.42rem' : '0.55rem',
+                          letterSpacing: imAcaoDadoCategoria === 4 ? '-0.3px' : 'normal',
+                          color: obterCorCasaImAcao(imAcaoDadoCategoria === 6 ? 'Difícil' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]),
+                          fontWeight: 'bold',
+                          textTransform: 'uppercase'
+                        }}>
                           {imAcaoDadoCategoria === 6 ? '🌟 Livre' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]}
                         </span>
                       </div>
@@ -5980,9 +6127,9 @@ export default function App() {
 
                     <div className="dado-virtual-wrap">
                       <div className={`dado-virtual dado-mov ${imAcaoDadosRolando ? 'rolando' : ''}`}>
-                        <span style={{ fontSize: '0.62rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Casas</span>
-                        <strong style={{ fontSize: '2.1rem', color: '#3b82f6', margin: '1px 0' }}>{imAcaoDadoMovimentacao}</strong>
-                        <span style={{ fontSize: '0.55rem', color: '#60a5fa', fontWeight: 'bold' }}>AVANÇAR</span>
+                        <span style={{ fontSize: '0.6rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Casas</span>
+                        <strong style={{ fontSize: '1.6rem', color: '#3b82f6', margin: '0px' }}>{imAcaoDadoMovimentacao}</strong>
+                        <span style={{ fontSize: '0.52rem', color: '#60a5fa', fontWeight: 'bold' }}>AVANÇAR</span>
                       </div>
                     </div>
                   </div>
@@ -6008,38 +6155,64 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Carta do Projetor */}
-                <div className="ia-carta-wrap" style={{ width: '240px', height: '320px' }}>
-                  <div className={`ia-carta-inner ${imAcaoProjetorRevelado ? 'virada' : ''}`}>
-                    {/* Verso */}
-                    <div className="ia-carta-back" style={{ border: `3.5px solid ${obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}`, boxShadow: `0 0 20px ${obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}` }}>
-                      <div style={{ fontSize: '3.2rem' }}>
-                        {imAcaoModoRepresentacao === 'Mímica' ? '🎭' : '✏️'}
-                      </div>
-                      <span style={{ fontSize: '0.8rem', color: '#c4b5fd', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                        Opção {imAcaoOpcaoSelecionada + 1}
+                {/* Painel/Label de Revelação da Palavra Secreta (Plano e Premium) */}
+                <div 
+                  style={{ 
+                    width: '100%', 
+                    maxWidth: '420px', 
+                    minHeight: '180px', 
+                    background: 'rgba(15, 23, 42, 0.75)',
+                    border: `3px solid ${imAcaoDadosRolando ? '#7c3aed' : obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}`, 
+                    boxShadow: `0 0 30px ${imAcaoDadosRolando ? '#7c3aed' : obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}55`,
+                    borderRadius: '20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: '24px',
+                    boxSizing: 'border-box',
+                    textAlign: 'center',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  {imAcaoDadosRolando ? (
+                    // Estado de Rolagem (Enquanto os dados giram)
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', animation: 'pulse 0.8s infinite alternate' }}>
+                      <span style={{ fontSize: '3.6rem', filter: 'drop-shadow(0 0 8px #7c3aed)' }}>🎲</span>
+                      <strong style={{ fontSize: '1.6rem', color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '2px', textShadow: '0 0 10px rgba(124, 58, 237, 0.4)' }}>
+                        Sorteando...
+                      </strong>
+                      <span style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 'bold' }}>
+                        Aguarde a definição da Categoria
                       </span>
-                      <strong style={{ fontSize: '1.25rem', color: obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat), textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    </div>
+                  ) : !imAcaoProjetorRevelado ? (
+                    // Estado Oculto (Categoria e Modo de Jogo no verso plano)
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '3.6rem', filter: `drop-shadow(0 0 6px ${obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)})` }}>
+                        {imAcaoModoRepresentacao === 'Mímica' ? '🎭' : '✏️'}
+                      </span>
+                      <strong style={{ fontSize: '1.8rem', color: '#fff', textTransform: 'uppercase', letterSpacing: '1.5px', textShadow: `0 0 10px ${obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}` }}>
                         {imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat}
                       </strong>
-                      <div style={{ fontSize: '0.85rem', color: '#fff', background: imAcaoModoRepresentacao === 'Mímica' ? 'rgba(124, 58, 237, 0.3)' : 'rgba(16, 185, 129, 0.3)', border: `1px solid ${imAcaoModoRepresentacao === 'Mímica' ? '#7c3aed' : '#10b981'}`, padding: '3px 10px', borderRadius: '10px', fontWeight: 'bold' }}>
+                      <span style={{ fontSize: '0.9rem', color: '#9ca3af', fontWeight: 'bold' }}>
                         Modo: {imAcaoModoRepresentacao}
-                      </div>
-                    </div>
-
-                    {/* Frente */}
-                    <div className={`ia-carta-front ia-cat-${imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "")}`} style={{ padding: '16px', border: `3.5px solid ${obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}` }}>
-                      <span style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.06)', color: obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat), padding: '2px 8px', borderRadius: '4px', alignSelf: 'flex-start', fontWeight: 'bold' }}>
-                        {imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat.toUpperCase()}
                       </span>
-                      
-                      <div style={{ margin: '20px 0', textAlign: 'center' }}>
-                        <span style={{ color: '#9ca3af', fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Opção {imAcaoOpcaoSelecionada + 1} ({imAcaoModoRepresentacao})</span>
-                        <span style={{ color: '#9ca3af', fontSize: '0.85rem', display: 'block', marginBottom: '6px' }}>A Resposta era:</span>
-                        <strong style={{ fontSize: '1.8rem', color: '#4ade80', textShadow: '0 0 10px rgba(74, 222, 128, 0.4)' }}><MathText text={imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.resp} /></strong>
-                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    // Estado Revelado (A Palavra Secreta Gigante Fluorescente)
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+                      <span style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.06)', color: obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat), padding: '4px 12px', borderRadius: '6px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', width: 'fit-content', margin: '0 auto' }}>
+                        {imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat}
+                      </span>
+                      <span style={{ color: '#9ca3af', fontSize: '0.85rem', display: 'block', marginTop: '8px' }}>
+                        A resposta secreta é:
+                      </span>
+                      <strong style={{ fontSize: '2.5rem', color: '#4ade80', textShadow: '0 0 15px rgba(74, 222, 128, 0.6)', fontWeight: '900', lineHeight: '1.2', margin: '6px 0 0 0', wordBreak: 'break-word' }}>
+                        <MathText text={imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.resp} />
+                      </strong>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
