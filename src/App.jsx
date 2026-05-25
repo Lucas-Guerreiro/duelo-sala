@@ -281,6 +281,23 @@ function playSound(type) {
         osc.stop(now + 0.5);
         break;
       }
+      case 'dice': {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(60, now + 0.15);
+        
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.15);
+        
+        osc.start(now);
+        osc.stop(now + 0.15);
+        break;
+      }
       default:
         break;
     }
@@ -374,9 +391,78 @@ const PISTAS_PADRAO = [
   }
 ];
 
+const IMAGEM_ACAO_PADRAO = [
+  {
+    opcoes: [
+      { num: 1, cat: 'Ação', resp: 'Andar de Bicicleta' },
+      { num: 2, cat: 'Objeto', resp: 'Liquidificador' },
+      { num: 3, cat: 'Lugar', resp: 'Torre Eiffel' },
+      { num: 4, cat: 'Pessoa/Animal', resp: 'Harry Potter' },
+      { num: 5, cat: 'Difícil', resp: 'Criptomoeda' }
+    ]
+  },
+  {
+    opcoes: [
+      { num: 1, cat: 'Ação', resp: 'Saltar de Paraquedas' },
+      { num: 2, cat: 'Objeto', resp: 'Computador Portátil' },
+      { num: 3, cat: 'Lugar', resp: 'Muralha da China' },
+      { num: 4, cat: 'Pessoa/Animal', resp: 'Albert Einstein' },
+      { num: 5, cat: 'Difícil', resp: 'Buraco Negro' }
+    ]
+  },
+  {
+    opcoes: [
+      { num: 1, cat: 'Ação', resp: 'Escovar os Dentes' },
+      { num: 2, cat: 'Objeto', resp: 'Guarda-chuva' },
+      { num: 3, cat: 'Lugar', resp: 'Estátua da Liberdade' },
+      { num: 4, cat: 'Pessoa/Animal', resp: 'Leão Africano' },
+      { num: 5, cat: 'Difícil', resp: 'Inteligência Artificial' }
+    ]
+  },
+  {
+    opcoes: [
+      { num: 1, cat: 'Ação', resp: 'Tocar Guitarra' },
+      { num: 2, cat: 'Objeto', resp: 'Forno de Micro-ondas' },
+      { num: 3, cat: 'Lugar', resp: 'Coliseu de Roma' },
+      { num: 4, cat: 'Pessoa/Animal', resp: 'Sherlock Holmes' },
+      { num: 5, cat: 'Difícil', resp: 'Aquecimento Global' }
+    ]
+  },
+  {
+    opcoes: [
+      { num: 1, cat: 'Ação', resp: 'Nadar no Mar' },
+      { num: 2, cat: 'Objeto', resp: 'Telescópio Espacial' },
+      { num: 3, cat: 'Lugar', resp: 'Monte Everest' },
+      { num: 4, cat: 'Pessoa/Animal', resp: 'Dinossauro Rex' },
+      { num: 5, cat: 'Difícil', resp: 'Teoria da Relatividade' }
+    ]
+  }
+];
+
+const obterCatCasaImAcao = (numeroCasa) => {
+  if (numeroCasa === 6 || numeroCasa === 12 || numeroCasa === 18 || numeroCasa === 24) {
+    return 'Todos Jogam';
+  }
+  const cats = ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'];
+  return cats[(numeroCasa - 1) % cats.length];
+};
+
+const obterCorCasaImAcao = (cat) => {
+  switch (cat) {
+    case 'Ação': return '#ef4444'; // Vermelho
+    case 'Objeto': return '#10b981'; // Verde
+    case 'Lugar': return '#3b82f6'; // Azul
+    case 'Pessoa/Animal': case 'Pessoa': return '#eab308'; // Amarelo
+    case 'Mundo': return '#a855f7'; // Roxo
+    case 'Difícil': return '#f97316'; // Laranja
+    case 'Todos Jogam': return '#a855f7'; // Violeta neon brilhante para Todas as Equipes
+    default: return '#7c3aed';
+  }
+};
+
 export default function App() {
   // --- ESTADOS DO JOGO DAS TRÊS PISTAS ---
-  const [modoJogo, setModoJogo] = useState('duelo'); // 'duelo' | 'pistas'
+  const [modoJogo, setModoJogo] = useState('duelo'); // 'duelo' | 'pistas' | 'imacao'
   const [cartasPistas, setCartasPistas] = useState(() => {
     const saved = localStorage.getItem('dm_pistas');
     return saved ? JSON.parse(saved) : PISTAS_PADRAO;
@@ -395,6 +481,442 @@ export default function App() {
   const [pistasQtdRodadas, setPistasQtdRodadas] = useState(5);
   const [pistasTimerSeg, setPistasTimerSeg] = useState(null);
   const pistasTimerIntRef = useRef(null);
+
+  // --- ESTADOS DO NOVO JOGO: IMAGEM E AÇÃO ---
+  const [cartasImAcao, setCartasImAcao] = useState(() => {
+    const saved = localStorage.getItem('dm_imacao');
+    return saved ? JSON.parse(saved) : IMAGEM_ACAO_PADRAO;
+  });
+  const [imAcaoFila, setImAcaoFila] = useState([]);
+  const [imAcaoPontuacao, setImAcaoPontuacao] = useState([1, 1]);
+  const [imAcaoRodada, setImAcaoRodada] = useState(1);
+  const [imAcaoCartaAtual, setImAcaoCartaAtual] = useState(null);
+  const [imAcaoTimer, setImAcaoTimer] = useState(60);
+  const [imAcaoMaxTimer, setImAcaoMaxTimer] = useState(60);
+  const [imAcaoFluxo, setImAcaoFluxo] = useState('preparacao'); // 'preparacao' | 'jogando' | 'revelada'
+  const [imAcaoCartaRevelada, setImAcaoCartaRevelada] = useState(false);
+  const [imAcaoProjetorRevelado, setImAcaoProjetorRevelado] = useState(false);
+  const [imAcaoEquipeVez, setImAcaoEquipeVez] = useState(0);
+  const [isProjetorMode, setIsProjetorMode] = useState(false);
+
+  // Estados dos Dados e Seleção de Opção/Modo
+  const [imAcaoOpcaoSelecionada, setImAcaoOpcaoSelecionada] = useState(0); // 0 a 4
+  const [imAcaoModoRepresentacao, setImAcaoModoRepresentacao] = useState('Desenho'); // 'Mímica' | 'Desenho'
+  const [imAcaoDadoCategoria, setImAcaoDadoCategoria] = useState(1); // 1 a 6
+  const [imAcaoDadoMovimentacao, setImAcaoDadoMovimentacao] = useState(2); // 1 a 6
+  const [imAcaoDadosRolando, setImAcaoDadosRolando] = useState(false);
+  const [iaImAcaoGeradas, setIaImAcaoGeradas] = useState([]);
+
+  const imAcaoChannelRef = useRef(null);
+  const imAcaoTimerIntRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem('dm_imacao', JSON.stringify(cartasImAcao));
+  }, [cartasImAcao]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('projetor') === 'true') {
+      setIsProjetorMode(true);
+      setTela('ia-projetor');
+    }
+
+    const channel = new BroadcastChannel('imagem_acao_channel');
+    imAcaoChannelRef.current = channel;
+
+    channel.onmessage = (event) => {
+      const { type, data } = event.data;
+      tratarMensagemProjetor(type, data);
+    };
+
+    return () => {
+      channel.close();
+      if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
+    };
+  }, []);
+
+  const enviarMsgProjetor = (type, data) => {
+    if (imAcaoChannelRef.current) {
+      imAcaoChannelRef.current.postMessage({ type, data });
+    }
+  };
+
+  const tratarMensagemProjetor = (type, data) => {
+    switch (type) {
+      case 'INICIAR_PARTIDA':
+        setTela('ia-projetor');
+        setImAcaoPontuacao(data.pontuacao);
+        setImAcaoRodada(data.rodada);
+        setImAcaoCartaAtual(data.carta);
+        setImAcaoEquipeVez(data.equipeVez);
+        setImAcaoFluxo('preparacao');
+        setImAcaoCartaRevelada(false);
+        setImAcaoProjetorRevelado(false);
+        setImAcaoTimer(data.maxTimer);
+        setImAcaoMaxTimer(data.maxTimer);
+        setNomeJ1(data.nomeJ1);
+        setNomeJ2(data.nomeJ2);
+        setImAcaoOpcaoSelecionada(0);
+        setImAcaoModoRepresentacao('Desenho');
+        setImAcaoDadoCategoria(1);
+        setImAcaoDadoMovimentacao(2);
+        setImAcaoDadosRolando(false);
+        break;
+      case 'SORTEAR_CARTA':
+        setImAcaoCartaAtual(data.carta);
+        setImAcaoFluxo('preparacao');
+        setImAcaoCartaRevelada(false);
+        setImAcaoProjetorRevelado(false);
+        setImAcaoTimer(data.timer);
+        setImAcaoOpcaoSelecionada(0);
+        setImAcaoDadoCategoria(1);
+        setImAcaoDadoMovimentacao(2);
+        break;
+      case 'REVELAR_CARTA':
+        setImAcaoCartaRevelada(true);
+        break;
+      case 'REVELAR_PROJETOR':
+        setImAcaoProjetorRevelado(true);
+        break;
+      case 'PROXIMA_RODADA':
+        setImAcaoRodada(data.rodada);
+        setImAcaoCartaAtual(data.carta);
+        setImAcaoEquipeVez(data.equipeVez);
+        setImAcaoCartaRevelada(false);
+        setImAcaoProjetorRevelado(false);
+        setImAcaoTimer(data.maxTimer);
+        setImAcaoFluxo('preparacao');
+        break;
+      case 'FLUXO_JULGADA':
+        setImAcaoFluxo('julgada');
+        break;
+      case 'INICIAR_TIMER':
+        setImAcaoFluxo('jogando');
+        setImAcaoTimer(data.timer);
+        iniciarTimerImAcaoLocal(data.timer);
+        break;
+      case 'PAUSAR_TIMER':
+        setImAcaoFluxo('preparacao');
+        if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
+        break;
+      case 'PONTUAR_EQUIPE':
+        setImAcaoPontuacao(data.pontuacao);
+        setImAcaoFluxo('preparacao');
+        setImAcaoCartaRevelada(false);
+        setImAcaoProjetorRevelado(false);
+        setImAcaoRodada(data.rodada);
+        setImAcaoEquipeVez(data.equipeVez);
+        setImAcaoOpcaoSelecionada(0);
+        setImAcaoDadoCategoria(1);
+        setImAcaoDadoMovimentacao(2);
+        if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
+        break;
+      case 'ERROU_RODADA':
+        setImAcaoFluxo('preparacao');
+        setImAcaoCartaRevelada(false);
+        setImAcaoProjetorRevelado(false);
+        setImAcaoRodada(data.rodada);
+        setImAcaoEquipeVez(data.equipeVez);
+        setImAcaoOpcaoSelecionada(0);
+        setImAcaoDadoCategoria(1);
+        setImAcaoDadoMovimentacao(2);
+        if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
+        break;
+      case 'ESGOTOU_TEMPO':
+        setImAcaoFluxo('preparacao');
+        if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
+        break;
+      case 'FIM_JOGO':
+        setTela('ia-projetor-fim');
+        break;
+      case 'ROLAR_DADOS':
+        setImAcaoDadoCategoria(data.dadoCat);
+        setImAcaoDadoMovimentacao(data.dadoMov);
+        setImAcaoDadosRolando(true);
+        // Toca efeito sonoro rítmico de chocalhar dados no projetor
+        let chacoalharSons = setInterval(() => playSound('dice'), 110);
+        setTimeout(() => {
+          clearInterval(chacoalharSons);
+          setImAcaoDadosRolando(false);
+          if (data.dadoCat <= 5) {
+            setImAcaoOpcaoSelecionada(data.dadoCat - 1);
+          }
+        }, 800);
+        break;
+      case 'SELECIONAR_OPCAO':
+        setImAcaoOpcaoSelecionada(data.opcaoIdx);
+        setImAcaoModoRepresentacao(data.modo);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const iniciarTimerImAcaoLocal = (tempoInicial) => {
+    if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
+    let tempo = tempoInicial;
+    imAcaoTimerIntRef.current = setInterval(() => {
+      tempo -= 1;
+      setImAcaoTimer(tempo);
+      if (tempo <= 5 && tempo > 0) {
+        playSound('tick');
+      }
+      if (tempo <= 0) {
+        clearInterval(imAcaoTimerIntRef.current);
+        playSound('error');
+        setImAcaoFluxo('preparacao');
+        setImAcaoProjetorRevelado(true);
+        enviarMsgProjetor('REVELAR_PROJETOR', {});
+      }
+    }, 1000);
+  };
+
+  const rolarDadosImAcao = () => {
+    if (imAcaoDadosRolando) return;
+    
+    playSound('click');
+    setImAcaoDadosRolando(true);
+
+    const oponente = imAcaoEquipeVez === 0 ? 1 : 0;
+    let proximaRodada = imAcaoRodada;
+    let novaCarta = imAcaoCartaAtual;
+
+    if (imAcaoFluxo === 'julgada') {
+      // Avança a rodada e passa a vez de fato!
+      proximaRodada = imAcaoRodada + 1;
+      setImAcaoRodada(proximaRodada);
+      setImAcaoEquipeVez(oponente);
+
+      // Sorteia a nova carta
+      const index = proximaRodada % imAcaoFila.length;
+      novaCarta = imAcaoFila[index];
+      setImAcaoCartaAtual(novaCarta);
+
+      // Oculta a carta na tela privada e pública
+      setImAcaoCartaRevelada(false);
+      setImAcaoProjetorRevelado(false);
+
+      // Timer volta ao máximo
+      setImAcaoTimer(imAcaoMaxTimer);
+
+      // Redefine fluxo para preparação
+      setImAcaoFluxo('preparacao');
+
+      // Notifica o projetor para virar a carta para baixo e carregar a nova rodada/equipe
+      enviarMsgProjetor('PROXIMA_RODADA', {
+        rodada: proximaRodada,
+        carta: novaCarta,
+        equipeVez: oponente,
+        maxTimer: imAcaoMaxTimer
+      });
+    }
+
+    const dadoCat = Math.floor(Math.random() * 6) + 1;
+    const dadoMov = Math.floor(Math.random() * 6) + 1;
+    
+    // Transmitir a rolagem para o projetor
+    enviarMsgProjetor('ROLAR_DADOS', { dadoCat, dadoMov });
+    
+    // Animação de som chacoalhando local
+    let chacoalharSons = setInterval(() => playSound('dice'), 110);
+    
+    setTimeout(() => {
+      clearInterval(chacoalharSons);
+      setImAcaoDadoCategoria(dadoCat);
+      setImAcaoDadoMovimentacao(dadoMov);
+      setImAcaoDadosRolando(false);
+      
+      // Sorteia opção correspondente
+      if (dadoCat <= 5) {
+        setImAcaoOpcaoSelecionada(dadoCat - 1);
+        enviarMsgProjetor('SELECIONAR_OPCAO', { opcaoIdx: dadoCat - 1, modo: imAcaoModoRepresentacao });
+      }
+    }, 800);
+  };
+
+  const selecionarOpcaoImAcao = (idx) => {
+    setImAcaoOpcaoSelecionada(idx);
+    enviarMsgProjetor('SELECIONAR_OPCAO', { opcaoIdx: idx, modo: imAcaoModoRepresentacao });
+  };
+
+  const selecionarModoRepresentacaoImAcao = (modo) => {
+    setImAcaoModoRepresentacao(modo);
+    enviarMsgProjetor('SELECIONAR_OPCAO', { opcaoIdx: imAcaoOpcaoSelecionada, modo: modo });
+  };
+
+  const iniciarPartidaImAcao = (tempoConfig) => {
+    const filaEmbaralhada = [...cartasImAcao].sort(() => Math.random() - 0.5);
+    setImAcaoFila(filaEmbaralhada);
+    setImAcaoPontuacao([1, 1]);
+    setImAcaoRodada(1);
+    setImAcaoCartaAtual(filaEmbaralhada[0]);
+    setImAcaoTimer(tempoConfig);
+    setImAcaoMaxTimer(tempoConfig);
+    setImAcaoFluxo('preparacao');
+    setImAcaoCartaRevelada(false);
+    setImAcaoEquipeVez(0);
+    setModoJogo('imacao');
+    setImAcaoOpcaoSelecionada(0);
+    setImAcaoModoRepresentacao('Desenho');
+    setImAcaoDadoCategoria(1);
+    setImAcaoDadoMovimentacao(2);
+    setImAcaoDadosRolando(false);
+    
+    enviarMsgProjetor('INICIAR_PARTIDA', {
+      pontuacao: [1, 1],
+      rodada: 1,
+      carta: filaEmbaralhada[0],
+      equipeVez: 0,
+      maxTimer: tempoConfig,
+      nomeJ1,
+      nomeJ2
+    });
+
+    irParaTela('ia-jogo');
+  };
+
+  const sortearNovaCartaImAcao = () => {
+    const index = imAcaoRodada % imAcaoFila.length;
+    const novaCarta = imAcaoFila[index];
+    setImAcaoCartaAtual(novaCarta);
+    setImAcaoFluxo('preparacao');
+    setImAcaoCartaRevelada(false);
+    setImAcaoTimer(imAcaoMaxTimer);
+    setImAcaoOpcaoSelecionada(0);
+    setImAcaoDadoCategoria(1);
+    setImAcaoDadoMovimentacao(2);
+    
+    enviarMsgProjetor('SORTEAR_CARTA', {
+      carta: novaCarta,
+      timer: imAcaoMaxTimer
+    });
+  };
+
+  const revelarCartaImAcao = () => {
+    setImAcaoCartaRevelada(true);
+    setImAcaoFluxo('revelada');
+    playSound('reveal');
+    enviarMsgProjetor('REVELAR_CARTA', {});
+  };
+
+  const iniciarCronometroImAcao = () => {
+    setImAcaoFluxo('jogando');
+    enviarMsgProjetor('INICIAR_TIMER', { timer: imAcaoTimer });
+    iniciarTimerImAcaoLocal(imAcaoTimer);
+  };
+
+  const pausarCronometroImAcao = () => {
+    setImAcaoFluxo('preparacao');
+    if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
+    enviarMsgProjetor('PAUSAR_TIMER', {});
+  };
+
+  const julgarImAcao = (acertou) => {
+    if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
+
+    // Revela imediatamente a palavra correta para toda a sala
+    setImAcaoProjetorRevelado(true);
+    enviarMsgProjetor('REVELAR_PROJETOR', {});
+
+    const oponente = imAcaoEquipeVez === 0 ? 1 : 0;
+    const casasAvançar = imAcaoDadoMovimentacao;
+
+    if (acertou) {
+      playSound('victory');
+      const posFinal = Math.min(30, imAcaoPontuacao[imAcaoEquipeVez] + casasAvançar);
+      
+      moverPeaoImAcaoGradual(imAcaoEquipeVez, posFinal, () => {
+        if (posFinal >= 30) {
+          enviarMsgProjetor('FIM_JOGO', {});
+          irParaTela('ia-fim');
+          return;
+        }
+        
+        const proximaRodada = imAcaoRodada + 1;
+        setImAcaoRodada(proximaRodada);
+        setImAcaoEquipeVez(oponente);
+        setImAcaoCartaRevelada(false);
+        setImAcaoProjetorRevelado(false);
+        setImAcaoFluxo('preparacao');
+        setImAcaoOpcaoSelecionada(0);
+        setImAcaoDadoCategoria(1);
+        setImAcaoDadoMovimentacao(2);
+        
+        const index = proximaRodada % imAcaoFila.length;
+        const proxCarta = imAcaoFila[index];
+        setImAcaoCartaAtual(proxCarta);
+        setImAcaoTimer(imAcaoMaxTimer);
+
+        enviarMsgProjetor('PONTUAR_EQUIPE', {
+          pontuacao: imAcaoEquipeVez === 0 ? [posFinal, imAcaoPontuacao[1]] : [imAcaoPontuacao[0], posFinal],
+          rodada: proximaRodada,
+          carta: proxCarta,
+          equipeVez: oponente
+        });
+      });
+    } else {
+      playSound('error');
+      // No erro, aguarda 3.5 segundos para transicionar o turno e carta, dando tempo dos alunos verem o segredo
+      setTimeout(() => {
+        const proximaRodada = imAcaoRodada + 1;
+        setImAcaoRodada(proximaRodada);
+        setImAcaoEquipeVez(oponente);
+        setImAcaoCartaRevelada(false);
+        setImAcaoProjetorRevelado(false);
+        setImAcaoFluxo('preparacao');
+        setImAcaoOpcaoSelecionada(0);
+        setImAcaoDadoCategoria(1);
+        setImAcaoDadoMovimentacao(2);
+
+        const index = proximaRodada % imAcaoFila.length;
+        const proxCarta = imAcaoFila[index];
+        setImAcaoCartaAtual(proxCarta);
+        setImAcaoTimer(imAcaoMaxTimer);
+
+        enviarMsgProjetor('ERROU_RODADA', {
+          rodada: proximaRodada,
+          carta: proxCarta,
+          equipeVez: oponente
+        });
+      }, 3500);
+    }
+  };
+
+  const moverPeaoImAcaoGradual = (equipeIndex, posFinal, callback) => {
+    let posAtual = imAcaoPontuacao[equipeIndex];
+    if (posAtual === posFinal) {
+      if (callback) callback();
+      return;
+    }
+
+    const direcao = posFinal > posAtual ? 1 : -1;
+    const proximoPasso = () => {
+      posAtual += direcao;
+      playSound('tick');
+      
+      setImAcaoPontuacao(prev => {
+        const novos = [...prev];
+        novos[equipeIndex] = posAtual;
+        
+        enviarMsgProjetor('PONTUAR_EQUIPE', {
+          pontuacao: novos,
+          rodada: imAcaoRodada,
+          carta: imAcaoCartaAtual,
+          equipeVez: imAcaoEquipeVez
+        });
+
+        return novos;
+      });
+
+      if (posAtual !== posFinal) {
+        setTimeout(proximoPasso, 350);
+      } else {
+        if (callback) callback();
+      }
+    };
+
+    setTimeout(proximoPasso, 350);
+  };
 
   // --- ESTADOS DO CADASTRO MANUAL DO TRÊS PISTAS ---
   const [cadGerenciadorAba, setCadGerenciadorAba] = useState('duelo'); // 'duelo' | 'pistas'
@@ -831,7 +1353,33 @@ export default function App() {
       + `  }\n`
       + `]`;
 
-    const promptBase = iaAba === 'pistas' ? promptBasePistas : promptBaseDuelo;
+    // Prompt de Imagem e Ação
+    const promptBaseImAcao = `Analise o conteúdo fornecido (ou o tema informado) e gere exatamente ${iaQtd} cartas de jogo para a modalidade Imagem e Ação sobre o tema "${materia}".\n`
+      + `Cada carta deve possuir exatamente 5 opções estruturadas correspondentes às seguintes categorias clássicas do jogo oficial:\n`
+      + `1. Ação (um verbo ou atividade representável fisicamente por gestos/mímica)\n`
+      + `2. Objeto (uma coisa física ou utensílio que pode ser desenhado no quadro)\n`
+      + `3. Lugar (uma cidade, país, espaço físico ou monumento)\n`
+      + `4. Pessoa/Animal (um personagem famoso, profissão, figura histórica ou animal)\n`
+      + `5. Difícil (um conceito abstrato, gíria ou termo complexo)\n\n`
+      + (iaPromptInstrucao.trim() ? `INSTRUÇÃO DE PERSONALIZAÇÃO ADICIONAL DO USUÁRIO QUE DEVE SER SEGUIDA RIGOROSAMENTE:\n"${iaPromptInstrucao.trim()}"\n\n` : '')
+      + `Responda unicamente no formato JSON estrito, sem markdown, sem textos adicionais, respeitando esta estrutura exata:\n`
+      + `[\n`
+      + `  {\n`
+      + `    "opcoes": [\n`
+      + `      { "num": 1, "cat": "Ação", "resp": "Palavra de Ação" },\n`
+      + `      { "num": 2, "cat": "Objeto", "resp": "Palavra de Objeto" },\n`
+      + `      { "num": 3, "cat": "Lugar", "resp": "Palavra de Lugar" },\n`
+      + `      { "num": 4, "cat": "Pessoa/Animal", "resp": "Palavra de Pessoa/Animal" },\n`
+      + `      { "num": 5, "cat": "Difícil", "resp": "Palavra Difícil" }\n`
+      + `    ]\n`
+      + `  }\n`
+      + `]`;
+
+    const promptBase = iaAba === 'pistas' 
+      ? promptBasePistas 
+      : iaAba === 'imacao' 
+        ? promptBaseImAcao 
+        : promptBaseDuelo;
 
     const prompt = iaSourceMode === 'file' 
       ? `Analise o conteúdo deste arquivo.\n\n${promptBase}`
@@ -890,6 +1438,23 @@ export default function App() {
           setIaFeedback({ txt: `✅ ${validadasPistas.length} cartas de Três Pistas geradas com sucesso pela IA do Gemini!`, tipo: 'ok' });
           setIaLoading(false);
           return;
+        } else if (iaAba === 'imacao') {
+          const validadasImAcao = parsed.filter(c => {
+            return Array.isArray(c.opcoes) && c.opcoes.length === 5 && c.opcoes.every(o => o.num && o.cat && o.resp);
+          }).map(c => ({
+            opcoes: c.opcoes.map(o => ({
+              num: Number(o.num),
+              cat: o.cat,
+              resp: o.resp
+            }))
+          }));
+
+          if (!validadasImAcao.length) throw new Error('Nenhuma carta de Imagem e Ação gerada atendeu aos critérios de validação.');
+
+          setIaImAcaoGeradas(validadasImAcao);
+          setIaFeedback({ txt: `✅ ${validadasImAcao.length} cartas de Imagem e Ação geradas com sucesso pela IA do Gemini!`, tipo: 'ok' });
+          setIaLoading(false);
+          return;
         } else {
           const validadas = parsed.filter(p => {
             if (!p.tipo || !p.txt) return false;
@@ -920,6 +1485,39 @@ export default function App() {
 
     // Fallback Local se a API não estiver configurada ou falhar
     setTimeout(() => {
+      if (iaAba === 'imacao') {
+        const mockImAcaoTema = [
+          {
+            opcoes: [
+              { num: 1, cat: 'Ação', resp: `Fazer Mímica de ${materia}` },
+              { num: 2, cat: 'Objeto', resp: `Escrever no Quadro de ${materia}` },
+              { num: 3, cat: 'Lugar', resp: 'Sala de Aula Divertida' },
+              { num: 4, cat: 'Pessoa/Animal', resp: 'Professor Inteligente' },
+              { num: 5, cat: 'Difícil', resp: 'Decifrar Equação' }
+            ]
+          },
+          {
+            opcoes: [
+              { num: 1, cat: 'Ação', resp: 'Desenhar no Quadro' },
+              { num: 2, cat: 'Objeto', resp: 'Projetor Digital' },
+              { num: 3, cat: 'Lugar', resp: 'Laboratório de Ciências' },
+              { num: 4, cat: 'Pessoa/Animal', resp: 'Cientista Famoso' },
+              { num: 5, cat: 'Difícil', resp: 'Entropia Térmica' }
+            ]
+          }
+        ];
+        
+        setIaImAcaoGeradas(mockImAcaoTema);
+        setIaFeedback({
+          txt: geminiKey.trim()
+            ? `✨ Modo Simulação Ativo: A API do Gemini falhou ou retornou inválido. Geramos cartas de Imagem e Ação simuladas para o tema "${materia}"!`
+            : `✨ Modo Simulação: Para ler PDFs reais, insira sua chave do Gemini. Geramos cartas de Imagem e Ação simuladas para o tema "${materia}"!`,
+          type: 'ok'
+        });
+        setIaLoading(false);
+        return;
+      }
+
       if (iaAba === 'pistas') {
         const bancoMockPistas = {
           'História': [
@@ -1115,6 +1713,17 @@ export default function App() {
     }
     setIaFeedback({ txt: `✅ ${iaPistasGeradas.length} cartas de Três Pistas importadas com sucesso ao banco!`, tipo: 'ok' });
     setIaPistasGeradas([]);
+  };
+
+  const confirmarImportacaoImAcaoIA = (modo) => {
+    if (!iaImAcaoGeradas.length) return;
+    if (modo === 'sub') {
+      setCartasImAcao(iaImAcaoGeradas);
+    } else {
+      setCartasImAcao(prev => [...prev, ...iaImAcaoGeradas]);
+    }
+    setIaFeedback({ txt: `✅ ${iaImAcaoGeradas.length} cartas de Imagem e Ação importadas com sucesso ao banco!`, tipo: 'ok' });
+    setIaImAcaoGeradas([]);
   };
 
   // --- CADASTRO MANUAL E IMPORTAÇÃO ---
@@ -2329,6 +2938,20 @@ export default function App() {
               ▶ Jogar Três Pistas
             </button>
           </div>
+
+          {/* Card Imagem e Ação */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(16, 185, 129, 0.25)', boxShadow: '0 8px 32px rgba(16, 185, 129, 0.15)' }}>
+            <div>
+              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>🎨</div>
+              <h3 style={{ fontSize: '1.4rem', color: '#10b981', marginBottom: '10px', fontFamily: 'Outfit' }}>Imagem e Ação</h3>
+              <p style={{ fontSize: '0.85rem', color: '#6ee7b7', lineHeight: '1.5' }}>
+                Jogo de desenho e mímica tática em tela dupla. Exiba o tabuleiro e as cartas ocultas para os alunos, e controle tudo em sigilo!
+              </p>
+            </div>
+            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #10b981, #3b82f6)', boxShadow: '0 8px 30px rgba(16, 185, 129, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('ia-nomes'); }}>
+              ▶ Jogar Imagem e Ação
+            </button>
+          </div>
         </div>
 
         {/* Opções utilitárias inferiores */}
@@ -2355,16 +2978,22 @@ export default function App() {
         {/* Abas superiores do gerador de IA */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
           <button 
-            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: iaAba === 'duelo' ? '#4f46e5' : 'transparent', color: iaAba === 'duelo' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: iaAba === 'duelo' ? '#4f46e5' : 'transparent', color: iaAba === 'duelo' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
             onClick={() => { setIaAba('duelo'); setIaFeedback(null); }}
           >
             ⚔️ Perguntas de Duelo
           </button>
           <button 
-            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: iaAba === 'pistas' ? '#7c3aed' : 'transparent', color: iaAba === 'pistas' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: iaAba === 'pistas' ? '#7c3aed' : 'transparent', color: iaAba === 'pistas' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
             onClick={() => { setIaAba('pistas'); if (iaQtd > 10) setIaQtd(10); setIaFeedback(null); }}
           >
             🗺️ Cartas de Três Pistas
+          </button>
+          <button 
+            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: iaAba === 'imacao' ? '#10b981' : 'transparent', color: iaAba === 'imacao' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            onClick={() => { setIaAba('imacao'); if (iaQtd > 10) setIaQtd(10); setIaFeedback(null); }}
+          >
+            🎨 Cartas de Imagem e Ação
           </button>
         </div>
 
@@ -2509,8 +3138,8 @@ export default function App() {
           />
 
           <label style={{ marginTop: '14px' }}>
-            {iaAba === 'pistas' ? 'Quantidade de cartas a gerar: ' : 'Quantidade de perguntas: '} 
-            <span className="range-val">{iaQtd > (iaAba === 'pistas' ? 10 : 20) ? (iaAba === 'pistas' ? 10 : 20) : iaQtd}</span>
+            {iaAba !== 'duelo' ? 'Quantidade de cartas a gerar: ' : 'Quantidade de perguntas: '} 
+            <span className="range-val">{iaQtd > (iaAba !== 'duelo' ? 10 : 20) ? (iaAba !== 'duelo' ? 10 : 20) : iaQtd}</span>
           </label>
           <div className="range-group">
             <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>1</span>
@@ -2518,11 +3147,11 @@ export default function App() {
               type="range" 
               id="ia-qtd" 
               min="1" 
-              max={iaAba === 'pistas' ? 10 : 20} 
-              value={iaQtd > (iaAba === 'pistas' ? 10 : 20) ? (iaAba === 'pistas' ? 10 : 20) : iaQtd} 
+              max={iaAba !== 'duelo' ? 10 : 20} 
+              value={iaQtd > (iaAba !== 'duelo' ? 10 : 20) ? (iaAba !== 'duelo' ? 10 : 20) : iaQtd} 
               onChange={(e) => setIaQtd(Number(e.target.value))}
             />
-            <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>{iaAba === 'pistas' ? 10 : 20}</span>
+            <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>{iaAba !== 'duelo' ? 10 : 20}</span>
           </div>
 
           {iaAba === 'duelo' && (
@@ -2547,7 +3176,7 @@ export default function App() {
 
           <div style={{ marginTop: '24px', textAlign: 'center' }}>
             <button className="btn-ia" onClick={gerarPerguntasIA} disabled={iaLoading}>
-              {iaLoading ? <><span className="ia-spinner"></span> Gerando...</> : (iaAba === 'pistas' ? '✨ Gerar cartas com IA' : '✨ Gerar perguntas com IA')}
+              {iaLoading ? <><span className="ia-spinner"></span> Gerando...</> : (iaAba !== 'duelo' ? '✨ Gerar cartas com IA' : '✨ Gerar perguntas com IA')}
             </button>
           </div>
 
@@ -2666,6 +3295,50 @@ export default function App() {
                 ➕ Adicionar ao Banco de Cartas
               </button>
               <button className="btn-importar" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => confirmarImportacaoPistasIA('sub')}>
+                ⬆ Substituir Banco de Cartas Completo
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Preview das cartas de Imagem e Ação da IA */}
+        {iaImAcaoGeradas.length > 0 && (
+          <div className="card" id="ia-imacao-resultado" style={{ marginTop: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'space-between', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div className="sec" style={{ margin: 0 }}>Cartas de Imagem e Ação Formuladas pela IA</div>
+              <div className="ia-counter" style={{ background: '#10b981', color: '#fff', padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                {iaImAcaoGeradas.length} carta(s) prontas
+              </div>
+            </div>
+            
+            <div id="ia-lista-imacao-preview" style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '6px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {iaImAcaoGeradas.map((c, i) => (
+                <div key={i} className="ia-perg-preview" style={{ borderLeft: '4px solid #10b981', padding: '16px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '0.9rem', color: '#6ee7b7', fontWeight: 800, marginBottom: '10px' }}>
+                    Carta #{i + 1}
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '8px' }}>
+                    {c.opcoes.map((o, oi) => (
+                      <div key={oi} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.9rem', background: 'rgba(255,255,255,0.01)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                        <span style={{ fontWeight: 'bold', color: obterCorCasaImAcao(o.cat), minWidth: '120px' }}>
+                          {o.num}. {o.cat}:
+                        </span>
+                        <span style={{ flex: 1, color: '#e5e7eb', fontWeight: 'bold' }}>
+                          {o.resp}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
+              <button className="btn-importar" style={{ background: 'linear-gradient(90deg, #10b981, #3b82f6)' }} onClick={() => confirmarImportacaoImAcaoIA('add')}>
+                ➕ Adicionar ao Banco de Cartas
+              </button>
+              <button className="btn-importar" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => confirmarImportacaoImAcaoIA('sub')}>
                 ⬆ Substituir Banco de Cartas Completo
               </button>
             </div>
@@ -4843,6 +5516,560 @@ export default function App() {
 
         <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '10px' }}>
           <button className="btn-start" style={{ background: 'linear-gradient(90deg, #ec4899, #7c3aed)', boxShadow: '0 8px 30px rgba(236, 72, 153, 0.45)' }} onClick={iniciarPartidaPistas}>
+            Jogar Novamente 🔄
+          </button>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('menu')}>
+            Voltar ao Menu 🏠
+          </button>
+        </div>
+      </div>
+
+      {/* 12. TELA DE CONFIGURAÇÃO IMAGEM E AÇÃO */}
+      <div id="tela-ia-nomes" className={`tela ${tela === 'ia-nomes' ? 'ativa' : ''}`} style={{ alignItems: 'center', textAlign: 'center' }}>
+        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'flex-start' }}>← Voltar ao Menu</button>
+        <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(16, 185, 129, 0.45))', margin: '20px 0', width: '100%' }}>🎨</div>
+        <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%', fontFamily: 'Outfit' }}>Configurar Equipes (Imagem e Ação)</h2>
+        <p style={{ color: '#6ee7b7', fontSize: '1.05rem', textAlign: 'center', width: '100%', marginTop: '4px' }}>Configuração da disputa tática de desenho e mímica</p>
+
+        <div className="dupla" style={{ margin: '30px auto 20px', width: '100%', maxWidth: '600px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
+          <div className="jcard j1" style={{ flex: 1 }}>
+            <h3>🔵 Equipe 1</h3>
+            <input value={nomeJ1} onChange={(e) => setNomeJ1(e.target.value)} placeholder="Equipe Azul" />
+          </div>
+          <div className="jcard j2" style={{ flex: 1 }}>
+            <h3>🩷 Equipe 2</h3>
+            <input value={nomeJ2} onChange={(e) => setNomeJ2(e.target.value)} placeholder="Equipe Rosa" />
+          </div>
+        </div>
+
+        {/* Seletor de Tempo */}
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'left' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981', marginBottom: '10px', borderLeft: '3px solid #10b981', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            ⏱️ Tempo Limite por Carta
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '0.85rem', color: '#6ee7b7', fontWeight: 'bold' }}>
+              Duração da rodada: <span style={{ color: '#fb923c', fontSize: '1rem' }}>{imAcaoMaxTimer} segundos</span>
+            </span>
+            <input 
+              type="range" 
+              min="30" 
+              max="120" 
+              step="15"
+              value={imAcaoMaxTimer}
+              onChange={(e) => setImAcaoMaxTimer(Number(e.target.value))}
+              style={{ accentColor: '#10b981', height: '6px', background: 'rgba(255, 255, 255, 0.1)', border: 'none' }}
+            />
+          </div>
+        </div>
+
+        {/* Botão de segunda tela */}
+        <div style={{ margin: '24px 0 10px' }}>
+          <button 
+            className="btn-menu btn-outline" 
+            style={{ borderColor: '#10b981', color: '#10b981', background: 'rgba(16, 185, 129, 0.05)', fontSize: '1rem', padding: '12px 30px' }}
+            onClick={() => window.open('?projetor=true', '_blank', 'width=1200,height=800')}
+          >
+            📺 Abrir Tela do Projetor (Segunda Tela)
+          </button>
+          <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: '6px', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
+            Dica: Abra esta segunda tela e arraste-a para o projetor/quadro da sala de aula antes de clicar em começar.
+          </p>
+        </div>
+
+        <button className="btn-start" style={{ background: 'linear-gradient(90deg, #10b981, #3b82f6)', boxShadow: '0 8px 30px rgba(16, 185, 129, 0.45)', padding: '16px 64px', marginTop: '20px' }} onClick={() => iniciarPartidaImAcao(imAcaoMaxTimer)}>
+          Começar Disputa! 🚀
+        </button>
+      </div>
+
+      {/* 13. TELA DE ARENA DE CONTROLE / MODERAÇÃO IMAGEM E AÇÃO */}
+      <div id="tela-ia-jogo" className={`tela ${tela === 'ia-jogo' ? 'ativa' : ''}`}>
+        {imAcaoCartaAtual && (
+          <div className="imacao-layout">
+            
+            {/* Coluna 1: Tabuleiro Lateral */}
+            <div className="imacao-col-tabuleiro" id="ia-tabuleiro-container">
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981', marginBottom: '14px', borderLeft: '3px solid #10b981', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left' }}>
+                🗺️ Trilha do Tabuleiro
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', maxHeight: '480px', overflowY: 'auto' }}>
+                {Array.from({ length: 30 }, (_, index) => {
+                  const num = index + 1;
+                  const catCasa = obterCatCasaImAcao(num);
+                  const corCasa = obterCorCasaImAcao(catCasa);
+                  const j1Aqui = imAcaoPontuacao[0] === num;
+                  const j2Aqui = imAcaoPontuacao[1] === num;
+
+                  return (
+                    <div 
+                      key={num}
+                      id={`casa-ia-${num}`}
+                      className="tab-casa"
+                      style={{
+                        height: '65px',
+                        background: 'rgba(22, 33, 62, 0.55)',
+                        border: `2.5px solid ${corCasa}`,
+                        borderRadius: '10px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '4px',
+                        position: 'relative'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.72rem', fontWeight: 'bold', color: '#9ca3af' }}>{num === 30 ? '🏁 30' : num}</span>
+                      
+                      {/* Categoria ou Ícone de Grupo */}
+                      {catCasa === 'Todos Jogam' && num !== 30 ? (
+                        <span style={{ fontSize: '0.9rem', filter: 'drop-shadow(0 0 5px #a855f7)', marginTop: '2px' }} title="Todos Jogam">👥</span>
+                      ) : null}
+
+                      {/* Peões Neon Gigantes */}
+                      <div style={{ display: 'flex', gap: '3px', position: 'absolute', bottom: '2px', left: '50%', transform: 'translateX(-50%)' }}>
+                        {j1Aqui && (
+                          <div className="peon-gigante" style={{ '--glow-color': '#3b82f6', background: '#3b82f6', width: '22px', height: '22px', fontSize: '0.62rem', borderWidth: '1.5px', boxShadow: '0 0 10px #3b82f6' }}>AZ</div>
+                        )}
+                        {j2Aqui && (
+                          <div className="peon-gigante" style={{ '--glow-color': '#ec4899', background: '#ec4899', width: '22px', height: '22px', fontSize: '0.62rem', borderWidth: '1.5px', boxShadow: '0 0 10px #ec4899' }}>RS</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Coluna 2: Controle e Gabarito */}
+            <div className="imacao-col-conteudo">
+              
+              {/* Placar e Turno */}
+              <div className="placar-bar" style={{ background: 'rgba(22, 33, 62, 0.65)' }}>
+                <div className="pl-bloco pl-j1">
+                  <div className="pl-nome" style={{ color: '#60a5fa' }}>🔵 {nomeJ1}</div>
+                  <div className="pl-pts" style={{ color: '#60a5fa', fontSize: '1.3rem' }}>Casa {imAcaoPontuacao[0]}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div className="rod-info" style={{ color: '#10b981' }}>Rodada {imAcaoRodada}</div>
+                  <span style={{ fontSize: '0.8rem', background: imAcaoEquipeVez === 0 ? 'rgba(59, 130, 246, 0.15)' : 'rgba(236, 72, 153, 0.15)', color: imAcaoEquipeVez === 0 ? '#60a5fa' : '#f472b6', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                    Vez de: {imAcaoEquipeVez === 0 ? nomeJ1 : nomeJ2}
+                  </span>
+                </div>
+                <div className="pl-bloco pl-j2">
+                  <div className="pl-nome" style={{ color: '#f472b6' }}>🩷 {nomeJ2}</div>
+                  <div className="pl-pts" style={{ color: '#f472b6', fontSize: '1.3rem' }}>Casa {imAcaoPontuacao[1]}</div>
+                </div>
+              </div>
+
+              {/* Painel de Dados Virtuais */}
+              <div className="card" style={{ padding: '16px', textAlign: 'center', border: '1px solid rgba(167, 139, 250, 0.25)', background: 'rgba(22, 33, 62, 0.55)', display: 'flex', flexDirection: 'column', gap: '10px', margin: '0 0 16px 0' }}>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#a78bfa', marginBottom: '4px', borderLeft: '3px solid #7c3aed', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left' }}>
+                  🎲 Dados Virtuais Síncronos
+                </div>
+                
+                <div className="dados-area-flex">
+                  <div className="dado-virtual-wrap">
+                    <div className={`dado-virtual ${imAcaoDadosRolando ? 'rolando' : ''} dado-cat-${imAcaoDadoCategoria}`}>
+                      <span style={{ fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Categoria</span>
+                      <strong style={{ fontSize: '1.8rem', color: '#fff', margin: '2px 0' }}>{imAcaoDadoCategoria}</strong>
+                      <span style={{ fontSize: '0.62rem', color: obterCorCasaImAcao(imAcaoDadoCategoria === 6 ? 'Difícil' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]), fontWeight: 'bold', textTransform: 'uppercase' }}>
+                        {imAcaoDadoCategoria === 6 ? '🌟 Livre' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="dado-virtual-wrap">
+                    <div className={`dado-virtual dado-mov ${imAcaoDadosRolando ? 'rolando' : ''}`}>
+                      <span style={{ fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Casas</span>
+                      <strong style={{ fontSize: '2.4rem', color: '#3b82f6', margin: '2px 0' }}>{imAcaoDadoMovimentacao}</strong>
+                      <span style={{ fontSize: '0.62rem', color: '#60a5fa', fontWeight: 'bold' }}>AVANÇAR</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  className="btn-start" 
+                  style={{ background: 'linear-gradient(90deg, #7c3aed, #4f46e5)', fontSize: '0.9rem', padding: '8px 24px', width: 'fit-content', margin: '4px auto 0' }}
+                  onClick={rolarDadosImAcao}
+                  disabled={imAcaoDadosRolando}
+                >
+                  🎲 Rolar Dados!
+                </button>
+              </div>
+
+              {/* Painel do Desenhista */}
+              <div className="card" style={{ padding: '20px', border: '1.5px solid rgba(16, 185, 129, 0.25)', margin: '0 0 16px 0' }}>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981', marginBottom: '14px', borderLeft: '3px solid #10b981', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left' }}>
+                  🕵️ Painel de Escolha do Desenhista / Mímico
+                </div>
+
+                {/* Seletor de Modo: Mímica ou Desenho */}
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '16px' }}>
+                  <button 
+                    className="btn-poder"
+                    style={{ 
+                      flex: 1, 
+                      padding: '10px', 
+                      background: imAcaoModoRepresentacao === 'Mímica' ? 'rgba(124, 58, 237, 0.2)' : 'rgba(0,0,0,0.15)',
+                      borderColor: imAcaoModoRepresentacao === 'Mímica' ? '#7c3aed' : 'rgba(255,255,255,0.08)',
+                      color: imAcaoModoRepresentacao === 'Mímica' ? '#c4b5fd' : '#9ca3af',
+                      fontSize: '0.85rem'
+                    }}
+                    onClick={() => selecionarModoRepresentacaoImAcao('Mímica')}
+                  >
+                    🎭 Fazer Mímica
+                  </button>
+                  <button 
+                    className="btn-poder"
+                    style={{ 
+                      flex: 1, 
+                      padding: '10px', 
+                      background: imAcaoModoRepresentacao === 'Desenho' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(0,0,0,0.15)',
+                      borderColor: imAcaoModoRepresentacao === 'Desenho' ? '#10b981' : 'rgba(255,255,255,0.08)',
+                      color: imAcaoModoRepresentacao === 'Desenho' ? '#6ee7b7' : '#9ca3af',
+                      fontSize: '0.85rem'
+                    }}
+                    onClick={() => selecionarModoRepresentacaoImAcao('Desenho')}
+                  >
+                    ✏️ Fazer Desenho
+                  </button>
+                </div>
+
+                {/* Lista das 5 opções da Carta */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                  {imAcaoCartaAtual.opcoes.map((opcao, idx) => {
+                    const sorteada = (imAcaoDadoCategoria === (idx + 1)) || (imAcaoDadoCategoria === 6 && imAcaoOpcaoSelecionada === idx);
+                    const selecionada = imAcaoOpcaoSelecionada === idx;
+                    const corCat = obterCorCasaImAcao(opcao.cat);
+                    
+                    return (
+                      <div 
+                        key={opcao.num}
+                        style={{
+                          background: selecionada ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.15)',
+                          border: selecionada 
+                            ? `2.5px solid ${corCat}` 
+                            : sorteada 
+                              ? '2px dashed rgba(250, 204, 21, 0.4)' 
+                              : '1px solid rgba(255,255,255,0.05)',
+                          boxShadow: selecionada ? `0 0 15px ${corCat}33` : 'none',
+                          borderRadius: '12px',
+                          padding: '10px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                        onClick={() => selecionarOpcaoImAcao(idx)}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ 
+                            width: '26px', 
+                            height: '26px', 
+                            borderRadius: '50%', 
+                            background: corCat, 
+                            color: '#fff', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            fontSize: '0.8rem'
+                          }}>
+                            {opcao.num}
+                          </span>
+                          <span style={{ fontSize: '0.88rem', fontWeight: 'bold', color: corCat, textTransform: 'uppercase' }}>
+                            {opcao.cat}
+                          </span>
+                        </div>
+
+                        {/* Palavra Secreta visível apenas para o moderador/desenhista */}
+                        <div style={{ textAlign: 'right' }}>
+                          {imAcaoCartaRevelada && imAcaoOpcaoSelecionada === idx ? (
+                            <strong style={{ fontSize: '1rem', color: '#fff' }}>
+                              <MathText text={opcao.resp} />
+                            </strong>
+                          ) : (
+                            <span style={{ fontSize: '0.8rem', color: '#6b7280', fontStyle: 'italic' }}>Oculto</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {!imAcaoCartaRevelada ? (
+                  <button className="btn-prox" style={{ background: '#10b981', fontSize: '0.9rem', padding: '10px 24px' }} onClick={revelarCartaImAcao}>
+                    👁️ Revelar Segredo
+                  </button>
+                ) : (
+                  <div style={{ color: '#fb923c', fontSize: '0.82rem', fontWeight: 'bold', background: 'rgba(245,158,11,0.08)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.2)', width: 'fit-content', margin: '0 auto' }}>
+                    💡 O jogador da vez deve representar a opção {imAcaoOpcaoSelecionada + 1} em modo de {imAcaoModoRepresentacao}!
+                  </div>
+                )}
+              </div>
+
+              {/* Controles de Cronômetro */}
+              <div className="card" style={{ padding: '16px', textAlign: 'center', margin: '0 0 16px 0' }}>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#a78bfa', marginBottom: '12px', borderLeft: '3px solid #7c3aed', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left' }}>
+                  ⏱️ Controle de Tempo
+                </div>
+                
+                <div style={{ fontSize: '2.4rem', fontWeight: 'bold', fontFamily: 'monospace', color: imAcaoTimer <= 5 ? '#ef4444' : '#fff' }}>
+                  {imAcaoTimer}s
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '12px' }}>
+                  {imAcaoFluxo !== 'jogando' ? (
+                    <button className="btn-ac btn-add" style={{ background: '#10b981', padding: '10px 24px' }} onClick={iniciarCronometroImAcao}>
+                      ▶ Iniciar Cronômetro
+                    </button>
+                  ) : (
+                    <button className="btn-ac" style={{ background: '#f59e0b', color: '#fff', padding: '10px 24px' }} onClick={pausarCronometroImAcao}>
+                      ⏸ Pausar Cronômetro
+                    </button>
+                  )}
+                  
+                  <button className="btn-del" style={{ padding: '10px 24px' }} onClick={() => { pausarCronometroImAcao(); setImAcaoTimer(imAcaoMaxTimer); enviarMsgProjetor('SORTEAR_CARTA', { carta: imAcaoCartaAtual, timer: imAcaoMaxTimer }); }}>
+                    🔄 Reiniciar
+                  </button>
+                </div>
+              </div>
+
+              {/* Julgamento */}
+              {imAcaoCartaRevelada && (
+                <div className="card" style={{ padding: '16px', border: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', flexDirection: 'column', gap: '12px', margin: '0 0 16px 0' }}>
+                  <div style={{ fontSize: '0.9rem', color: '#9ca3af', fontWeight: 'bold', textAlign: 'center' }}>
+                    O grupo adivinhou a palavra secreta a tempo?
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button className="btn-ac btn-add" style={{ flex: 1, background: '#10b981', padding: '12px' }} onClick={() => julgarImAcao(true)}>
+                      ✅ Sim! Adivinhou (+{imAcaoDadoMovimentacao} Casas)
+                    </button>
+                    <button className="btn-ac" style={{ flex: 1, background: '#dc2626', color: '#fff', padding: '12px' }} onClick={() => julgarImAcao(false)}>
+                      ❌ Não / Passar a Vez
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Botão Abandonar */}
+              <button className="btn-del" style={{ width: 'fit-content', margin: '10px auto 0' }} onClick={() => { if(window.confirm('Quer mesmo sair da partida?')) irParaTela('menu'); }}>
+                🚪 Abandonar Partida
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 14. TELA SECUNDÁRIA DO PROJETOR IMAGEM E AÇÃO */}
+      <div id="tela-ia-projetor" className={`tela ${tela === 'ia-projetor' ? 'ativa' : ''}`} style={{ background: 'radial-gradient(circle at 50% 50%, #0d0722 0%, #03020a 100%)', minHeight: '100vh', padding: '24px', boxSizing: 'border-box' }}>
+        {imAcaoCartaAtual && (
+          <div className="projetor-screen" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* Header Síncrono */}
+            <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <span style={{ fontSize: '2.5rem' }}>🎨</span>
+                <div style={{ textAlign: 'left' }}>
+                  <h1 style={{ fontSize: '1.8rem', fontWeight: 900, color: '#fff', margin: 0, fontFamily: 'Outfit' }}>Imagem e Ação</h1>
+                  <span style={{ fontSize: '0.9rem', color: '#6ee7b7', fontWeight: 'bold' }}>Disputa Pedagógica de Trilha</span>
+                </div>
+              </div>
+
+              {/* Rodada */}
+              <div style={{ background: 'rgba(124, 58, 237, 0.15)', border: '1px solid rgba(124, 58, 237, 0.3)', borderRadius: '20px', padding: '6px 20px', fontSize: '1.2rem', color: '#c4b5fd', fontWeight: 'bold' }}>
+                Rodada {imAcaoRodada}
+              </div>
+            </div>
+
+            {/* Layout Principal do Projetor */}
+            <div className="imacao-layout" style={{ width: '100%' }}>
+              
+              {/* Tabuleiro no Projetor */}
+              <div className="imacao-col-tabuleiro" style={{ flex: 1.3, background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#10b981', marginBottom: '16px', borderLeft: '4px solid #10b981', paddingLeft: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left' }}>
+                  🗺️ Tabuleiro de Equipes
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '12px' }}>
+                  {Array.from({ length: 30 }, (_, index) => {
+                    const num = index + 1;
+                    const catCasa = obterCatCasaImAcao(num);
+                    const corCasa = obterCorCasaImAcao(catCasa);
+                    const j1Aqui = imAcaoPontuacao[0] === num;
+                    const j2Aqui = imAcaoPontuacao[1] === num;
+
+                    return (
+                      <div 
+                        key={num}
+                        className="tab-casa"
+                        style={{
+                          height: '80px',
+                          background: 'rgba(15, 23, 42, 0.5)',
+                          border: `3px solid ${corCasa}`,
+                          borderRadius: '12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '6px',
+                          position: 'relative',
+                          boxShadow: (j1Aqui || j2Aqui) ? `0 0 15px ${corCasa}` : 'none'
+                        }}
+                      >
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#9ca3af' }}>{num === 30 ? '🏁 30' : num}</span>
+                        
+                        {/* Categoria ou Ícone de Grupo */}
+                        {catCasa === 'Todos Jogam' && num !== 30 ? (
+                          <span style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 8px #a855f7)', marginTop: '4px' }} title="Todos Jogam">👥</span>
+                        ) : null}
+
+                        {/* Peões Gigantes Neon de Alta Visibilidade no Projetor */}
+                        <div style={{ display: 'flex', gap: '4px', position: 'absolute', bottom: '6px', left: '50%', transform: 'translateX(-50%)' }}>
+                          {j1Aqui && (
+                            <div className="peon-gigante" style={{ '--glow-color': '#3b82f6', background: '#3b82f6', width: '38px', height: '38px', fontSize: '1rem', borderWidth: '3px', boxShadow: '0 0 15px #3b82f6' }}>AZ</div>
+                          )}
+                          {j2Aqui && (
+                            <div className="peon-gigante" style={{ '--glow-color': '#ec4899', background: '#ec4899', width: '38px', height: '38px', fontSize: '1rem', borderWidth: '3px', boxShadow: '0 0 15px #ec4899' }}>RS</div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Lado Direito: A Carta Misteriosa e o Cronômetro Circular */}
+              <div className="imacao-col-conteudo" style={{ flex: 0.9, gap: '24px', alignItems: 'center' }}>
+                
+                {/* Placar de Equipes no Projetor */}
+                <div style={{ display: 'flex', gap: '20px', width: '100%', justifyContent: 'center' }}>
+                  <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '2px solid #3b82f6', borderRadius: '16px', padding: '12px 24px', textAlign: 'center', flex: 1, boxShadow: imAcaoEquipeVez === 0 ? '0 0 20px rgba(59, 130, 246, 0.3)' : 'none' }}>
+                    <div style={{ color: '#60a5fa', fontSize: '1.2rem', fontWeight: 'bold' }}>🔵 {nomeJ1}</div>
+                    <div style={{ color: '#fff', fontSize: '1.6rem', fontWeight: '900' }}>Casa {imAcaoPontuacao[0]}</div>
+                  </div>
+                  <div style={{ background: 'rgba(236, 72, 153, 0.1)', border: '2px solid #ec4899', borderRadius: '16px', padding: '12px 24px', textAlign: 'center', flex: 1, boxShadow: imAcaoEquipeVez === 1 ? '0 0 20px rgba(236, 72, 153, 0.3)' : 'none' }}>
+                    <div style={{ color: '#f472b6', fontSize: '1.2rem', fontWeight: 'bold' }}>🩷 {nomeJ2}</div>
+                    <div style={{ color: '#fff', fontSize: '1.6rem', fontWeight: '900' }}>Casa {imAcaoPontuacao[1]}</div>
+                  </div>
+                </div>
+
+                {/* Vez de Quem no Projetor */}
+                <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: imAcaoEquipeVez === 0 ? '#60a5fa' : '#f472b6', padding: '8px 24px', borderRadius: '30px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  🎭 Vez da Equipe: {imAcaoEquipeVez === 0 ? nomeJ1 : nomeJ2}
+                </div>
+
+                {/* Dados Virtuais Síncronos no Projetor */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center', width: '100%' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    🎲 Dados Sorteados
+                  </div>
+                  <div className="dados-area-flex" style={{ transform: 'scale(1.1)', margin: '4px 0' }}>
+                    <div className="dado-virtual-wrap">
+                      <div className={`dado-virtual ${imAcaoDadosRolando ? 'rolando' : ''} dado-cat-${imAcaoDadoCategoria}`}>
+                        <span style={{ fontSize: '0.62rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Categoria</span>
+                        <strong style={{ fontSize: '1.6rem', color: '#fff', margin: '1px 0' }}>{imAcaoDadoCategoria}</strong>
+                        <span style={{ fontSize: '0.55rem', color: obterCorCasaImAcao(imAcaoDadoCategoria === 6 ? 'Difícil' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]), fontWeight: 'bold', textTransform: 'uppercase' }}>
+                          {imAcaoDadoCategoria === 6 ? '🌟 Livre' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="dado-virtual-wrap">
+                      <div className={`dado-virtual dado-mov ${imAcaoDadosRolando ? 'rolando' : ''}`}>
+                        <span style={{ fontSize: '0.62rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Casas</span>
+                        <strong style={{ fontSize: '2.1rem', color: '#3b82f6', margin: '1px 0' }}>{imAcaoDadoMovimentacao}</strong>
+                        <span style={{ fontSize: '0.55rem', color: '#60a5fa', fontWeight: 'bold' }}>AVANÇAR</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cronômetro Circular Gigante no Projetor */}
+                <div className="cronometro-circular" style={{ width: '160px', height: '160px' }}>
+                  <svg viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="42" className="bg-circle" />
+                    <circle 
+                      cx="50" 
+                      cy="50" 
+                      r="42" 
+                      className="progress-circle" 
+                      stroke={imAcaoTimer <= 5 ? '#ef4444' : obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}
+                      strokeDasharray="264"
+                      strokeDashoffset={264 - (264 * (imAcaoTimer / imAcaoMaxTimer))}
+                      style={{ filter: `drop-shadow(0 0 8px ${imAcaoTimer <= 5 ? '#ef4444' : obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)})` }}
+                    />
+                  </svg>
+                  <div className="timer-text" style={{ fontSize: '3rem', color: imAcaoTimer <= 5 ? '#ef4444' : '#fff' }}>
+                    {imAcaoTimer}s
+                  </div>
+                </div>
+
+                {/* Carta do Projetor */}
+                <div className="ia-carta-wrap" style={{ width: '240px', height: '320px' }}>
+                  <div className={`ia-carta-inner ${imAcaoProjetorRevelado ? 'virada' : ''}`}>
+                    {/* Verso */}
+                    <div className="ia-carta-back" style={{ border: `3.5px solid ${obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}`, boxShadow: `0 0 20px ${obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}` }}>
+                      <div style={{ fontSize: '3.2rem' }}>
+                        {imAcaoModoRepresentacao === 'Mímica' ? '🎭' : '✏️'}
+                      </div>
+                      <span style={{ fontSize: '0.8rem', color: '#c4b5fd', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                        Opção {imAcaoOpcaoSelecionada + 1}
+                      </span>
+                      <strong style={{ fontSize: '1.25rem', color: obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat), textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        {imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat}
+                      </strong>
+                      <div style={{ fontSize: '0.85rem', color: '#fff', background: imAcaoModoRepresentacao === 'Mímica' ? 'rgba(124, 58, 237, 0.3)' : 'rgba(16, 185, 129, 0.3)', border: `1px solid ${imAcaoModoRepresentacao === 'Mímica' ? '#7c3aed' : '#10b981'}`, padding: '3px 10px', borderRadius: '10px', fontWeight: 'bold' }}>
+                        Modo: {imAcaoModoRepresentacao}
+                      </div>
+                    </div>
+
+                    {/* Frente */}
+                    <div className={`ia-carta-front ia-cat-${imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "")}`} style={{ padding: '16px', border: `3.5px solid ${obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}` }}>
+                      <span style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.06)', color: obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat), padding: '2px 8px', borderRadius: '4px', alignSelf: 'flex-start', fontWeight: 'bold' }}>
+                        {imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat.toUpperCase()}
+                      </span>
+                      
+                      <div style={{ margin: '20px 0', textAlign: 'center' }}>
+                        <span style={{ color: '#9ca3af', fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Opção {imAcaoOpcaoSelecionada + 1} ({imAcaoModoRepresentacao})</span>
+                        <span style={{ color: '#9ca3af', fontSize: '0.85rem', display: 'block', marginBottom: '6px' }}>A Resposta era:</span>
+                        <strong style={{ fontSize: '1.8rem', color: '#4ade80', textShadow: '0 0 10px rgba(74, 222, 128, 0.4)' }}><MathText text={imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.resp} /></strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 15. TELA DE FIM DE PARTIDA IMAGEM E AÇÃO */}
+      <div id="tela-ia-fim" className={`tela ${tela === 'ia-fim' ? 'ativa' : ''}`} style={{ alignItems: 'center' }}>
+        <div className="trofeu">🏆</div>
+        <h2 style={{ fontFamily: 'Outfit', letterSpacing: '1.5px' }}>Resultado Final - Imagem e Ação</h2>
+        
+        <div className="venc-final" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #10b981 50%, #3b82f6 100%)', webkitBackgroundClip: 'text', webkitTextFillColor: 'transparent', textAlign: 'center' }}>
+          {imAcaoPontuacao[0] >= 30 ? `🎉 ${nomeJ1} é a Campeã! 🏆` : `🎉 ${nomeJ2} é a Campeã! 🏆`}
+        </div>
+
+        <div className="placar-final">
+          <div className="pf-item">
+            <div className="pf-nome" style={{ color: '#60a5fa' }}>🔵 {nomeJ1}</div>
+            <div className="pf-pts" style={{ color: '#60a5fa' }}>Casa {imAcaoPontuacao[0]}</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', color: '#a78bfa', fontSize: '1.6rem', fontWeight: 800 }}>×</div>
+          <div className="pf-item">
+            <div className="pf-nome" style={{ color: '#f472b6' }}>🩷 {nomeJ2}</div>
+            <div className="pf-pts" style={{ color: '#f472b6' }}>Casa {imAcaoPontuacao[1]}</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '10px' }}>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #10b981, #3b82f6)', boxShadow: '0 8px 30px rgba(16, 185, 129, 0.45)' }} onClick={() => iniciarPartidaImAcao(imAcaoMaxTimer)}>
             Jogar Novamente 🔄
           </button>
           <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('menu')}>

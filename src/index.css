@@ -1526,7 +1526,7 @@ input::placeholder, textarea::placeholder {
 
 .jogos-selecao-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 24px;
 }
 
@@ -1572,4 +1572,244 @@ input::placeholder, textarea::placeholder {
     width: 100%;
     min-width: 100%;
   }
+}
+
+/* ================== ESTILOS DO JOGO IMAGEM E AÇÃO ================== */
+.imacao-layout {
+  display: flex;
+  gap: 24px;
+  width: 100%;
+  align-items: flex-start;
+}
+
+.imacao-col-tabuleiro {
+  flex: 1.1;
+  min-width: 340px;
+  background: rgba(22, 33, 62, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
+}
+
+.imacao-col-conteudo {
+  flex: 1.2;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 950px) {
+  .imacao-layout {
+    flex-direction: column;
+  }
+  .imacao-col-tabuleiro, .imacao-col-conteudo {
+    width: 100%;
+    min-width: 100%;
+  }
+}
+
+/* Peões Gigantes Neon de Alta Visibilidade */
+.peon-gigante {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  border: 3.5px solid #ffffff;
+  box-shadow: 0 0 25px var(--glow-color), 0 4px 15px rgba(0,0,0,0.6);
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: pulse-peon 1.5s infinite alternate;
+  z-index: 10;
+  font-family: 'Outfit', sans-serif;
+  user-select: none;
+}
+
+@keyframes pulse-peon {
+  0% { transform: scale(1); filter: brightness(1); }
+  100% { transform: scale(1.1); filter: brightness(1.2); }
+}
+
+/* Layout de Carta 3D Flip */
+.ia-carta-wrap {
+  perspective: 1000px;
+  width: 280px;
+  height: 380px;
+  margin: 0 auto;
+}
+
+.ia-carta-inner {
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.ia-carta-inner.virada {
+  transform: rotateY(180deg);
+}
+
+.ia-carta-front, .ia-carta-back {
+  backface-visibility: hidden;
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px;
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.ia-carta-back {
+  background: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #311042 100%);
+  border: 3.5px solid #7c3aed;
+  color: #fff;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  box-shadow: inset 0 0 40px rgba(124, 58, 237, 0.25), 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.ia-carta-front {
+  transform: rotateY(180deg);
+  background: #111827;
+  border-width: 4px;
+}
+
+/* Cores de Categorias Imagem e Ação */
+.ia-cat-acao { border-color: #ef4444; box-shadow: 0 0 25px rgba(239, 68, 68, 0.15); }
+.ia-cat-objeto { border-color: #10b981; box-shadow: 0 0 25px rgba(16, 185, 129, 0.15); }
+.ia-cat-lugar { border-color: #3b82f6; box-shadow: 0 0 25px rgba(59, 130, 246, 0.15); }
+.ia-cat-pessoa { border-color: #eab308; box-shadow: 0 0 25px rgba(234, 179, 8, 0.15); }
+.ia-cat-mundo { border-color: #a855f7; box-shadow: 0 0 25px rgba(168, 85, 247, 0.15); }
+.ia-cat-dificil { border-color: #f97316; box-shadow: 0 0 25px rgba(249, 115, 22, 0.15); }
+
+/* Cronômetro Circular */
+.cronometro-circular {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.cronometro-circular svg {
+  transform: rotate(-90deg);
+  width: 100%;
+  height: 100%;
+}
+
+.cronometro-circular circle {
+  fill: none;
+  stroke-width: 8;
+}
+
+.cronometro-circular .bg-circle {
+  stroke: rgba(255, 255, 255, 0.05);
+}
+
+.cronometro-circular .progress-circle {
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.1s linear, stroke 0.3s ease;
+}
+
+.cronometro-circular .timer-text {
+  position: absolute;
+  font-size: 2.5rem;
+  font-weight: 900;
+  font-family: 'monospace';
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255,255,255,0.2);
+}
+
+/* Modos de Tela para Projetor */
+.projetor-screen {
+  background: radial-gradient(circle at 50% 50%, #0d0722 0%, #03020a 100%) !important;
+  min-height: 100vh;
+  width: 100%;
+  padding: 30px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ================== ESTILOS DE DADOS INTERATIVOS 3D ================== */
+.dados-area-flex {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  align-items: center;
+  margin: 10px 0;
+  width: 100%;
+}
+
+.dado-virtual-wrap {
+  perspective: 600px;
+}
+
+.dado-virtual {
+  width: 84px;
+  height: 84px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 3.5px solid #a78bfa;
+  border-radius: 18px;
+  box-shadow: 0 0 20px rgba(167, 139, 250, 0.35), inset 0 0 15px rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  user-select: none;
+  font-family: 'Outfit', sans-serif;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+/* Animação Chacoalhar Dado */
+.dado-virtual.rolando {
+  animation: chacoalhar-dado 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes chacoalhar-dado {
+  0% { transform: scale(1) rotateX(0deg) rotateY(0deg) translateY(0); }
+  20% { transform: scale(1.05) rotateX(15deg) rotateY(-15deg) translateY(-8px); }
+  40% { transform: scale(0.95) rotateX(-20deg) rotateY(10deg) translateY(4px); }
+  60% { transform: scale(1.1) rotateX(10deg) rotateY(25deg) translateY(-10px); }
+  80% { transform: scale(0.9) rotateX(-10deg) rotateY(-20deg) translateY(2px); }
+  100% { transform: scale(1.05) rotateX(20deg) rotateY(15deg) translateY(-6px); }
+}
+
+/* Cores Neon do Dado de Categoria conforme o resultado */
+.dado-cat-1 { border-color: #ef4444 !important; box-shadow: 0 0 25px rgba(239, 68, 68, 0.6) !important; }
+.dado-cat-2 { border-color: #10b981 !important; box-shadow: 0 0 25px rgba(16, 185, 129, 0.6) !important; }
+.dado-cat-3 { border-color: #3b82f6 !important; box-shadow: 0 0 25px rgba(59, 130, 246, 0.6) !important; }
+.dado-cat-4 { border-color: #eab308 !important; box-shadow: 0 0 25px rgba(234, 179, 8, 0.6) !important; }
+.dado-cat-5 { border-color: #f97316 !important; box-shadow: 0 0 25px rgba(249, 115, 22, 0.6) !important; }
+.dado-cat-6 { border-color: #c084fc !important; box-shadow: 0 0 35px rgba(192, 132, 252, 0.8) !important; animation: rainbow-glow 2s infinite alternate; }
+
+@keyframes rainbow-glow {
+  0% { box-shadow: 0 0 25px rgba(192, 132, 252, 0.7); border-color: #c084fc; }
+  50% { box-shadow: 0 0 25px rgba(59, 130, 246, 0.7); border-color: #3b82f6; }
+  100% { box-shadow: 0 0 25px rgba(16, 185, 129, 0.7); border-color: #10b981; }
+}
+
+/* Dado de Movimentação */
+.dado-mov {
+  border-color: #3b82f6;
+  box-shadow: 0 0 25px rgba(59, 130, 246, 0.5);
 }
