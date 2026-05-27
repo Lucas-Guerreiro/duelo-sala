@@ -616,6 +616,28 @@ export default function App() {
   });
   const [cadMemoImagemUrl, setCadMemoImagemUrl] = useState('');
 
+  const [memoImgSurpresaEmbaralhar, setMemoImgSurpresaEmbaralhar] = useState(() => localStorage.getItem('memoImgSurpresaEmbaralhar') || "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop");
+  const [memoImgSurpresaOlho, setMemoImgSurpresaOlho] = useState(() => localStorage.getItem('memoImgSurpresaOlho') || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop");
+  const [memoImgSurpresaGanharAura, setMemoImgSurpresaGanharAura] = useState(() => localStorage.getItem('memoImgSurpresaGanharAura') || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=250&auto=format&fit=crop");
+  const [memoImgSurpresaPerderAura, setMemoImgSurpresaPerderAura] = useState(() => localStorage.getItem('memoImgSurpresaPerderAura') || "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop");
+  const [memoImgSurpresaVezExtra, setMemoImgSurpresaVezExtra] = useState(() => localStorage.getItem('memoImgSurpresaVezExtra') || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=250&auto=format&fit=crop");
+
+  useEffect(() => {
+    localStorage.setItem('memoImgSurpresaEmbaralhar', memoImgSurpresaEmbaralhar);
+  }, [memoImgSurpresaEmbaralhar]);
+  useEffect(() => {
+    localStorage.setItem('memoImgSurpresaOlho', memoImgSurpresaOlho);
+  }, [memoImgSurpresaOlho]);
+  useEffect(() => {
+    localStorage.setItem('memoImgSurpresaGanharAura', memoImgSurpresaGanharAura);
+  }, [memoImgSurpresaGanharAura]);
+  useEffect(() => {
+    localStorage.setItem('memoImgSurpresaPerderAura', memoImgSurpresaPerderAura);
+  }, [memoImgSurpresaPerderAura]);
+  useEffect(() => {
+    localStorage.setItem('memoImgSurpresaVezExtra', memoImgSurpresaVezExtra);
+  }, [memoImgSurpresaVezExtra]);
+
   useEffect(() => {
     localStorage.setItem('dm_memo_imagens', JSON.stringify(memoImagensPool));
   }, [memoImagensPool]);
@@ -1614,7 +1636,7 @@ export default function App() {
             parId: -1,
             tipo: 'surpresa-embaralhar',
             texto: 'Troca-Tudo! 🌪️',
-            imagem: "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop",
+            imagem: memoImgSurpresaEmbaralhar,
             aberta: false,
             encontradaPor: null
           };
@@ -1624,7 +1646,7 @@ export default function App() {
             parId: -2,
             tipo: 'surpresa-olho',
             texto: 'Olho Mágico! 👁️',
-            imagem: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop",
+            imagem: memoImgSurpresaOlho,
             aberta: false,
             encontradaPor: null
           };
@@ -1634,7 +1656,7 @@ export default function App() {
             parId: -3,
             tipo: 'surpresa-ganhar-aura',
             texto: 'Explosão de Aura! 🗿✨',
-            imagem: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=250&auto=format&fit=crop",
+            imagem: memoImgSurpresaGanharAura,
             aberta: false,
             encontradaPor: null
           };
@@ -1644,7 +1666,7 @@ export default function App() {
             parId: -4,
             tipo: 'surpresa-perder-aura',
             texto: 'Dreno de Aura! 📉💔',
-            imagem: "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop",
+            imagem: memoImgSurpresaPerderAura,
             aberta: false,
             encontradaPor: null
           };
@@ -1654,7 +1676,7 @@ export default function App() {
             parId: -5,
             tipo: 'surpresa-vez-extra',
             texto: 'Turno Extra! 🔄⚡',
-            imagem: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=250&auto=format&fit=crop",
+            imagem: memoImgSurpresaVezExtra,
             aberta: false,
             encontradaPor: null
           };
@@ -1664,7 +1686,7 @@ export default function App() {
             parId: -1,
             tipo: 'surpresa-embaralhar',
             texto: 'Troca-Tudo! 🌪️',
-            imagem: "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop",
+            imagem: memoImgSurpresaEmbaralhar,
             aberta: false,
             encontradaPor: null
           };
@@ -5896,6 +5918,111 @@ export default function App() {
                   >
                     Adicionar
                   </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Customização de Imagens das Cartas Surpresas */}
+            <div className="card" style={{ marginTop: '20px' }}>
+              <div className="sec" style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '8px' }}>🎁 Imagens das Cartas Surpresas</div>
+              <p style={{ color: '#c4b5fd', fontSize: '0.85rem', marginBottom: '16px' }}>
+                Altere as URLs abaixo para customizar as imagens exibidas no verso de cada tipo de Carta Surpresa:
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Surpresa: Embaralhar */}
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <img 
+                    src={memoImgSurpresaEmbaralhar} 
+                    alt="Preview Troca-Tudo"
+                    style={{ width: '55px', height: '55px', borderRadius: '8px', border: '1.5px solid rgba(245, 158, 11, 0.4)', objectFit: 'cover', background: '#0f172a' }}
+                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop"; }}
+                  />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#f59e0b' }}>Troca-Tudo 🌪️ (Embaralhar)</label>
+                    <input 
+                      value={memoImgSurpresaEmbaralhar} 
+                      onChange={(e) => setMemoImgSurpresaEmbaralhar(e.target.value)}
+                      placeholder="URL da imagem para Troca-Tudo..."
+                      style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Surpresa: Olho */}
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <img 
+                    src={memoImgSurpresaOlho} 
+                    alt="Preview Olho Mágico"
+                    style={{ width: '55px', height: '55px', borderRadius: '8px', border: '1.5px solid rgba(139, 92, 246, 0.4)', objectFit: 'cover', background: '#0f172a' }}
+                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop"; }}
+                  />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#8b5cf6' }}>Olho Mágico 👁️ (Revelar Par)</label>
+                    <input 
+                      value={memoImgSurpresaOlho} 
+                      onChange={(e) => setMemoImgSurpresaOlho(e.target.value)}
+                      placeholder="URL da imagem para Olho Mágico..."
+                      style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Surpresa: Ganhar Aura */}
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <img 
+                    src={memoImgSurpresaGanharAura} 
+                    alt="Preview Explosão Aura"
+                    style={{ width: '55px', height: '55px', borderRadius: '8px', border: '1.5px solid rgba(16, 185, 129, 0.4)', objectFit: 'cover', background: '#0f172a' }}
+                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=250&auto=format&fit=crop"; }}
+                  />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#10b981' }}>Explosão de Aura 🗿✨ (Ganhar Aura)</label>
+                    <input 
+                      value={memoImgSurpresaGanharAura} 
+                      onChange={(e) => setMemoImgSurpresaGanharAura(e.target.value)}
+                      placeholder="URL da imagem para Explosão de Aura..."
+                      style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Surpresa: Perder Aura */}
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <img 
+                    src={memoImgSurpresaPerderAura} 
+                    alt="Preview Dreno Aura"
+                    style={{ width: '55px', height: '55px', borderRadius: '8px', border: '1.5px solid rgba(239, 68, 68, 0.4)', objectFit: 'cover', background: '#0f172a' }}
+                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop"; }}
+                  />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#ef4444' }}>Dreno de Aura 📉💔 (Perder Aura)</label>
+                    <input 
+                      value={memoImgSurpresaPerderAura} 
+                      onChange={(e) => setMemoImgSurpresaPerderAura(e.target.value)}
+                      placeholder="URL da imagem para Dreno de Aura..."
+                      style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Surpresa: Vez Extra */}
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <img 
+                    src={memoImgSurpresaVezExtra} 
+                    alt="Preview Turno Extra"
+                    style={{ width: '55px', height: '55px', borderRadius: '8px', border: '1.5px solid rgba(59, 130, 246, 0.4)', objectFit: 'cover', background: '#0f172a' }}
+                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=250&auto=format&fit=crop"; }}
+                  />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#3b82f6' }}>Turno Extra 🔄⚡ (Vez Extra)</label>
+                    <input 
+                      value={memoImgSurpresaVezExtra} 
+                      onChange={(e) => setMemoImgSurpresaVezExtra(e.target.value)}
+                      placeholder="URL da imagem para Turno Extra..."
+                      style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
