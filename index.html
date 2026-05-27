@@ -11,6 +11,61 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;850;900&display=swap" rel="stylesheet">
   </head>
   <body>
+    <!-- Script de diagnóstico para capturar crashes no carregamento dos scripts (Vite/React) -->
+    <script>
+      (function() {
+        function showError(title, message, stack, details) {
+          try {
+            var errContainer = document.getElementById('critical-error-screen');
+            if (!errContainer) {
+              errContainer = document.createElement('div');
+              errContainer.id = 'critical-error-screen';
+              errContainer.style.position = 'fixed';
+              errContainer.style.inset = '0';
+              errContainer.style.zIndex = '9999999';
+              errContainer.style.background = '#090a16';
+              errContainer.style.color = '#f87171';
+              errContainer.style.padding = '30px';
+              errContainer.style.fontFamily = 'monospace';
+              errContainer.style.whiteSpace = 'pre-wrap';
+              errContainer.style.overflow = 'auto';
+              errContainer.style.boxSizing = 'border-box';
+              document.body.appendChild(errContainer);
+            }
+            errContainer.innerHTML = 
+              '<h1 style="color:#ef4444;margin:0 0 10px;font-family:sans-serif;font-size:1.8rem;">💥 Erro Crítico de Carregamento</h1>' +
+              '<h3 style="color:#fca5a5;margin:0 0 20px;font-family:sans-serif;font-size:1.1rem;">' + title + '</h3>' +
+              '<p style="color:#ef4444;font-weight:bold;margin:0 0 6px;">Mensagem:</p>' +
+              '<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);padding:14px;border-radius:8px;margin-bottom:20px;color:#fca5a5;">' + message + '</div>' +
+              (stack ? '<p style="color:#94a3b8;font-weight:bold;margin:0 0 6px;">Pilha de Chamada (Stack):</p><pre style="background:rgba(0,0,0,0.4);padding:14px;border-radius:8px;color:#e2e8f0;font-size:0.85rem;margin:0 0 20px;border:1px solid rgba(255,255,255,0.05);">' + stack + '</pre>' : '') +
+              (details ? '<p style="color:#94a3b8;font-weight:bold;margin:0 0 6px;">Detalhes:</p><pre style="background:rgba(0,0,0,0.4);padding:14px;border-radius:8px;color:#94a3b8;font-size:0.85rem;margin:0;">' + details + '</pre>' : '');
+          } catch(e) {
+            console.error('Falha no renderizador de erro:', e);
+          }
+        }
+
+        window.addEventListener('error', function(e) {
+          showError(
+            'Um erro de script impediu a inicialização do app.',
+            e.message || 'Erro desconhecido',
+            e.error ? e.error.stack : null,
+            'URL: ' + e.filename + '\nLinha: ' + e.lineno + ' | Coluna: ' + e.colno
+          );
+        });
+
+        window.addEventListener('unhandledrejection', function(e) {
+          var reason = e.reason;
+          var msg = reason ? (reason.message || String(reason)) : 'Rejeição nula';
+          var stack = (reason && reason.stack) ? reason.stack : null;
+          showError(
+            'Uma Promise falhou silenciosamente durante o boot.',
+            msg,
+            stack,
+            'Rejeição não tratada (unhandled rejection)'
+          );
+        });
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
