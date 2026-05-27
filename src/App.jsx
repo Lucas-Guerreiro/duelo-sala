@@ -6609,6 +6609,64 @@ export default function App() {
         </div>
       </div>
 
+      {/* 12. TELA DE CONFIGURAÇÃO IMAGEM E AÇÃO */}
+      <div id="tela-ia-nomes" className={`tela ${tela === 'ia-nomes' ? 'ativa' : ''}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center', minHeight: '100vh', padding: '20px', boxSizing: 'border-box' }}>
+        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'center', marginBottom: '14px' }}>← Voltar ao Menu</button>
+        <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(16, 185, 129, 0.45))', margin: '14px 0', width: '100%' }}>🎨</div>
+        <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%', fontFamily: 'Outfit' }}>Configurar Equipes (Imagem e Ação)</h2>
+        <p style={{ color: '#6ee7b7', fontSize: '1.05rem', textAlign: 'center', width: '100%', marginTop: '4px' }}>Configuração da disputa tática de desenho e mímica</p>
+
+        <div className="dupla" style={{ margin: '24px auto 16px', width: '100%', maxWidth: '600px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
+          <div className="jcard j1" style={{ flex: 1, textAlign: 'center' }}>
+            <h3 style={{ textAlign: 'center', justifyContent: 'center' }}>🔵 Equipe 1</h3>
+            <input value={nomeJ1} onChange={(e) => setNomeJ1(e.target.value)} placeholder="Equipe Azul" style={{ textAlign: 'center' }} />
+          </div>
+          <div className="jcard j2" style={{ flex: 1, textAlign: 'center' }}>
+            <h3 style={{ textAlign: 'center', justifyContent: 'center' }}>🩷 Equipe 2</h3>
+            <input value={nomeJ2} onChange={(e) => setNomeJ2(e.target.value)} placeholder="Equipe Rosa" style={{ textAlign: 'center' }} />
+          </div>
+        </div>
+
+        {/* Seletor de Tempo */}
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'center' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>
+            ⏱️ Tempo Limite por Carta
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.85rem', color: '#6ee7b7', fontWeight: 'bold', textAlign: 'center' }}>
+              Duração da rodada: <span style={{ color: '#fb923c', fontSize: '1rem' }}>{imAcaoMaxTimer} segundos</span>
+            </span>
+            <input 
+              type="range" 
+              min="30" 
+              max="120" 
+              step="15"
+              value={imAcaoMaxTimer}
+              onChange={(e) => setImAcaoMaxTimer(Number(e.target.value))}
+              style={{ accentColor: '#10b981', height: '6px', background: 'rgba(255, 255, 255, 0.1)', border: 'none', width: '100%', cursor: 'pointer' }}
+            />
+          </div>
+        </div>
+
+        {/* Botão de segunda tela */}
+        <div style={{ margin: '20px 0 10px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <button 
+            className="btn-menu btn-outline" 
+            style={{ borderColor: '#10b981', color: '#10b981', background: 'rgba(16, 185, 129, 0.05)', fontSize: '1rem', padding: '12px 30px', alignSelf: 'center' }}
+            onClick={() => window.open('?projetor=true', '_blank', 'width=1200,height=800')}
+          >
+            📺 Abrir Tela do Projetor (Segunda Tela)
+          </button>
+          <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: '6px', maxWidth: '400px', textAlign: 'center' }}>
+            Dica: Abra esta segunda tela e arraste-a para o projetor/quadro da sala de aula antes de clicar em começar.
+          </p>
+        </div>
+
+        <button className="btn-start" style={{ background: 'linear-gradient(90deg, #10b981, #3b82f6)', boxShadow: '0 8px 30px rgba(16, 185, 129, 0.45)', padding: '16px 64px', marginTop: '20px', alignSelf: 'center' }} onClick={() => iniciarPartidaImAcao(imAcaoMaxTimer)}>
+          Começar Disputa! 🚀
+        </button>
+      </div>
+
       <div id="tela-ia-jogo" className={`tela ${tela === 'ia-jogo' ? 'ativa' : ''}`}>
         {imAcaoCartaAtual && (
           <div className="imacao-wrapper">
