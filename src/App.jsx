@@ -573,6 +573,15 @@ export default function App() {
   const imAcaoChannelRef = useRef(null);
   const imAcaoTimerIntRef = useRef(null);
 
+  // --- ESTADOS DO NOVO JOGO: JOGO DA MEMÓRIA ---
+  const [memoCartas, setMemoCartas] = useState([]);
+  const [memoPontuacao, setMemoPontuacao] = useState([0, 0]);
+  const [memoEquipeVez, setMemoEquipeVez] = useState(0); // 0 para Equipe 1, 1 para Equipe 2
+  const [memoCartasSelecionadas, setMemoCartasSelecionadas] = useState([]); // indices de cartas viradas no turno (0 a 29)
+  const [memoEfeitoAtivo, setMemoEfeitoAtivo] = useState(null); // 'embaralhar' | 'revelar' | null
+  const [memoMateria, setMemoMateria] = useState('');
+  const [memoBloqueioCliques, setMemoBloqueioCliques] = useState(false);
+
   useEffect(() => {
     localStorage.setItem('dm_imacao', JSON.stringify(cartasImAcao));
   }, [cartasImAcao]);
@@ -752,10 +761,11 @@ export default function App() {
       if (type === 'ABRIR_LOUSA') lousaAbertaSinc = true;
       if (type === 'FECHAR_LOUSA') lousaAbertaSinc = false;
 
-      // Injeta incondicionalmente todos os estados críticos da partida de Imagem e Ação para sincronização atômica
+      // Injeta incondicionalmente todos os estados críticos de Imagem e Ação e Jogo da Memória para sincronização atômica
       const dataSinc = {
         ...data,
         _sinc: {
+          modoJogo,
           carta: imAcaoCartaAtual,
           opcaoSelecionada: imAcaoOpcaoSelecionada,
           modo: imAcaoModoRepresentacao,
@@ -775,7 +785,14 @@ export default function App() {
           projetorRevelado: imAcaoProjetorRevelado,
           nomeJ1,
           nomeJ2,
-          telaBrancaAtiva: imAcaoTelaBrancaAtiva
+          telaBrancaAtiva: imAcaoTelaBrancaAtiva,
+          // Estados de Jogo da Memória
+          memoCartas,
+          memoPontuacao,
+          memoEquipeVez,
+          memoCartasSelecionadas,
+          memoEfeitoAtivo,
+          memoMateria
         }
       };
       try {
@@ -829,6 +846,7 @@ export default function App() {
     if (type === 'SOLICITAR_SINCRONIZACAO') {
       if (!isProjetorMode) {
         enviarMsgProjetor('SINCRONIZAR_ESTADO', {
+          modoJogo,
           pontuacao: imAcaoPontuacao,
           rodada: imAcaoRodada,
           carta: imAcaoCartaAtual,
@@ -848,7 +866,14 @@ export default function App() {
           projetorRevelado: imAcaoProjetorRevelado,
           nomeJ1,
           nomeJ2,
-          telaBrancaAtiva: imAcaoTelaBrancaAtiva
+          telaBrancaAtiva: imAcaoTelaBrancaAtiva,
+          // Jogo da Memória
+          memoCartas,
+          memoPontuacao,
+          memoEquipeVez,
+          memoCartasSelecionadas,
+          memoEfeitoAtivo,
+          memoMateria
         });
       }
       return;
@@ -857,7 +882,12 @@ export default function App() {
     // 2. Handshake: Carregamento do Estado Completo Síncrono (Moderador -> Projetor)
     if (type === 'SINCRONIZAR_ESTADO') {
       if (isProjetorMode && data) {
-        setTela('ia-projetor');
+        if (data.modoJogo === 'memoria') {
+          setTela('memo-projetor');
+        } else {
+          setTela('ia-projetor');
+        }
+        if (data.modoJogo !== undefined) setModoJogo(data.modoJogo);
         if (data.pontuacao !== undefined) setImAcaoPontuacao(data.pontuacao);
         if (data.rodada !== undefined) setImAcaoRodada(data.rodada);
         if (data.carta !== undefined) setImAcaoCartaAtual(data.carta);
@@ -878,6 +908,13 @@ export default function App() {
         if (data.nomeJ1 !== undefined) setNomeJ1(data.nomeJ1);
         if (data.nomeJ2 !== undefined) setNomeJ2(data.nomeJ2);
         if (data.telaBrancaAtiva !== undefined) setImAcaoTelaBrancaAtiva(data.telaBrancaAtiva);
+        // Estados de Memória
+        if (data.memoCartas !== undefined) setMemoCartas(data.memoCartas);
+        if (data.memoPontuacao !== undefined) setMemoPontuacao(data.memoPontuacao);
+        if (data.memoEquipeVez !== undefined) setMemoEquipeVez(data.memoEquipeVez);
+        if (data.memoCartasSelecionadas !== undefined) setMemoCartasSelecionadas(data.memoCartasSelecionadas);
+        if (data.memoEfeitoAtivo !== undefined) setMemoEfeitoAtivo(data.memoEfeitoAtivo);
+        if (data.memoMateria !== undefined) setMemoMateria(data.memoMateria);
       }
       return;
     }
@@ -909,9 +946,38 @@ export default function App() {
       }
 
       if (s.lousaAberta !== undefined) setImAcaoLousaAberta(s.lousaAberta);
+
+      // Auto-sincronização dos estados de Memória
+      if (s.modoJogo !== undefined) setModoJogo(s.modoJogo);
+      if (s.memoCartas !== undefined) setMemoCartas(s.memoCartas);
+      if (s.memoPontuacao !== undefined) setMemoPontuacao(s.memoPontuacao);
+      if (s.memoEquipeVez !== undefined) setMemoEquipeVez(s.memoEquipeVez);
+      if (s.memoCartasSelecionadas !== undefined) setMemoCartasSelecionadas(s.memoCartasSelecionadas);
+      if (s.memoEfeitoAtivo !== undefined) setMemoEfeitoAtivo(s.memoEfeitoAtivo);
+      if (s.memoMateria !== undefined) setMemoMateria(s.memoMateria);
     }
 
     switch (type) {
+      case 'MEMO_INICIAR':
+        setTela('memo-projetor');
+        setModoJogo('memoria');
+        setMemoCartas(data.cartas);
+        setMemoPontuacao(data.pontuacao);
+        setMemoEquipeVez(data.equipeVez);
+        setMemoCartasSelecionadas([]);
+        setMemoEfeitoAtivo(null);
+        setMemoMateria(data.materia);
+        setNomeJ1(data.nomeJ1);
+        setNomeJ2(data.nomeJ2);
+        break;
+      case 'MEMO_ATUALIZAR':
+        if (data.cartas !== undefined) setMemoCartas(data.cartas);
+        if (data.pontuacao !== undefined) setMemoPontuacao(data.pontuacao);
+        if (data.equipeVez !== undefined) setMemoEquipeVez(data.equipeVez);
+        if (data.cartasSelecionadas !== undefined) setMemoCartasSelecionadas(data.cartasSelecionadas);
+        if (data.efeitoAtivo !== undefined) setMemoEfeitoAtivo(data.efeitoAtivo);
+        if (data.som) playSound(data.som);
+        break;
       case 'TOGGLE_TELA_BRANCA':
         setImAcaoTelaBrancaAtiva(data.telaBrancaAtiva);
         break;
@@ -1401,6 +1467,344 @@ export default function App() {
       return;
     }
     setCartasImAcao(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  // ==========================================================================
+  // FUNÇÕES DE LÓGICA DO JOGO DA MEMÓRIA
+  // ==========================================================================
+  const obterTextoResposta = (perg) => {
+    if (!perg) return '';
+    if (perg.tipo === 'mc') {
+      return perg.alts && perg.alts[perg.resp] !== undefined ? String(perg.alts[perg.resp]) : String(perg.resp);
+    }
+    if (perg.tipo === 'vf') {
+      const respStr = String(perg.resp).toLowerCase();
+      return respStr === 'v' || respStr === 'verdadeiro' ? 'Verdadeiro' : 'Falso';
+    }
+    return String(perg.resp);
+  };
+
+  const iniciarPartidaMemoria = (materiaEscolhida) => {
+    playSound('click');
+    setMemoMateria(materiaEscolhida);
+    setModoJogo('memoria');
+
+    // 1. Filtrar e completar perguntas para obter exatamente 14 pares
+    let pergsFiltradas = perguntas.filter(p => p.mat === materiaEscolhida);
+    
+    // Se faltarem perguntas, completa com outras da pool geral
+    if (pergsFiltradas.length < 14) {
+      const outras = perguntas.filter(p => p.mat !== materiaEscolhida);
+      pergsFiltradas = [...pergsFiltradas, ...outras];
+    }
+    
+    // Se ainda assim faltarem, completa com as perguntas padrão
+    if (pergsFiltradas.length < 14) {
+      pergsFiltradas = [...pergsFiltradas, ...PERGUNTAS_PADRAO];
+    }
+
+    // Pega exatamente as primeiras 14 perguntas
+    const pergsPartida = pergsFiltradas.slice(0, 14);
+
+    // 2. Criar cartas (14 perguntas e 14 respostas correspondentes)
+    const cartas = [];
+    pergsPartida.forEach((perg, idx) => {
+      cartas.push({
+        id: `p_${idx}_${Date.now()}`,
+        parId: idx,
+        tipo: 'pergunta',
+        texto: perg.txt,
+        aberta: false,
+        encontradaPor: null
+      });
+      cartas.push({
+        id: `r_${idx}_${Date.now()}`,
+        parId: idx,
+        tipo: 'resposta',
+        texto: obterTextoResposta(perg),
+        aberta: false,
+        encontradaPor: null
+      });
+    });
+
+    // 3. Inserir as 2 cartas surpresas
+    cartas.push({
+      id: `s_embaralhar_${Date.now()}`,
+      parId: -1,
+      tipo: 'surpresa-embaralhar',
+      texto: 'Troca-Tudo! 🌪️',
+      aberta: false,
+      encontradaPor: null
+    });
+    cartas.push({
+      id: `s_olho_${Date.now()}`,
+      parId: -2,
+      tipo: 'surpresa-olho',
+      texto: 'Olho Mágico! 👁️',
+      aberta: false,
+      encontradaPor: null
+    });
+
+    // 4. Embaralhar as 30 cartas na mesa
+    const cartasEmbaralhadas = cartas.sort(() => Math.random() - 0.5);
+
+    // 5. Atualizar os estados locais do moderador
+    setMemoCartas(cartasEmbaralhadas);
+    setMemoPontuacao([0, 0]);
+    setMemoEquipeVez(0);
+    setMemoCartasSelecionadas([]);
+    setMemoEfeitoAtivo(null);
+    setMemoBloqueioCliques(false);
+
+    // 6. Notificar e sincronizar com o Projetor via BroadcastChannel
+    enviarMsgProjetor('MEMO_INICIAR', {
+      materia: materiaEscolhida,
+      cartas: cartasEmbaralhadas,
+      pontuacao: [0, 0],
+      equipeVez: 0,
+      nomeJ1,
+      nomeJ2
+    });
+
+    // 7. Navegar para a tela de moderação do jogo
+    irParaTela('memo-jogo');
+  };
+
+  const virarCartaMemoria = (index) => {
+    // Validações básicas de clique
+    if (isProjetorMode) return;
+    if (memoBloqueioCliques || memoEfeitoAtivo) return;
+    
+    const carta = memoCartas[index];
+    if (carta.aberta || carta.encontradaPor !== null) return;
+    if (memoCartasSelecionadas.includes(index)) return;
+    if (memoCartasSelecionadas.length >= 2) return;
+
+    // Toca som de clique local
+    playSound('click');
+
+    // Vira a carta selecionada
+    const novasCartas = [...memoCartas];
+    novasCartas[index] = { ...carta, aberta: true };
+    setMemoCartas(novasCartas);
+
+    // --- CASO 1: CARTA SURPRESA EMBARALHAR 🌪️ ---
+    if (carta.tipo === 'surpresa-embaralhar') {
+      setMemoBloqueioCliques(true);
+      setMemoEfeitoAtivo('embaralhar');
+      
+      const novasSelecionadas = [...memoCartasSelecionadas, index];
+      setMemoCartasSelecionadas(novasSelecionadas);
+
+      // Notifica o projetor para rodar animação do efeito
+      enviarMsgProjetor('MEMO_ATUALIZAR', {
+        cartas: novasCartas,
+        cartasSelecionadas: novasSelecionadas,
+        efeitoAtivo: 'embaralhar',
+        som: 'dice'
+      });
+
+      // Roda o redemoinho e troca posições
+      setTimeout(() => {
+        // Todas as cartas fechadas mudam de posição aleatoriamente
+        const cartasFechadas = novasCartas.filter(c => !c.aberta && c.encontradaPor === null);
+        const indicesFechadas = [];
+        novasCartas.forEach((c, idx) => {
+          if (!c.aberta && c.encontradaPor === null) indicesFechadas.push(idx);
+        });
+
+        // Re-embaralha as cartas fechadas
+        const cartasFechadasEmbaralhadas = [...cartasFechadas].sort(() => Math.random() - 0.5);
+        
+        const cartasFinais = [...novasCartas];
+        indicesFechadas.forEach((originalIdx, i) => {
+          cartasFinais[originalIdx] = cartasFechadasEmbaralhadas[i];
+        });
+
+        // Passa a vez
+        const proximaVez = memoEquipeVez === 0 ? 1 : 0;
+        setMemoCartas(cartasFinais);
+        setMemoEquipeVez(proximaVez);
+        setMemoCartasSelecionadas([]);
+        setMemoEfeitoAtivo(null);
+        setMemoBloqueioCliques(false);
+
+        enviarMsgProjetor('MEMO_ATUALIZAR', {
+          cartas: cartasFinais,
+          cartasSelecionadas: [],
+          equipeVez: proximaVez,
+          efeitoAtivo: null,
+          som: 'success'
+        });
+      }, 2000);
+      return;
+    }
+
+    // --- CASO 2: CARTA SURPRESA OLHO MÁGICO 👁️ ---
+    if (carta.tipo === 'surpresa-olho') {
+      setMemoBloqueioCliques(true);
+      setMemoEfeitoAtivo('revelar');
+      
+      const novasSelecionadas = [...memoCartasSelecionadas, index];
+      setMemoCartasSelecionadas(novasSelecionadas);
+
+      enviarMsgProjetor('MEMO_ATUALIZAR', {
+        cartas: novasCartas,
+        cartasSelecionadas: novasSelecionadas,
+        efeitoAtivo: 'revelar',
+        som: 'click'
+      });
+
+      setTimeout(() => {
+        // Encontra todos os pares que ainda estão fechados na mesa
+        const paresFechados = [];
+        const paresMapeados = {};
+        
+        novasCartas.forEach((c, idx) => {
+          if (!c.aberta && c.encontradaPor === null && c.parId >= 0) {
+            if (!paresMapeados[c.parId]) paresMapeados[c.parId] = [];
+            paresMapeados[c.parId].push(idx);
+          }
+        });
+
+        Object.keys(paresMapeados).forEach(parId => {
+          if (paresMapeados[parId].length === 2) {
+            paresFechados.push(paresMapeados[parId]);
+          }
+        });
+
+        // Se houver algum par fechado, abre as duas cartas dele temporariamente
+        let indicesParaRevelar = [];
+        if (paresFechados.length > 0) {
+          const parEscolhido = paresFechados[Math.floor(Math.random() * paresFechados.length)];
+          indicesParaRevelar = parEscolhido;
+        }
+
+        const cartasComRevelacao = novasCartas.map((c, idx) => {
+          if (indicesParaRevelar.includes(idx)) {
+            return { ...c, aberta: true };
+          }
+          return c;
+        });
+
+        setMemoCartas(cartasComRevelacao);
+        
+        enviarMsgProjetor('MEMO_ATUALIZAR', {
+          cartas: cartasComRevelacao,
+          som: 'success'
+        });
+
+        // Mantém aberto por 2.5 segundos para os alunos verem e depois fecha novamente
+        setTimeout(() => {
+          const cartasFechadasDeVolta = cartasComRevelacao.map((c, idx) => {
+            if (indicesParaRevelar.includes(idx)) {
+              return { ...c, aberta: false };
+            }
+            return c;
+          });
+
+          const proximaVez = memoEquipeVez === 0 ? 1 : 0;
+          setMemoCartas(cartasFechadasDeVolta);
+          setMemoEquipeVez(proximaVez);
+          setMemoCartasSelecionadas([]);
+          setMemoEfeitoAtivo(null);
+          setMemoBloqueioCliques(false);
+
+          enviarMsgProjetor('MEMO_ATUALIZAR', {
+            cartas: cartasFechadasDeVolta,
+            cartasSelecionadas: [],
+            equipeVez: proximaVez,
+            efeitoAtivo: null,
+            som: 'error'
+          });
+        }, 2500);
+
+      }, 1500);
+      return;
+    }
+
+    // --- CASO 3: CARTA NORMAL ---
+    const novasSelecionadas = [...memoCartasSelecionadas, index];
+    setMemoCartasSelecionadas(novasSelecionadas);
+
+    enviarMsgProjetor('MEMO_ATUALIZAR', {
+      cartas: novasCartas,
+      cartasSelecionadas: novasSelecionadas,
+      som: 'click'
+    });
+
+    // Se for a segunda carta virada, faz a checagem
+    if (novasSelecionadas.length === 2) {
+      setMemoBloqueioCliques(true);
+      const idx1 = novasSelecionadas[0];
+      const idx2 = novasSelecionadas[1];
+      const c1 = novasCartas[idx1];
+      const c2 = novasCartas[idx2];
+
+      // --- ACERTO! ---
+      if (c1.parId === c2.parId) {
+        setTimeout(() => {
+          playSound('success');
+          
+          const cartasAcertadas = novasCartas.map((c, idx) => {
+            if (idx === idx1 || idx === idx2) {
+              return { ...c, encontradaPor: memoEquipeVez };
+            }
+            return c;
+          });
+
+          const novosPontos = [...memoPontuacao];
+          novosPontos[memoEquipeVez] += 1;
+
+          setMemoCartas(cartasAcertadas);
+          setMemoPontuacao(novosPontos);
+          setMemoCartasSelecionadas([]);
+          setMemoBloqueioCliques(false);
+
+          enviarMsgProjetor('MEMO_ATUALIZAR', {
+            cartas: cartasAcertadas,
+            pontuacao: novosPontos,
+            cartasSelecionadas: [],
+            som: 'success'
+          });
+
+          // Verifica se o jogo acabou (14 pares encontrados)
+          const totalEncontradas = cartasAcertadas.filter(c => c.encontradaPor !== null).length;
+          if (totalEncontradas >= 28) {
+            setTimeout(() => {
+              enviarMsgProjetor('MEMO_ATUALIZAR', { som: 'victory' });
+              irParaTela('memo-fim');
+            }, 1000);
+          }
+        }, 1000);
+
+      } else {
+        // --- ERRO! ---
+        setTimeout(() => {
+          playSound('error');
+
+          const cartasFechadas = novasCartas.map((c, idx) => {
+            if (idx === idx1 || idx === idx2) {
+              return { ...c, aberta: false };
+            }
+            return c;
+          });
+
+          const proximaVez = memoEquipeVez === 0 ? 1 : 0;
+          setMemoCartas(cartasFechadas);
+          setMemoEquipeVez(proximaVez);
+          setMemoCartasSelecionadas([]);
+          setMemoBloqueioCliques(false);
+
+          enviarMsgProjetor('MEMO_ATUALIZAR', {
+            cartas: cartasFechadas,
+            cartasSelecionadas: [],
+            equipeVez: proximaVez,
+            som: 'error'
+          });
+        }, 2500); // 2.5 segundos aberta para memorização
+      }
+    }
   };
 
   // Salvar cartas de pistas no localStorage
@@ -3681,6 +4085,20 @@ export default function App() {
             </div>
             <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #10b981, #3b82f6)', boxShadow: '0 8px 30px rgba(16, 185, 129, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('ia-nomes'); }}>
               ▶ Jogar Imagem e Ação
+            </button>
+          </div>
+
+          {/* Card Jogo da Memória */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(139, 92, 246, 0.25)', boxShadow: '0 8px 32px rgba(139, 92, 246, 0.15)' }}>
+            <div>
+              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>🧠</div>
+              <h3 style={{ fontSize: '1.4rem', color: '#a78bfa', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo da Memória</h3>
+              <p style={{ fontSize: '0.85rem', color: '#c4b5fd', lineHeight: '1.5' }}>
+                Disputa pedagógica em dupla tela com 30 cartas! Associe perguntas e respostas e ative cartas surpresas de embaralhamento 🌪️ e revelação rápida 👁️.
+              </p>
+            </div>
+            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); setMemoMateria(materias.length > 0 ? materias[0].nome : ''); irParaTela('memo-nomes'); }}>
+              ▶ Jogar Memória
             </button>
           </div>
         </div>
@@ -7070,6 +7488,388 @@ export default function App() {
 
         <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '10px' }}>
           <button className="btn-start" style={{ background: 'linear-gradient(90deg, #10b981, #3b82f6)', boxShadow: '0 8px 30px rgba(16, 185, 129, 0.45)' }} onClick={() => iniciarPartidaImAcao(imAcaoMaxTimer)}>
+            Jogar Novamente 🔄
+          </button>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('menu')}>
+            Voltar ao Menu 🏠
+          </button>
+        </div>
+      </div>
+
+      {/* 16. TELA DE CONFIGURAÇÃO JOGO DA MEMÓRIA */}
+      <div id="tela-memo-nomes" className={`tela ${tela === 'memo-nomes' ? 'ativa' : ''}`} style={{ display: tela === 'memo-nomes' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center', minHeight: '100vh', padding: '20px', boxSizing: 'border-box' }}>
+        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'center', marginBottom: '14px' }}>← Voltar ao Menu</button>
+        <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(139, 92, 246, 0.45))', margin: '14px 0', width: '100%' }}>🧠</div>
+        <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%', fontFamily: 'Outfit' }}>Configurar Jogo da Memória</h2>
+        <p style={{ color: '#c4b5fd', fontSize: '1.05rem', textAlign: 'center', width: '100%', marginTop: '4px' }}>Duelo pedagógico em dupla tela com 30 cartas!</p>
+
+        <div className="dupla" style={{ margin: '24px auto 16px', width: '100%', maxWidth: '600px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
+          <div className="jcard j1" style={{ flex: 1, textAlign: 'center' }}>
+            <h3 style={{ textAlign: 'center', justifyContent: 'center' }}>🔵 Equipe 1</h3>
+            <input value={nomeJ1} onChange={(e) => setNomeJ1(e.target.value)} placeholder="Equipe Azul" style={{ textAlign: 'center' }} />
+          </div>
+          <div className="jcard j2" style={{ flex: 1, textAlign: 'center' }}>
+            <h3 style={{ textAlign: 'center', justifyContent: 'center' }}>🩷 Equipe 2</h3>
+            <input value={nomeJ2} onChange={(e) => setNomeJ2(e.target.value)} placeholder="Equipe Rosa" style={{ textAlign: 'center' }} />
+          </div>
+        </div>
+
+        {/* Seletor de Matéria */}
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'center' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#a78bfa', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>
+            📚 Matéria Pedagógica
+          </div>
+          <select 
+            value={memoMateria}
+            onChange={(e) => setMemoMateria(e.target.value)}
+            style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px', padding: '10px 16px', fontSize: '1rem', width: '100%', cursor: 'pointer', textAlign: 'center' }}
+          >
+            {materias.length === 0 ? (
+              <option value="">Nenhuma matéria cadastrada</option>
+            ) : (
+              materias.map((m, idx) => (
+                <option key={idx} value={m.nome}>{m.nome}</option>
+              ))
+            )}
+          </select>
+        </div>
+
+        {/* Botão de segunda tela */}
+        <div style={{ margin: '20px 0 10px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <button 
+            className="btn-menu btn-outline" 
+            style={{ borderColor: '#8b5cf6', color: '#a78bfa', background: 'rgba(139, 92, 246, 0.05)', fontSize: '1rem', padding: '12px 30px', alignSelf: 'center' }}
+            onClick={() => window.open(window.location.origin + window.location.pathname + '?projetor=true', '_blank', 'width=1200,height=800')}
+          >
+            📺 Abrir Tela do Projetor (Segunda Tela)
+          </button>
+          <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: '6px', maxWidth: '400px', textAlign: 'center' }}>
+            Dica: Abra esta segunda tela e arraste-a para o projetor/quadro da sala de aula antes de clicar em começar.
+          </p>
+        </div>
+
+        <button className="btn-start" style={{ background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.45)', padding: '16px 64px', marginTop: '20px', alignSelf: 'center' }} onClick={() => iniciarPartidaMemoria(memoMateria)}>
+          Começar Disputa! 🚀
+        </button>
+      </div>
+
+      {/* 17. TELA DE CONTROLE/MODERAÇÃO DO JOGO DA MEMÓRIA */}
+      <div id="tela-memo-jogo" className={`tela ${tela === 'memo-jogo' ? 'ativa' : ''}`} style={{ display: tela === 'memo-jogo' ? 'flex' : 'none', flexDirection: 'column', padding: '16px', boxSizing: 'border-box', minHeight: '100vh' }}>
+        
+        {/* Barra de Placar e Status */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(139, 92, 246, 0.25)', borderRadius: '16px', padding: '12px 24px', marginBottom: '16px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#3b82f6', boxShadow: '0 0 8px #3b82f6' }} />
+            <span style={{ fontWeight: 800, color: '#60a5fa', fontSize: '0.95rem' }}>🔵 {nomeJ1}</span>
+            <span style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd', borderRadius: '8px', padding: '2px 10px', fontSize: '0.85rem', fontWeight: 700 }}>
+              {memoPontuacao[0]} pts
+            </span>
+          </div>
+          
+          <div style={{ textAlign: 'center' }}>
+            <span style={{ fontSize: '0.78rem', color: '#c4b5fd', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '1px' }}>
+              🧠 Jogo da Memória Pedagógico
+            </span>
+            <div style={{ fontSize: '0.85rem', background: memoEquipeVez === 0 ? 'rgba(59,130,246,0.15)' : 'rgba(236,72,153,0.15)', color: memoEquipeVez === 0 ? '#60a5fa' : '#f472b6', padding: '4px 14px', borderRadius: '10px', fontWeight: 700, display: 'inline-block', marginTop: '2px', border: memoEquipeVez === 0 ? '1px solid rgba(59,130,246,0.3)' : '1px solid rgba(236,72,153,0.3)' }}>
+              ▶ Vez de jogar: {memoEquipeVez === 0 ? nomeJ1 : nomeJ2}
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ background: 'rgba(236,72,153,0.15)', border: '1px solid rgba(236,72,153,0.3)', color: '#f9a8d4', borderRadius: '8px', padding: '2px 10px', fontSize: '0.85rem', fontWeight: 700 }}>
+              {memoPontuacao[1]} pts
+            </span>
+            <span style={{ fontWeight: 800, color: '#f472b6', fontSize: '0.95rem' }}>🩷 {nomeJ2}</span>
+            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ec4899', boxShadow: '0 0 8px #ec4899' }} />
+          </div>
+        </div>
+
+        {/* Notificação de Efeito Ativo */}
+        {memoEfeitoAtivo && (
+          <div style={{ background: memoEfeitoAtivo === 'embaralhar' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(139, 92, 246, 0.15)', border: `2px dashed ${memoEfeitoAtivo === 'embaralhar' ? '#f59e0b' : '#8b5cf6'}`, borderRadius: '12px', padding: '10px 20px', color: memoEfeitoAtivo === 'embaralhar' ? '#fde047' : '#c084fc', fontSize: '1rem', fontWeight: 'bold', textAlign: 'center', margin: '0 auto 16px', maxWidth: '600px', width: '100%', animation: 'pulse 1s infinite alternate', boxSizing: 'border-box' }}>
+            {memoEfeitoAtivo === 'embaralhar' ? '🌪️ Efeito Troca-Tudo: Embaralhando cartas fechadas...' : '👁️ Efeito Olho Mágico: Revelando um par secreto por 2.5s...'}
+          </div>
+        )}
+
+        {/* Tabuleiro de Cartas (Painel do Professor - Semitransparentes) */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
+          <div className="memo-grid-moderacao">
+            {memoCartas.map((carta, idx) => {
+              const selecionada = memoCartasSelecionadas.includes(idx);
+              const encontrada = carta.encontradaPor !== null;
+              
+              // Define a cor de borda baseada no tipo da carta no painel do moderador
+              let borderStyle = '1px solid rgba(255, 255, 255, 0.2)';
+              let bgStyle = 'rgba(30, 41, 59, 0.4)';
+              let textColor = '#cbd5e1';
+              
+              if (encontrada) {
+                borderStyle = carta.encontradaPor === 0 ? '2px solid #3b82f6' : '2px solid #ec4899';
+                bgStyle = carta.encontradaPor === 0 ? 'rgba(59, 130, 246, 0.15)' : 'rgba(236, 72, 153, 0.15)';
+                textColor = carta.encontradaPor === 0 ? '#93c5fd' : '#f9a8d4';
+              } else if (selecionada) {
+                borderStyle = '2px solid #a78bfa';
+                bgStyle = 'rgba(139, 92, 246, 0.25)';
+                textColor = '#ffffff';
+              } else {
+                if (carta.tipo === 'surpresa-embaralhar') {
+                  borderStyle = '2px solid #f59e0b';
+                  bgStyle = 'rgba(245, 158, 11, 0.1)';
+                  textColor = '#fef08a';
+                } else if (carta.tipo === 'surpresa-olho') {
+                  borderStyle = '2px solid #8b5cf6';
+                  bgStyle = 'rgba(139, 92, 246, 0.1)';
+                  textColor = '#e9d5ff';
+                } else if (carta.tipo === 'pergunta') {
+                  borderStyle = '1.5px solid rgba(59, 130, 246, 0.5)';
+                  bgStyle = 'rgba(59, 130, 246, 0.05)';
+                  textColor = '#93c5fd';
+                } else if (carta.tipo === 'resposta') {
+                  borderStyle = '1.5px solid rgba(16, 185, 129, 0.5)';
+                  bgStyle = 'rgba(16, 185, 129, 0.05)';
+                  textColor = '#6ee7b7';
+                }
+              }
+
+              return (
+                <div 
+                  key={carta.id} 
+                  onClick={() => virarCartaMemoria(idx)}
+                  className={`card-moderador ${encontrada ? 'desabilitada' : ''}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: borderStyle,
+                    background: bgStyle,
+                    borderRadius: '8px',
+                    padding: '6px',
+                    cursor: encontrada ? 'default' : 'pointer',
+                    userSelect: 'none',
+                    textAlign: 'center',
+                    transition: 'all 0.2s',
+                    opacity: encontrada ? 0.45 : 1,
+                    position: 'relative',
+                    height: '80px',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {/* Etiqueta pequena do tipo da carta */}
+                  <span style={{ fontSize: '0.55rem', fontWeight: 800, textTransform: 'uppercase', position: 'absolute', top: '3px', left: '6px', color: carta.tipo === 'pergunta' ? '#60a5fa' : carta.tipo === 'resposta' ? '#34d399' : '#fbbf24', opacity: encontrada ? 0.5 : 0.85 }}>
+                    {carta.tipo === 'pergunta' ? 'PERG' : carta.tipo === 'resposta' ? 'RESP' : 'SURP'}
+                  </span>
+                  
+                  {/* Identificador de Par para ajudar o moderador */}
+                  {carta.parId >= 0 && (
+                    <span style={{ fontSize: '0.6rem', fontWeight: 'bold', position: 'absolute', top: '3px', right: '6px', background: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', padding: '1px 4px' }}>
+                      Par {carta.parId + 1}
+                    </span>
+                  )}
+
+                  {/* Conteúdo Principal (sempre visível para o Moderador!) */}
+                  <div style={{ fontSize: '0.72rem', color: textColor, fontWeight: 'bold', display: '-webkit-box', webkitLineClamp: 3, webkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%', lineHeight: 1.25, marginTop: '8px' }}>
+                    {carta.tipo === 'surpresa-embaralhar' ? '🌪️ Troca-Tudo' : carta.tipo === 'surpresa-olho' ? '👁️ Olho Mágico' : carta.texto}
+                  </div>
+                  
+                  {/* Indicador de carta aberta no projetor */}
+                  {carta.aberta && !encontrada && (
+                    <span style={{ fontSize: '0.55rem', fontWeight: 800, background: '#ef4444', color: '#fff', borderRadius: '4px', padding: '1px 4px', position: 'absolute', bottom: '3px', transform: 'scale(0.95)' }}>
+                      VIRADA
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Barra inferior */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Matéria: <strong style={{ color: '#fff' }}>{memoMateria}</strong></span>
+            <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Dica: Você (Moderador) vê tudo em segredo. As cartas viradas aparecem na tela do projetor para os alunos.</span>
+          </div>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', padding: '10px 24px', fontSize: '0.9rem', boxShadow: 'none' }} onClick={() => { if(confirm('Deseja mesmo abandonar o Jogo da Memória?')) irParaTela('menu'); }}>
+            Abandonar Partida 🚪
+          </button>
+        </div>
+      </div>
+
+      {/* 18. TELA DE PROJEÇÃO DO JOGO DA MEMÓRIA (TELA DOS ALUNOS) */}
+      <div id="tela-memo-projetor" className={`tela ${tela === 'memo-projetor' ? 'ativa' : ''}`} style={{ background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)', minHeight: '100vh', padding: '24px', boxSizing: 'border-box', position: 'relative', display: tela === 'memo-projetor' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        
+        {memoCartas.length > 0 ? (
+          <div className="projetor-screen" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            {/* Header Projetado */}
+            <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: '12px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <span style={{ fontSize: '2.5rem', filter: 'drop-shadow(0 0 10px rgba(139, 92, 246, 0.5))' }}>🧠</span>
+                <div>
+                  <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', margin: 0, fontFamily: 'Outfit' }}>Jogo da Memória Pedagógico</h1>
+                  <div style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.95rem', fontSize: '0.88rem', color: '#c4b5fd', fontWeight: 'bold' }}>
+                    <span>Matéria: {memoMateria}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#a5f3fc' }}>
+                      <span>▶</span>
+                      <span style={{ fontWeight: 800 }}>Equipe Ativa:</span>
+                      <span style={{ color: memoEquipeVez === 0 ? '#60a5fa' : '#f472b6', textShadow: memoEquipeVez === 0 ? '0 0 10px rgba(59,130,246,0.5)' : '0 0 10px rgba(236,72,153,0.5)' }}>
+                        {memoEquipeVez === 0 ? nomeJ1 : nomeJ2}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                <div style={{ background: 'rgba(59,130,246,0.15)', border: `2.5px solid ${memoEquipeVez === 0 ? '#3b82f6' : 'rgba(59,130,246,0.2)'}`, borderRadius: '14px', padding: '6px 20px', textAlign: 'center', boxShadow: memoEquipeVez === 0 ? '0 0 15px rgba(59,130,246,0.4)' : 'none', transition: 'all 0.3s' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#93c5fd', fontWeight: 'bold' }}>🔵 {nomeJ1}</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#60a5fa' }}>{memoPontuacao[0]} pares</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', color: '#a78bfa', fontSize: '1.8rem', fontWeight: 900 }}>VS</div>
+                <div style={{ background: 'rgba(236,72,153,0.15)', border: `2.5px solid ${memoEquipeVez === 1 ? '#ec4899' : 'rgba(236,72,153,0.2)'}`, borderRadius: '14px', padding: '6px 20px', textAlign: 'center', boxShadow: memoEquipeVez === 1 ? '0 0 15px rgba(236,72,153,0.4)' : 'none', transition: 'all 0.3s' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#f9a8d4', fontWeight: 'bold' }}>🩷 {nomeJ2}</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#f472b6' }}>{memoPontuacao[1]} pares</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Efeito Visual na Mesa */}
+            {memoEfeitoAtivo && (
+              <div style={{ background: memoEfeitoAtivo === 'embaralhar' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(139, 92, 246, 0.2)', border: `2.5px solid ${memoEfeitoAtivo === 'embaralhar' ? '#f59e0b' : '#8b5cf6'}`, borderRadius: '16px', padding: '14px 28px', color: memoEfeitoAtivo === 'embaralhar' ? '#fde047' : '#e9d5ff', fontSize: '1.4rem', fontWeight: 900, textAlign: 'center', margin: '14px auto', maxWidth: '800px', width: '100%', animation: 'pulse 1s infinite alternate', boxShadow: memoEfeitoAtivo === 'embaralhar' ? '0 0 25px rgba(245, 158, 11, 0.3)' : '0 0 25px rgba(139, 92, 246, 0.3)', boxSizing: 'border-box' }}>
+                {memoEfeitoAtivo === 'embaralhar' ? '🌪️ SURPRESA: Efeito Troca-Tudo! Embaralhando as cartas fechadas da mesa!' : '👁️ SURPRESA: Efeito Olho Mágico! Revelando um par secreto para vocês memorizarem!'}
+              </div>
+            )}
+
+            {/* Tabuleiro de Cartas 3D */}
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, margin: '20px 0' }}>
+              <div className="memo-grid">
+                {memoCartas.map((carta, idx) => {
+                  const virada = carta.aberta || carta.encontradaPor !== null;
+                  const encontrada = carta.encontradaPor !== null;
+                  
+                  // Classes dinâmicas para as cartas
+                  let cardTypeClass = '';
+                  if (encontrada) {
+                    cardTypeClass = carta.encontradaPor === 0 ? 'card-encontrada-azul' : 'card-encontrada-rosa';
+                  } else {
+                    if (carta.tipo === 'surpresa-embaralhar') cardTypeClass = 'card-surpresa-embaralhar';
+                    else if (carta.tipo === 'surpresa-olho') cardTypeClass = 'card-surpresa-olho';
+                    else if (carta.tipo === 'pergunta') cardTypeClass = 'card-pergunta';
+                    else if (carta.tipo === 'resposta') cardTypeClass = 'card-resposta';
+                  }
+
+                  // Efeito de redemoinho durante embaralhamento surpresa
+                  const rolandoEmbaralhar = memoEfeitoAtivo === 'embaralhar' && !encontrada;
+
+                  return (
+                    <div 
+                      key={carta.id} 
+                      className={`card-3d ${virada ? 'virada' : ''} ${cardTypeClass} ${rolandoEmbaralhar ? 'efeito-redemoinho' : ''}`}
+                    >
+                      <div className="card-3d-inner">
+                        {/* Verso da carta (Oculta) */}
+                        <div className="card-3d-back" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <span style={{ fontSize: '1.6rem', opacity: 0.65 }}>🧠</span>
+                          <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                            {idx + 1}
+                          </span>
+                        </div>
+                        
+                        {/* Frente da carta (Aberta / Virada) */}
+                        <div className="card-3d-front" style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px' }}>
+                          {/* Emblema da Equipe se foi encontrada */}
+                          {encontrada && (
+                            <span style={{ fontSize: '0.62rem', fontWeight: 900, background: carta.encontradaPor === 0 ? '#3b82f6' : '#ec4899', color: '#fff', borderRadius: '4px', padding: '2px 6px', position: 'absolute', top: '5px', left: '5px' }}>
+                              {carta.encontradaPor === 0 ? nomeJ1 : nomeJ2}
+                            </span>
+                          )}
+                          
+                          {/* Tipo de Carta Surpresa */}
+                          {!encontrada && (carta.tipo === 'surpresa-embaralhar' || carta.tipo === 'surpresa-olho') && (
+                            <span style={{ fontSize: '0.62rem', fontWeight: 900, background: '#f59e0b', color: '#000', borderRadius: '4px', padding: '2px 6px', position: 'absolute', top: '5px', left: '5px' }}>
+                              EFEITO SURPRESA
+                            </span>
+                          )}
+
+                          {/* Conteúdo Principal */}
+                          {carta.tipo === 'surpresa-embaralhar' ? (
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: '2.5rem', filter: 'drop-shadow(0 0 10px #f59e0b)' }}>🌪️</div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 900, color: '#fde047', textTransform: 'uppercase', marginTop: '6px' }}>Troca-Tudo!</div>
+                            </div>
+                          ) : carta.tipo === 'surpresa-olho' ? (
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: '2.5rem', filter: 'drop-shadow(0 0 10px #8b5cf6)' }}>👁️</div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 900, color: '#c084fc', textTransform: 'uppercase', marginTop: '6px' }}>Olho Mágico!</div>
+                            </div>
+                          ) : (
+                            <div style={{
+                              fontSize: carta.texto.length > 55 ? '0.72rem' : carta.texto.length > 30 ? '0.82rem' : '0.95rem',
+                              fontWeight: 'bold',
+                              lineHeight: 1.3,
+                              textAlign: 'center',
+                              width: '100%',
+                              wordBreak: 'break-word',
+                              color: encontrada ? '#f8fafc' : carta.tipo === 'pergunta' ? '#a5f3fc' : '#c7f9d0'
+                            }}>
+                              {carta.texto}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Rodapé Projetado */}
+            <div style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '10px', fontSize: '0.8rem', color: '#9ca3af', flexShrink: 0 }}>
+              <span>Duelo em Sala — Jogo da Memória Pedagógico © 2026</span>
+            </div>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', height: '100%', padding: '40px', boxSizing: 'border-box' }}>
+            <div style={{ fontSize: '6rem', marginBottom: '20px', filter: 'drop-shadow(0 0 35px rgba(139, 92, 246, 0.5))', animation: 'pulse 2s infinite' }}>🧠</div>
+            <h2 style={{ fontSize: '2.8rem', fontWeight: 900, fontFamily: 'Outfit', background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', webkitBackgroundClip: 'text', webkitTextFillColor: 'transparent', margin: '0 0 10px', letterSpacing: '-0.5px' }}>Jogo da Memória Pedagógico</h2>
+            <p style={{ color: '#c4b5fd', fontSize: '1.2rem', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', margin: '0 0 30px' }}>Painel do Projetor Conectado</p>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', background: 'rgba(255, 255, 255, 0.03)', padding: '14px 28px', borderRadius: '30px', border: '1px solid rgba(139, 92, 246, 0.25)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)' }}>
+              <span style={{ width: '12px', height: '12px', background: '#8b5cf6', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 10px #8b5cf6' }} />
+              <span style={{ color: '#cbd5e1', fontSize: '0.95rem', fontWeight: 'bold' }}>Aguardando o professor iniciar a partida...</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 19. TELA DE FIM DE PARTIDA DO JOGO DA MEMÓRIA */}
+      <div id="tela-memo-fim" className={`tela ${tela === 'memo-fim' ? 'ativa' : ''}`} style={{ alignItems: 'center', display: tela === 'memo-fim' ? 'flex' : 'none', flexDirection: 'column', justifyContent: 'center', minHeight: '100vh', padding: '20px', boxSizing: 'border-box' }}>
+        <div className="trofeu" style={{ filter: 'drop-shadow(0 0 30px rgba(245, 158, 11, 0.5))', fontSize: '6rem', margin: '14px 0' }}>🏆</div>
+        <h2 style={{ fontFamily: 'Outfit', letterSpacing: '1.5px', fontSize: '2.2rem', fontWeight: 900 }}>Resultado Final - Jogo da Memória</h2>
+        
+        <div className="venc-final" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #8b5cf6 50%, #3b82f6 100%)', webkitBackgroundClip: 'text', webkitTextFillColor: 'transparent', textAlign: 'center', fontSize: '1.8rem', fontWeight: 900, margin: '14px 0', fontFamily: 'Outfit' }}>
+          {memoPontuacao[0] === memoPontuacao[1] ? (
+            `🎉 Empate técnico sensacional! 🤝`
+          ) : memoPontuacao[0] > memoPontuacao[1] ? (
+            `🎉 ${nomeJ1} é a Campeã! 🏆`
+          ) : (
+            `🎉 ${nomeJ2} é a Campeã! 🏆`
+          )}
+        </div>
+
+        <div className="placar-final" style={{ display: 'flex', gap: '24px', alignItems: 'center', margin: '20px 0', background: 'rgba(255,255,255,0.02)', padding: '20px 40px', borderRadius: '18px', border: '1px solid rgba(139, 92, 246, 0.25)' }}>
+          <div className="pf-item" style={{ textAlign: 'center' }}>
+            <div className="pf-nome" style={{ color: '#60a5fa', fontSize: '1.1rem', fontWeight: 'bold' }}>🔵 {nomeJ1}</div>
+            <div className="pf-pts" style={{ color: '#60a5fa', fontSize: '1.75rem', fontWeight: 900 }}>{memoPontuacao[0]} pares</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', color: '#a78bfa', fontSize: '2rem', fontWeight: 800 }}>×</div>
+          <div className="pf-item" style={{ textAlign: 'center' }}>
+            <div className="pf-nome" style={{ color: '#f472b6', fontSize: '1.1rem', fontWeight: 'bold' }}>🩷 {nomeJ2}</div>
+            <div className="pf-pts" style={{ color: '#f472b6', fontSize: '1.75rem', fontWeight: 900 }}>{memoPontuacao[1]} pares</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '20px' }}>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.45)' }} onClick={() => iniciarPartidaMemoria(memoMateria)}>
             Jogar Novamente 🔄
           </button>
           <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('menu')}>
