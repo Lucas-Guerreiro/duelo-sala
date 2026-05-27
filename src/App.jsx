@@ -544,7 +544,14 @@ export default function App() {
   const [imAcaoCartaRevelada, setImAcaoCartaRevelada] = useState(false);
   const [imAcaoProjetorRevelado, setImAcaoProjetorRevelado] = useState(false);
   const [imAcaoEquipeVez, setImAcaoEquipeVez] = useState(0);
-  const [isProjetorMode, setIsProjetorMode] = useState(false);
+  const [isProjetorMode, setIsProjetorMode] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('projetor') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
 
   // Estados dos Dados e Seleção de Opção/Modo
   const [imAcaoOpcaoSelecionada, setImAcaoOpcaoSelecionada] = useState(0); // 0 a 4
@@ -1509,6 +1516,11 @@ export default function App() {
 
   // Segurança: se por algum motivo nenhuma tela estiver ativa, garante que a tela padrão seja 'menu'
   useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('projetor') === 'true') return; // Ignora no projetor
+    } catch (e) {}
+
     const checkActiveTela = () => {
       try {
         const telas = document.querySelectorAll('.tela');
@@ -6653,7 +6665,7 @@ export default function App() {
           <button 
             className="btn-menu btn-outline" 
             style={{ borderColor: '#10b981', color: '#10b981', background: 'rgba(16, 185, 129, 0.05)', fontSize: '1rem', padding: '12px 30px', alignSelf: 'center' }}
-            onClick={() => window.open('?projetor=true', '_blank', 'width=1200,height=800')}
+            onClick={() => window.open(window.location.origin + window.location.pathname + '?projetor=true', '_blank', 'width=1200,height=800')}
           >
             📺 Abrir Tela do Projetor (Segunda Tela)
           </button>
@@ -6881,8 +6893,8 @@ export default function App() {
         )}
       </div>
 
-      <div id="tela-ia-projetor" className={`tela ${tela === 'ia-projetor' ? 'ativa' : ''}`} style={{ background: 'radial-gradient(circle at 50% 50%, #0d0722 0%, #03020a 100%)', minHeight: '100vh', padding: '24px', boxSizing: 'border-box', position: 'relative' }}>
-        {imAcaoCartaAtual && (() => {
+      <div id="tela-ia-projetor" className={`tela ${tela === 'ia-projetor' ? 'ativa' : ''}`} style={{ background: 'radial-gradient(circle at 50% 50%, #0d0722 0%, #03020a 100%)', minHeight: '100vh', padding: '24px', boxSizing: 'border-box', position: 'relative', display: tela === 'ia-projetor' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        {imAcaoCartaAtual ? (() => {
           const bgProjetor = 'radial-gradient(circle at 50% 50%, #0d0722 0%, #03020a 100%)';
           return (
             <div className="projetor-screen">
@@ -7019,7 +7031,17 @@ export default function App() {
               </div>
             </div>
           );
-        })()}
+        })() : (
+          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', height: '100%', padding: '40px', boxSizing: 'border-box' }}>
+            <div style={{ fontSize: '6rem', marginBottom: '20px', filter: 'drop-shadow(0 0 35px rgba(16, 185, 129, 0.5))', animation: 'pulse 2s infinite' }}>🎨</div>
+            <h2 style={{ fontSize: '2.8rem', fontWeight: 900, fontFamily: 'Outfit', background: 'linear-gradient(90deg, #10b981, #3b82f6)', webkitBackgroundClip: 'text', webkitTextFillColor: 'transparent', margin: '0 0 10px', letterSpacing: '-0.5px' }}>Imagem e Ação</h2>
+            <p style={{ color: '#6ee7b7', fontSize: '1.2rem', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', margin: '0 0 30px' }}>Painel do Projetor Conectado</p>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', background: 'rgba(255, 255, 255, 0.03)', padding: '14px 28px', borderRadius: '30px', border: '1px solid rgba(16, 185, 129, 0.25)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)' }}>
+              <span style={{ width: '12px', height: '12px', background: '#10b981', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 10px #10b981' }} />
+              <span style={{ color: '#cbd5e1', fontSize: '0.95rem', fontWeight: 'bold' }}>Aguardando o moderador iniciar a disputa...</span>
+            </div>
+          </div>
+        )}
       </div>
 
 
