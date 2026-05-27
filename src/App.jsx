@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
@@ -590,15 +590,39 @@ export default function App() {
     // Se for o projetor, solicita sincronização imediatamente após abrir o canal para obter o estado atual
     if (projetor) {
       setTimeout(() => {
-        if (channel) {
-          channel.postMessage({ type: 'SOLICITAR_SINCRONIZACAO', data: {} });
+        try {
+          if (channel && channel.name) {
+            channel.postMessage({ type: 'SOLICITAR_SINCRONIZACAO', data: {} });
+          }
+        } catch (e) {
+          // canal pode ter sido fechado pelo HMR — ignorar
         }
-      }, 300);
+      }, 400);
     }
 
     return () => {
-      channel.close();
+      try { channel.close(); } catch (e) { /* já fechado */ }
+      imAcaoChannelRef.current = null;
     };
+  }, []);
+
+  useEffect(() => {
+    // Reconecta o BroadcastChannel se ele foi fechado (ex: HMR do Vite)
+    const ensureChannel = () => {
+      if (!imAcaoChannelRef.current) {
+        try {
+          const ch = new BroadcastChannel('imagem_acao_channel');
+          ch.onmessage = (event) => {
+            const { type, data } = event.data;
+            tratarMensagemProjetor(type, data);
+          };
+          imAcaoChannelRef.current = ch;
+        } catch (e) { /* BroadcastChannel não suportado */ }
+      }
+    };
+    const intervalId = setInterval(ensureChannel, 2000);
+    return () => clearInterval(intervalId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -609,8 +633,18 @@ export default function App() {
   useEffect(() => {
     const onErr = (message, source, lineno, colno, error) => {
       try {
-        console.error('Global error captured:', message, error || { source, lineno, colno });
-        setAppError({ message: message?.toString?.() || String(message), stack: (error && error.stack) || `${source}:${lineno}:${colno}` });
+        const msg = message?.toString?.() || String(message);
+        // Ignorar erros internos do BroadcastChannel / HMR do Vite
+        if (
+          msg.includes('BroadcastChannel') ||
+          msg.includes('Channel is closed') ||
+          msg.includes('postMessage') ||
+          msg.includes('isTrusted') ||
+          msg === '[object ErrorEvent]' ||
+          msg === 'Script error.'
+        ) return false;
+        console.error('Global error captured:', msg, error || { source, lineno, colno });
+        setAppError({ message: msg, stack: (error && error.stack) || `${source}:${lineno}:${colno}` });
       } catch (e) {
         // noop
       }
@@ -619,9 +653,12 @@ export default function App() {
 
     const onRej = (ev) => {
       try {
-        console.error('Unhandled rejection captured:', ev);
         const reason = ev && (ev.reason || ev.detail || ev);
-        setAppError({ message: String(reason && reason.message ? reason.message : reason), stack: reason && reason.stack ? reason.stack : JSON.stringify(reason) });
+        // Ignorar erros do BroadcastChannel e do próprio Vite HMR
+        const msg = reason && reason.message ? reason.message : String(reason);
+        if (msg.includes('BroadcastChannel') || msg.includes('postMessage') || msg.includes('Channel is closed')) return;
+        console.error('Unhandled rejection captured:', ev);
+        setAppError({ message: msg, stack: reason && reason.stack ? reason.stack : JSON.stringify(reason) });
       } catch (e) {}
     };
 
@@ -734,7 +771,12 @@ export default function App() {
           telaBrancaAtiva: imAcaoTelaBrancaAtiva
         }
       };
-      imAcaoChannelRef.current.postMessage({ type, data: dataSinc });
+      try {
+        imAcaoChannelRef.current.postMessage({ type, data: dataSinc });
+      } catch (e) {
+        // Canal fechado (ex: HMR) — limpar ref para reconexão automática
+        imAcaoChannelRef.current = null;
+      }
     }
   };
 
@@ -764,7 +806,6 @@ export default function App() {
       imAcaoLousaAberta,
       imAcaoTelaBrancaAtiva,
       iaImAcaoGeradas,
-      tela,
     };
 
     try {
