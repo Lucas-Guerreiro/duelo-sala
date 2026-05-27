@@ -608,6 +608,8 @@ export default function App() {
   const [memoMateria, setMemoMateria] = useState('');
   const [memoBloqueioCliques, setMemoBloqueioCliques] = useState(false);
   const [memoAuraFeedback, setMemoAuraFeedback] = useState(null);
+  const [memoSurpresaEfeito1, setMemoSurpresaEfeito1] = useState('embaralhar');
+  const [memoSurpresaEfeito2, setMemoSurpresaEfeito2] = useState('olho');
   const [memoImagensPool, setMemoImagensPool] = useState(() => {
     const saved = localStorage.getItem('dm_memo_imagens');
     return saved ? JSON.parse(saved) : IMAGENS_PADRAO_MEMORIA;
@@ -1603,25 +1605,75 @@ export default function App() {
       });
     });
 
+    // Obter definições das cartas surpresa escolhidas pelo professor
+    const obterDefinicaoSurpresa = (tipo, idSufixo) => {
+      switch (tipo) {
+        case 'embaralhar':
+          return {
+            id: `s_embaralhar_${idSufixo}_${Date.now()}`,
+            parId: -1,
+            tipo: 'surpresa-embaralhar',
+            texto: 'Troca-Tudo! 🌪️',
+            imagem: "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop",
+            aberta: false,
+            encontradaPor: null
+          };
+        case 'olho':
+          return {
+            id: `s_olho_${idSufixo}_${Date.now()}`,
+            parId: -2,
+            tipo: 'surpresa-olho',
+            texto: 'Olho Mágico! 👁️',
+            imagem: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop",
+            aberta: false,
+            encontradaPor: null
+          };
+        case 'ganhar-aura':
+          return {
+            id: `s_ganhar_aura_${idSufixo}_${Date.now()}`,
+            parId: -3,
+            tipo: 'surpresa-ganhar-aura',
+            texto: 'Explosão de Aura! 🗿✨',
+            imagem: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=250&auto=format&fit=crop",
+            aberta: false,
+            encontradaPor: null
+          };
+        case 'perder-aura':
+          return {
+            id: `s_perder_aura_${idSufixo}_${Date.now()}`,
+            parId: -4,
+            tipo: 'surpresa-perder-aura',
+            texto: 'Dreno de Aura! 📉💔',
+            imagem: "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop",
+            aberta: false,
+            encontradaPor: null
+          };
+        case 'vez-extra':
+          return {
+            id: `s_vez_extra_${idSufixo}_${Date.now()}`,
+            parId: -5,
+            tipo: 'surpresa-vez-extra',
+            texto: 'Turno Extra! 🔄⚡',
+            imagem: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=250&auto=format&fit=crop",
+            aberta: false,
+            encontradaPor: null
+          };
+        default:
+          return {
+            id: `s_embaralhar_${idSufixo}_${Date.now()}`,
+            parId: -1,
+            tipo: 'surpresa-embaralhar',
+            texto: 'Troca-Tudo! 🌪️',
+            imagem: "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop",
+            aberta: false,
+            encontradaPor: null
+          };
+      }
+    };
+
     // 3. Inserir as 2 cartas surpresas
-    cartas.push({
-      id: `s_embaralhar_${Date.now()}`,
-      parId: -1,
-      tipo: 'surpresa-embaralhar',
-      texto: 'Troca-Tudo! 🌪️',
-      imagem: "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop",
-      aberta: false,
-      encontradaPor: null
-    });
-    cartas.push({
-      id: `s_olho_${Date.now()}`,
-      parId: -2,
-      tipo: 'surpresa-olho',
-      texto: 'Olho Mágico! 👁️',
-      imagem: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop",
-      aberta: false,
-      encontradaPor: null
-    });
+    cartas.push(obterDefinicaoSurpresa(memoSurpresaEfeito1, 's1'));
+    cartas.push(obterDefinicaoSurpresa(memoSurpresaEfeito2, 's2'));
 
     // 4. Embaralhar as 30 cartas na mesa
     const cartasEmbaralhadas = cartas.sort(() => Math.random() - 0.5);
@@ -1810,6 +1862,133 @@ export default function App() {
         }, 2500);
 
       }, 1500);
+      return;
+    }
+
+    // --- CASO 4: CARTA SURPRESA GANHAR AURA 🗿✨ ---
+    if (carta.tipo === 'surpresa-ganhar-aura') {
+      setMemoBloqueioCliques(true);
+      setMemoEfeitoAtivo('ganhar-aura');
+      
+      const novasSelecionadas = [...memoCartasSelecionadas, index];
+      setMemoCartasSelecionadas(novasSelecionadas);
+
+      // +2000 pontos de aura equivalem a +2 no placar local
+      const novosPontos = [...memoPontuacao];
+      novosPontos[memoEquipeVez] += 2;
+      setMemoPontuacao(novosPontos);
+
+      const feedback = {
+        equipe: memoEquipeVez,
+        txt: `+2000 de AURA para a Equipe ${memoEquipeVez === 0 ? nomeJ1 : nomeJ2}! GigaChads! 🗿🔥`
+      };
+      setMemoAuraFeedback(feedback);
+
+      enviarMsgProjetor('MEMO_ATUALIZAR', {
+        cartas: novasCartas,
+        cartasSelecionadas: novasSelecionadas,
+        efeitoAtivo: 'ganhar-aura',
+        pontuacao: novosPontos,
+        auraFeedback: feedback,
+        som: 'success'
+      });
+
+      setTimeout(() => {
+        // Passa a vez
+        const proximaVez = memoEquipeVez === 0 ? 1 : 0;
+        setMemoEquipeVez(proximaVez);
+        setMemoCartasSelecionadas([]);
+        setMemoEfeitoAtivo(null);
+        setMemoAuraFeedback(null);
+        setMemoBloqueioCliques(false);
+
+        enviarMsgProjetor('MEMO_ATUALIZAR', {
+          cartas: novasCartas,
+          cartasSelecionadas: [],
+          equipeVez: proximaVez,
+          efeitoAtivo: null,
+          auraFeedback: null
+        });
+      }, 4000);
+      return;
+    }
+
+    // --- CASO 5: CARTA SURPRESA PERDER AURA 📉💔 ---
+    if (carta.tipo === 'surpresa-perder-aura') {
+      setMemoBloqueioCliques(true);
+      setMemoEfeitoAtivo('perder-aura');
+      
+      const novasSelecionadas = [...memoCartasSelecionadas, index];
+      setMemoCartasSelecionadas(novasSelecionadas);
+
+      // -1000 pontos de aura equivalem a -1 no placar local (não menor que 0)
+      const novosPontos = [...memoPontuacao];
+      novosPontos[memoEquipeVez] = Math.max(0, novosPontos[memoEquipeVez] - 1);
+      setMemoPontuacao(novosPontos);
+
+      const feedback = {
+        equipe: memoEquipeVez,
+        txt: `-1000 de AURA para a Equipe ${memoEquipeVez === 0 ? nomeJ1 : nomeJ2}! Que vacilo... 📉💔`
+      };
+      setMemoAuraFeedback(feedback);
+
+      enviarMsgProjetor('MEMO_ATUALIZAR', {
+        cartas: novasCartas,
+        cartasSelecionadas: novasSelecionadas,
+        efeitoAtivo: 'perder-aura',
+        pontuacao: novosPontos,
+        auraFeedback: feedback,
+        som: 'error'
+      });
+
+      setTimeout(() => {
+        // Passa a vez
+        const proximaVez = memoEquipeVez === 0 ? 1 : 0;
+        setMemoEquipeVez(proximaVez);
+        setMemoCartasSelecionadas([]);
+        setMemoEfeitoAtivo(null);
+        setMemoAuraFeedback(null);
+        setMemoBloqueioCliques(false);
+
+        enviarMsgProjetor('MEMO_ATUALIZAR', {
+          cartas: novasCartas,
+          cartasSelecionadas: [],
+          equipeVez: proximaVez,
+          efeitoAtivo: null,
+          auraFeedback: null
+        });
+      }, 4000);
+      return;
+    }
+
+    // --- CASO 6: CARTA SURPRESA VEZ EXTRA 🔄⚡ ---
+    if (carta.tipo === 'surpresa-vez-extra') {
+      setMemoBloqueioCliques(true);
+      setMemoEfeitoAtivo('vez-extra');
+      
+      const novasSelecionadas = [...memoCartasSelecionadas, index];
+      setMemoCartasSelecionadas(novasSelecionadas);
+
+      enviarMsgProjetor('MEMO_ATUALIZAR', {
+        cartas: novasCartas,
+        cartasSelecionadas: novasSelecionadas,
+        efeitoAtivo: 'vez-extra',
+        som: 'dice'
+      });
+
+      setTimeout(() => {
+        // NÃO passa a vez, apenas limpa a seleção para que a equipe ativa jogue de novo
+        setMemoCartasSelecionadas([]);
+        setMemoEfeitoAtivo(null);
+        setMemoBloqueioCliques(false);
+
+        enviarMsgProjetor('MEMO_ATUALIZAR', {
+          cartas: novasCartas,
+          cartasSelecionadas: [],
+          equipeVez: memoEquipeVez, // Mantém a mesma equipe
+          efeitoAtivo: null
+        });
+      }, 3000);
       return;
     }
 
@@ -7782,6 +7961,43 @@ export default function App() {
           </select>
         </div>
 
+        {/* Escolha das Cartas Surpresas */}
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'center' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f59e0b', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>
+            🎁 Escolha das Cartas Surpresas
+          </div>
+          <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.8rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 1</label>
+              <select 
+                value={memoSurpresaEfeito1}
+                onChange={(e) => setMemoSurpresaEfeito1(e.target.value)}
+                style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px', padding: '10px', fontSize: '0.9rem', cursor: 'pointer', textAlign: 'center' }}
+              >
+                <option value="embaralhar">Troca-Tudo 🌪️</option>
+                <option value="olho">Olho Mágico 👁️</option>
+                <option value="ganhar-aura">Explosão de Aura 🗿✨</option>
+                <option value="perder-aura">Dreno de Aura 📉💔</option>
+                <option value="vez-extra">Turno Extra 🔄⚡</option>
+              </select>
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.8rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 2</label>
+              <select 
+                value={memoSurpresaEfeito2}
+                onChange={(e) => setMemoSurpresaEfeito2(e.target.value)}
+                style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px', padding: '10px', fontSize: '0.9rem', cursor: 'pointer', textAlign: 'center' }}
+              >
+                <option value="embaralhar">Troca-Tudo 🌪️</option>
+                <option value="olho">Olho Mágico 👁️</option>
+                <option value="ganhar-aura">Explosão de Aura 🗿✨</option>
+                <option value="perder-aura">Dreno de Aura 📉💔</option>
+                <option value="vez-extra">Turno Extra 🔄⚡</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         {/* Botão de segunda tela */}
         <div style={{ margin: '20px 0 10px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <button 
@@ -7862,14 +8078,11 @@ export default function App() {
                 bgStyle = 'rgba(139, 92, 246, 0.25)';
                 textColor = '#ffffff';
               } else {
-                if (carta.tipo === 'surpresa-embaralhar') {
+                if (carta.tipo && carta.tipo.startsWith('surpresa-')) {
+                  // Qualquer carta surpresa exibe borda dourada/laranja neon e fundo premium no moderador
                   borderStyle = '2px solid #f59e0b';
-                  bgStyle = 'rgba(245, 158, 11, 0.1)';
+                  bgStyle = 'rgba(245, 158, 11, 0.15)';
                   textColor = '#fef08a';
-                } else if (carta.tipo === 'surpresa-olho') {
-                  borderStyle = '2px solid #8b5cf6';
-                  bgStyle = 'rgba(139, 92, 246, 0.1)';
-                  textColor = '#e9d5ff';
                 } else if (carta.tipo === 'pergunta') {
                   borderStyle = '1.5px solid rgba(59, 130, 246, 0.5)';
                   bgStyle = 'rgba(59, 130, 246, 0.05)';
@@ -8109,8 +8322,43 @@ export default function App() {
 
             {/* Efeito Visual na Mesa */}
             {memoEfeitoAtivo && (
-              <div style={{ background: memoEfeitoAtivo === 'embaralhar' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(139, 92, 246, 0.2)', border: `2.5px solid ${memoEfeitoAtivo === 'embaralhar' ? '#f59e0b' : '#8b5cf6'}`, borderRadius: '16px', padding: '14px 28px', color: memoEfeitoAtivo === 'embaralhar' ? '#fde047' : '#e9d5ff', fontSize: '1.4rem', fontWeight: 900, textAlign: 'center', margin: '14px auto', maxWidth: '800px', width: '100%', animation: 'pulse 1s infinite alternate', boxShadow: memoEfeitoAtivo === 'embaralhar' ? '0 0 25px rgba(245, 158, 11, 0.3)' : '0 0 25px rgba(139, 92, 246, 0.3)', boxSizing: 'border-box' }}>
-                {memoEfeitoAtivo === 'embaralhar' ? '🌪️ SURPRESA: Efeito Troca-Tudo! Embaralhando as cartas fechadas da mesa!' : '👁️ SURPRESA: Efeito Olho Mágico! Revelando um par secreto para vocês memorizarem!'}
+              <div style={{ 
+                background: memoEfeitoAtivo === 'embaralhar' ? 'rgba(245, 158, 11, 0.2)' : 
+                            memoEfeitoAtivo === 'revelar' ? 'rgba(139, 92, 246, 0.2)' : 
+                            memoEfeitoAtivo === 'ganhar-aura' ? 'rgba(16, 185, 129, 0.2)' :
+                            memoEfeitoAtivo === 'perder-aura' ? 'rgba(239, 68, 68, 0.2)' :
+                            'rgba(59, 130, 246, 0.2)', 
+                border: `2.5px solid ${
+                            memoEfeitoAtivo === 'embaralhar' ? '#f59e0b' : 
+                            memoEfeitoAtivo === 'revelar' ? '#8b5cf6' : 
+                            memoEfeitoAtivo === 'ganhar-aura' ? '#10b981' :
+                            memoEfeitoAtivo === 'perder-aura' ? '#ef4444' :
+                            '#3b82f6'
+                }`, 
+                borderRadius: '16px', 
+                padding: '14px 28px', 
+                color: '#fff', 
+                fontSize: '1.4rem', 
+                fontWeight: 900, 
+                textAlign: 'center', 
+                margin: '14px auto', 
+                maxWidth: '800px', 
+                width: '100%', 
+                animation: 'pulse 1s infinite alternate', 
+                boxShadow: `0 0 25px ${
+                            memoEfeitoAtivo === 'embaralhar' ? 'rgba(245, 158, 11, 0.3)' : 
+                            memoEfeitoAtivo === 'revelar' ? 'rgba(139, 92, 246, 0.3)' : 
+                            memoEfeitoAtivo === 'ganhar-aura' ? 'rgba(16, 185, 129, 0.3)' :
+                            memoEfeitoAtivo === 'perder-aura' ? 'rgba(239, 68, 68, 0.3)' :
+                            'rgba(59, 130, 246, 0.3)'
+                }`, 
+                boxSizing: 'border-box' 
+              }}>
+                {memoEfeitoAtivo === 'embaralhar' ? '🌪️ SURPRESA: Efeito Troca-Tudo! Embaralhando as cartas fechadas da mesa!' : 
+                 memoEfeitoAtivo === 'revelar' ? '👁️ SURPRESA: Efeito Olho Mágico! Revelando um par secreto para vocês memorizarem!' :
+                 memoEfeitoAtivo === 'ganhar-aura' ? '💥 SURPRESA: Explosão de Aura! Ganharam +2000 Aura Points! GigaChads! 🗿✨' :
+                 memoEfeitoAtivo === 'perder-aura' ? '📉 SURPRESA: Dreno de Aura! Perderam -1000 Aura Points! 💔' :
+                 '🔄 SURPRESA: Turno Extra! Joguem mais uma vez seguidamente! ⚡'}
               </div>
             )}
 
@@ -8130,6 +8378,9 @@ export default function App() {
                   } else {
                     if (carta.tipo === 'surpresa-embaralhar') cardTypeClass = 'card-surpresa-embaralhar';
                     else if (carta.tipo === 'surpresa-olho') cardTypeClass = 'card-surpresa-olho';
+                    else if (carta.tipo === 'surpresa-ganhar-aura') cardTypeClass = 'card-surpresa-olho';
+                    else if (carta.tipo === 'surpresa-perder-aura') cardTypeClass = 'card-surpresa-embaralhar';
+                    else if (carta.tipo === 'surpresa-vez-extra') cardTypeClass = 'card-surpresa-olho';
                     else if (carta.tipo === 'pergunta') cardTypeClass = 'card-pergunta';
                     else if (carta.tipo === 'resposta') cardTypeClass = 'card-resposta';
                   }
