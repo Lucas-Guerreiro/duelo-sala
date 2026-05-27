@@ -979,7 +979,7 @@ export default function App() {
         if (data.som) playSound(data.som);
         break;
       case 'MEMO_PEDIR_VIRAR':
-        if (!isProjetorMode) {
+        if (!isProjetorMode && data && data.index !== undefined) {
           virarCartaMemoria(data.index);
         }
         break;
@@ -1576,18 +1576,24 @@ export default function App() {
   };
 
   const virarCartaMemoria = (index) => {
+    if (index === undefined || index === null) return;
+    const idxNum = Number(index);
+    if (isNaN(idxNum) || idxNum < 0) return;
+
     // Se estiver no modo projetor, envia mensagem para o moderador fazer a virada
     if (isProjetorMode) {
-      enviarMsgProjetor('MEMO_PEDIR_VIRAR', { index });
+      enviarMsgProjetor('MEMO_PEDIR_VIRAR', { index: idxNum });
       return;
     }
     
     // Validações básicas de clique (no moderador)
     if (memoBloqueioCliques || memoEfeitoAtivo) return;
+    if (idxNum >= memoCartas.length) return;
     
-    const carta = memoCartas[index];
+    const carta = memoCartas[idxNum];
+    if (!carta) return;
     if (carta.aberta || carta.encontradaPor !== null) return;
-    if (memoCartasSelecionadas.includes(index)) return;
+    if (memoCartasSelecionadas.includes(idxNum)) return;
     if (memoCartasSelecionadas.length >= 2) return;
 
     // Toca som de clique local
