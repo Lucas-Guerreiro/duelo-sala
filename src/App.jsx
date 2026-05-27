@@ -507,6 +507,23 @@ const obterDesafioTexto = (num) => {
   }
 };
 
+const IMAGENS_PADRAO_MEMORIA = [
+  "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=250&auto=format&fit=crop", // Controle de videogame / Gaming
+  "https://images.unsplash.com/photo-1547447134-cd3f5c716030?q=80&w=250&auto=format&fit=crop", // Skate urbano / Cultura jovem
+  "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=250&auto=format&fit=crop", // Headphone moderno / Música
+  "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=250&auto=format&fit=crop", // Setup Gamer Neon / Tecnologia
+  "https://images.unsplash.com/photo-1561055657-b9e0bf0fa360?q=80&w=250&auto=format&fit=crop", // Graffiti colorido / Arte urbana
+  "https://images.unsplash.com/photo-1519766304817-4f37bda74a27?q=80&w=250&auto=format&fit=crop", // Basquete de rua / Esportes
+  "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=250&auto=format&fit=crop", // Tênis Sneaker estiloso / Moda jovem
+  "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?q=80&w=250&auto=format&fit=crop", // Óculos de Realidade Virtual (VR)
+  "https://images.unsplash.com/photo-1484755560695-a4c7477ab9ea?q=80&w=250&auto=format&fit=crop", // Guitarra elétrica neon / Rock
+  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=250&auto=format&fit=crop", // Astronauta Cyberpunk / Arte digital
+  "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=250&auto=format&fit=crop", // Grupo de amigos rindo / Social
+  "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=250&auto=format&fit=crop", // Cinema / Pipoca / Filmes
+  "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=250&auto=format&fit=crop", // Robótica / Tecnologia do futuro
+  "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=250&auto=format&fit=crop"  // Aventura / Acampamento ao ar livre
+];
+
 export default function App() {
   // --- ESTADOS DO JOGO DAS TRÊS PISTAS ---
   const [modoJogo, setModoJogo] = useState('duelo'); // 'duelo' | 'pistas' | 'imacao'
@@ -581,6 +598,15 @@ export default function App() {
   const [memoEfeitoAtivo, setMemoEfeitoAtivo] = useState(null); // 'embaralhar' | 'revelar' | null
   const [memoMateria, setMemoMateria] = useState('');
   const [memoBloqueioCliques, setMemoBloqueioCliques] = useState(false);
+  const [memoImagensPool, setMemoImagensPool] = useState(() => {
+    const saved = localStorage.getItem('dm_memo_imagens');
+    return saved ? JSON.parse(saved) : IMAGENS_PADRAO_MEMORIA;
+  });
+  const [cadMemoImagemUrl, setCadMemoImagemUrl] = useState('');
+
+  useEffect(() => {
+    localStorage.setItem('dm_memo_imagens', JSON.stringify(memoImagensPool));
+  }, [memoImagensPool]);
 
   useEffect(() => {
     localStorage.setItem('dm_imacao', JSON.stringify(cartasImAcao));
@@ -1438,6 +1464,33 @@ export default function App() {
   const [cadImAcaoNome, setCadImAcaoNome] = useState('');
   const [cadImAcaoRespostas, setCadImAcaoRespostas] = useState(['', '', '', '', '']);
 
+  const adicionarMemoImagemManual = () => {
+    if (!cadMemoImagemUrl.trim()) {
+      alert('Por favor, digite a URL da imagem!');
+      return;
+    }
+    if (!cadMemoImagemUrl.startsWith('http://') && !cadMemoImagemUrl.startsWith('https://')) {
+      alert('A URL da imagem deve começar com http:// ou https://');
+      return;
+    }
+    const novaPool = [...memoImagensPool, cadMemoImagemUrl.trim()];
+    setMemoImagensPool(novaPool);
+    setCadMemoImagemUrl('');
+  };
+
+  const deletarMemoImagem = (idx) => {
+    if (confirm('Deseja realmente remover esta imagem?')) {
+      const novaPool = memoImagensPool.filter((_, i) => i !== idx);
+      setMemoImagensPool(novaPool);
+    }
+  };
+
+  const restaurarMemoImagensPadrao = () => {
+    if (confirm('Deseja realmente restaurar a lista de imagens para o padrão de fábrica? Isso removerá as suas imagens cadastradas.')) {
+      setMemoImagensPool(IMAGENS_PADRAO_MEMORIA);
+    }
+  };
+
   const adicionarCartaImAcaoManual = () => {
     if (!cadImAcaoNome.trim()) {
       alert('Por favor, digite o nome/tema da carta!');
@@ -1511,28 +1564,13 @@ export default function App() {
     // Pega exatamente as primeiras 14 perguntas
     const pergsPartida = pergsFiltradas.slice(0, 14);
 
-    // Array de 14 imagens selecionadas de alta qualidade no estilo Jovem / Adolescente do Unsplash
-    const IMAGENS_PARES = [
-      "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=250&auto=format&fit=crop", // Controle de videogame / Gaming
-      "https://images.unsplash.com/photo-1547447134-cd3f5c716030?q=80&w=250&auto=format&fit=crop", // Skate urbano / Cultura jovem
-      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=250&auto=format&fit=crop", // Headphone moderno / Música
-      "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=250&auto=format&fit=crop", // Setup Gamer Neon / Tecnologia
-      "https://images.unsplash.com/photo-1561055657-b9e0bf0fa360?q=80&w=250&auto=format&fit=crop", // Graffiti colorido / Arte urbana
-      "https://images.unsplash.com/photo-1519766304817-4f37bda74a27?q=80&w=250&auto=format&fit=crop", // Basquete de rua / Esportes
-      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=250&auto=format&fit=crop", // Tênis Sneaker estiloso / Moda jovem
-      "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?q=80&w=250&auto=format&fit=crop", // Óculos de Realidade Virtual (VR)
-      "https://images.unsplash.com/photo-1484755560695-a4c7477ab9ea?q=80&w=250&auto=format&fit=crop", // Guitarra elétrica neon / Rock
-      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=250&auto=format&fit=crop", // Astronauta Cyberpunk / Arte digital
-      "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=250&auto=format&fit=crop", // Grupo de amigos rindo / Social
-      "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=250&auto=format&fit=crop", // Cinema / Pipoca / Filmes
-      "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=250&auto=format&fit=crop", // Robótica / Tecnologia do futuro
-      "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=250&auto=format&fit=crop"  // Aventura / Acampamento ao ar livre
-    ];
+    // Usa a pool de imagens gerenciada pelo professor (ou fallback se estiver vazia)
+    const poolImagens = memoImagensPool.length > 0 ? memoImagensPool : IMAGENS_PADRAO_MEMORIA;
 
     // 2. Criar cartas (14 perguntas e 14 respostas correspondentes)
     const cartas = [];
     pergsPartida.forEach((perg, idx) => {
-      const imgUrl = IMAGENS_PARES[idx % IMAGENS_PARES.length];
+      const imgUrl = poolImagens[idx % poolImagens.length];
       cartas.push({
         id: `p_${idx}_${Date.now()}`,
         parId: idx,
@@ -4637,24 +4675,30 @@ export default function App() {
         </div>
 
         {/* Abas superiores do gerenciador geral */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
           <button 
-            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'duelo' ? '#4f46e5' : 'transparent', color: cadGerenciadorAba === 'duelo' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'duelo' ? '#4f46e5' : 'transparent', color: cadGerenciadorAba === 'duelo' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
             onClick={() => setCadGerenciadorAba('duelo')}
           >
             ⚔️ Perguntas do Duelo
           </button>
           <button 
-            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'pistas' ? '#7c3aed' : 'transparent', color: cadGerenciadorAba === 'pistas' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'pistas' ? '#7c3aed' : 'transparent', color: cadGerenciadorAba === 'pistas' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
             onClick={() => setCadGerenciadorAba('pistas')}
           >
             🗺️ Cartas de Três Pistas
           </button>
           <button 
-            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'imacao' ? '#10b981' : 'transparent', color: cadGerenciadorAba === 'imacao' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'imacao' ? '#10b981' : 'transparent', color: cadGerenciadorAba === 'imacao' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
             onClick={() => setCadGerenciadorAba('imacao')}
           >
             🎨 Cartas de Imagem e Ação
+          </button>
+          <button 
+            style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'memoria' ? '#f59e0b' : 'transparent', color: cadGerenciadorAba === 'memoria' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            onClick={() => setCadGerenciadorAba('memoria')}
+          >
+            🧠 Imagens da Memória
           </button>
         </div>
 
@@ -5602,6 +5646,139 @@ export default function App() {
             </div>
             </div>
             )}
+          </div>
+        )}
+
+        {/* GERENCIADOR DAS IMAGENS DO JOGO DA MEMÓRIA */}
+        {cadGerenciadorAba === 'memoria' && (
+          <div className="tab-panel ativa">
+            <div className="card">
+              <div className="sec">🧠 Gerenciar Imagens do Jogo da Memória</div>
+              
+              {/* Descrição orientando as especificações das imagens */}
+              <div style={{ background: 'rgba(245, 158, 11, 0.05)', border: '1.5px solid rgba(245, 158, 11, 0.25)', borderRadius: '12px', padding: '16px', marginBottom: '20px', color: '#fde047', fontSize: '0.88rem', lineHeight: 1.5 }}>
+                <div style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '8px', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  💡 Orientações Importantes para Customização de Imagens
+                </div>
+                <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <li><strong>Imagem Padrão:</strong> Por padrão, o jogo é carregado com as nossas 14 imagens temáticas focadas no público jovem e adolescente do Unsplash (games, skate, setup neon, fones, esportes).</li>
+                  <li><strong>Tamanho Recomendado:</strong> Prefira imagens de proporção perfeitamente quadradas <strong>1:1</strong> (tamanho ideal sugerido: <strong>250x250 pixels</strong>). Elas se ajustam e preenchem as cartas da mesa sem cortes artificiais.</li>
+                  <li><strong>Formatos Suportados:</strong> O sistema suporta links diretos de imagens da web que iniciem com <code>http://</code> ou <code>https://</code> e terminem nos formatos de arquivo: <code>.jpg</code>, <code>.jpeg</code>, <code>.png</code>, <code>.webp</code>, <code>.gif</code> ou URLs de plataformas de banco de imagens gratuitas confiáveis como o <em>Unsplash</em>.</li>
+                  <li><strong>Quantidade Ideal:</strong> Para completar o tabuleiro de 30 cartas estrito (28 normais + 2 surpresas), o ideal é que você cadastre **exatamente 14 imagens**. Se cadastrar menos, o sistema repetirá as imagens de forma inteligente para preencher a mesa. Se cadastrar mais, o jogo usará as 14 primeiras da lista.</li>
+                </ul>
+              </div>
+
+              {/* Input de nova imagem */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                <label style={{ fontWeight: 'bold' }}>Adicionar Imagem por URL</label>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input 
+                    placeholder="Cole a URL da imagem aqui... (Ex: https://images.unsplash.com/...)" 
+                    value={cadMemoImagemUrl}
+                    onChange={(e) => setCadMemoImagemUrl(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <button 
+                    className="btn-ac btn-add" 
+                    style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)' }}
+                    onClick={adicionarMemoImagemManual}
+                  >
+                    Adicionar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Listagem e Preview em Grade */}
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                <div className="sec" style={{ margin: 0 }}>Imagens no Banco ({memoImagensPool.length})</div>
+                <button 
+                  className="btn-del" 
+                  style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', color: '#cbd5e1', boxShadow: 'none' }}
+                  onClick={restaurarMemoImagensPadrao}
+                >
+                  🔄 Restaurar Padrão de Fábrica
+                </button>
+              </div>
+
+              {memoImagensPool.length === 0 ? (
+                <div className="lista-vazia">Nenhuma imagem cadastrada. Adicione links de imagens acima ou clique em "Restaurar Padrão".</div>
+              ) : (
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', 
+                  gap: '12px', 
+                  maxHeight: '450px', 
+                  overflowY: 'auto', 
+                  paddingRight: '6px' 
+                }}>
+                  {memoImagensPool.map((url, idx) => (
+                    <div 
+                      key={idx} 
+                      style={{ 
+                        background: 'rgba(15, 23, 42, 0.6)', 
+                        border: '1px solid rgba(255, 255, 255, 0.08)', 
+                        borderRadius: '10px', 
+                        padding: '6px', 
+                        position: 'relative', 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center', 
+                        boxSizing: 'border-box' 
+                      }}
+                    >
+                      <div style={{ 
+                        width: '100%', 
+                        aspectRatio: '1/1', 
+                        borderRadius: '6px', 
+                        overflow: 'hidden', 
+                        background: '#020108',
+                        position: 'relative'
+                      }}>
+                        <img 
+                          src={url} 
+                          alt={`Preview ${idx + 1}`} 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={(e) => {
+                            e.currentTarget.src = "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop"; // fallback de erro
+                          }}
+                        />
+                        <span style={{ 
+                          position: 'absolute', 
+                          top: '4px', 
+                          left: '4px', 
+                          background: 'rgba(15, 23, 42, 0.85)', 
+                          color: '#f59e0b', 
+                          fontSize: '0.62rem', 
+                          fontWeight: 'bold', 
+                          padding: '2px 6px', 
+                          borderRadius: '4px',
+                          border: '1px solid rgba(245, 158, 11, 0.2)'
+                        }}>
+                          {idx + 1}
+                        </span>
+                      </div>
+                      <button 
+                        className="btn-del" 
+                        style={{ 
+                          marginTop: '6px', 
+                          width: '100%', 
+                          padding: '4px', 
+                          fontSize: '0.75rem', 
+                          borderRadius: '6px',
+                          justifyContent: 'center',
+                          display: 'flex'
+                        }} 
+                        onClick={() => deletarMemoImagem(idx)}
+                      >
+                        Remover ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
