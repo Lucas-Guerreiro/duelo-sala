@@ -1511,14 +1511,34 @@ export default function App() {
     // Pega exatamente as primeiras 14 perguntas
     const pergsPartida = pergsFiltradas.slice(0, 14);
 
+    // Array de 14 imagens educativas selecionadas de alta qualidade do Unsplash
+    const IMAGENS_PARES = [
+      "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=250&auto=format&fit=crop", // Livros / Estudo
+      "https://images.unsplash.com/photo-1507668077129-56e32842fceb?q=80&w=250&auto=format&fit=crop", // Ideia / Lâmpada
+      "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=250&auto=format&fit=crop", // Ciência / Laboratório
+      "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=250&auto=format&fit=crop", // Matemática / Fórmulas
+      "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=250&auto=format&fit=crop", // Planeta / Tecnologia
+      "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?q=80&w=250&auto=format&fit=crop", // História / Escrita antiga
+      "https://images.unsplash.com/photo-1516979187457-637abb4f9353?q=80&w=250&auto=format&fit=crop", // Livros abertos
+      "https://images.unsplash.com/photo-1501504905252-473c47e087f8?q=80&w=250&auto=format&fit=crop", // Notebook / Aprendizado
+      "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=250&auto=format&fit=crop", // Sala de aula / Quadro
+      "https://images.unsplash.com/photo-1532274402911-5a369e4c4bb5?q=80&w=250&auto=format&fit=crop", // Natureza / Geografia
+      "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?q=80&w=250&auto=format&fit=crop", // Arte / Pintura
+      "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?q=80&w=250&auto=format&fit=crop", // Criatividade / Cores
+      "https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?q=80&w=250&auto=format&fit=crop", // Espaço / Astronomia
+      "https://images.unsplash.com/photo-1447069387593-a5de0862481e?q=80&w=250&auto=format&fit=crop"  // História / Ampulheta antiga
+    ];
+
     // 2. Criar cartas (14 perguntas e 14 respostas correspondentes)
     const cartas = [];
     pergsPartida.forEach((perg, idx) => {
+      const imgUrl = IMAGENS_PARES[idx % IMAGENS_PARES.length];
       cartas.push({
         id: `p_${idx}_${Date.now()}`,
         parId: idx,
         tipo: 'pergunta',
         texto: perg.txt,
+        imagem: imgUrl,
         aberta: false,
         encontradaPor: null
       });
@@ -1527,6 +1547,7 @@ export default function App() {
         parId: idx,
         tipo: 'resposta',
         texto: obterTextoResposta(perg),
+        imagem: imgUrl,
         aberta: false,
         encontradaPor: null
       });
@@ -1538,6 +1559,7 @@ export default function App() {
       parId: -1,
       tipo: 'surpresa-embaralhar',
       texto: 'Troca-Tudo! 🌪️',
+      imagem: "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop",
       aberta: false,
       encontradaPor: null
     });
@@ -1546,6 +1568,7 @@ export default function App() {
       parId: -2,
       tipo: 'surpresa-olho',
       texto: 'Olho Mágico! 👁️',
+      imagem: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop",
       aberta: false,
       encontradaPor: null
     });
@@ -7704,20 +7727,39 @@ export default function App() {
                     boxSizing: 'border-box'
                   }}
                 >
+                  {/* Imagem de Fundo Semitransparente para Moderação */}
+                  {carta.imagem && (
+                    <img 
+                      src={carta.imagem} 
+                      alt="Ilustração" 
+                      style={{ 
+                        position: 'absolute', 
+                        top: 0, 
+                        left: 0, 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'cover', 
+                        opacity: 0.18, 
+                        pointerEvents: 'none', 
+                        borderRadius: '6px' 
+                      }}
+                    />
+                  )}
+
                   {/* Etiqueta pequena do tipo da carta */}
-                  <span style={{ fontSize: '0.55rem', fontWeight: 800, textTransform: 'uppercase', position: 'absolute', top: '3px', left: '6px', color: carta.tipo === 'pergunta' ? '#60a5fa' : carta.tipo === 'resposta' ? '#34d399' : '#fbbf24', opacity: encontrada ? 0.5 : 0.85 }}>
+                  <span style={{ fontSize: '0.55rem', fontWeight: 800, textTransform: 'uppercase', position: 'absolute', top: '3px', left: '6px', color: carta.tipo === 'pergunta' ? '#60a5fa' : carta.tipo === 'resposta' ? '#34d399' : '#fbbf24', opacity: encontrada ? 0.5 : 0.85, zIndex: 1 }}>
                     {carta.tipo === 'pergunta' ? 'PERG' : carta.tipo === 'resposta' ? 'RESP' : 'SURP'}
                   </span>
                   
                   {/* Identificador de Par para ajudar o moderador */}
                   {carta.parId >= 0 && (
-                    <span style={{ fontSize: '0.6rem', fontWeight: 'bold', position: 'absolute', top: '3px', right: '6px', background: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', padding: '1px 4px' }}>
+                    <span style={{ fontSize: '0.6rem', fontWeight: 'bold', position: 'absolute', top: '3px', right: '6px', background: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', padding: '1px 4px', zIndex: 1 }}>
                       Par {carta.parId + 1}
                     </span>
                   )}
 
                   {/* Conteúdo Principal (sempre visível para o Moderador!) */}
-                  <div style={{ fontSize: '0.72rem', color: textColor, fontWeight: 'bold', display: '-webkit-box', webkitLineClamp: 3, webkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%', lineHeight: 1.25, marginTop: '8px' }}>
+                  <div style={{ fontSize: '0.72rem', color: textColor, fontWeight: 'bold', display: '-webkit-box', webkitLineClamp: 3, webkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%', lineHeight: 1.25, marginTop: '8px', zIndex: 1 }}>
                     {carta.tipo === 'surpresa-embaralhar' ? '🌪️ Troca-Tudo' : carta.tipo === 'surpresa-olho' ? '👁️ Olho Mágico' : (carta.texto.length > 48 ? carta.texto.substring(0, 45) + '...' : carta.texto)}
                   </div>
                   
@@ -7849,8 +7891,9 @@ export default function App() {
                       key={carta.id} 
                       onClick={() => virarCartaMemoria(idx)}
                       className={`card-3d ${virada ? 'virada' : ''} ${cardTypeClass} ${rolandoEmbaralhar ? 'efeito-redemoinho' : ''}`}
+                      style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                     >
-                      <div className="card-3d-inner">
+                      <div className="card-3d-inner" style={{ pointerEvents: 'none' }}>
                         {/* Verso da carta (Oculta) */}
                         <div className="card-3d-back" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           <span style={{ fontSize: '1.6rem', opacity: 0.65 }}>🧠</span>
@@ -7859,45 +7902,53 @@ export default function App() {
                           </span>
                         </div>
                         
-                        {/* Frente da carta (Aberta / Virada) */}
-                        <div className="card-3d-front" style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px' }}>
-                          {/* Emblema da Equipe se foi encontrada */}
+                        {/* Frente da carta (Aberta / Virada - Com imagem em vez de texto!) */}
+                        <div className="card-3d-front" style={{ display: 'flex', flexDirection: 'column', gap: '0', padding: '0', overflow: 'hidden', position: 'relative' }}>
+                          {/* Imagem do cartão */}
+                          {carta.imagem ? (
+                            <img 
+                              src={carta.imagem} 
+                              alt="Ilustração" 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            />
+                          ) : (
+                            /* Fallback se a imagem falhar */
+                            <div style={{ fontSize: '2rem' }}>{carta.tipo === 'surpresa-embaralhar' ? '🌪️' : '👁️'}</div>
+                          )}
+                          
+                          {/* Emblema da Equipe se foi encontrada (overlay) */}
                           {encontrada && (
-                            <span style={{ fontSize: '0.62rem', fontWeight: 900, background: carta.encontradaPor === 0 ? '#3b82f6' : '#ec4899', color: '#fff', borderRadius: '4px', padding: '2px 6px', position: 'absolute', top: '5px', left: '5px' }}>
+                            <span style={{ fontSize: '0.62rem', fontWeight: 900, background: carta.encontradaPor === 0 ? '#3b82f6' : '#ec4899', color: '#fff', borderRadius: '4px', padding: '2px 6px', position: 'absolute', top: '5px', left: '5px', boxShadow: '0 0 8px rgba(0,0,0,0.5)', zIndex: 2 }}>
                               {carta.encontradaPor === 0 ? nomeJ1 : nomeJ2}
                             </span>
                           )}
                           
-                          {/* Tipo de Carta Surpresa */}
-                          {!encontrada && (carta.tipo === 'surpresa-embaralhar' || carta.tipo === 'surpresa-olho') && (
-                            <span style={{ fontSize: '0.62rem', fontWeight: 900, background: '#f59e0b', color: '#000', borderRadius: '4px', padding: '2px 6px', position: 'absolute', top: '5px', left: '5px' }}>
-                              EFEITO SURPRESA
+                          {/* Etiqueta de Pergunta / Resposta para dar a dica pedagógica na mesa */}
+                          {!encontrada && (carta.tipo === 'pergunta' || carta.tipo === 'resposta') && (
+                            <span style={{ 
+                              fontSize: '0.6rem', 
+                              fontWeight: 900, 
+                              background: carta.tipo === 'pergunta' ? '#3b82f6' : '#10b981', 
+                              color: '#fff', 
+                              borderRadius: '4px', 
+                              padding: '2px 6px', 
+                              position: 'absolute', 
+                              bottom: '5px', 
+                              left: '50%', 
+                              transform: 'translateX(-50%)',
+                              boxShadow: '0 0 8px rgba(0,0,0,0.5)',
+                              textTransform: 'uppercase',
+                              zIndex: 2
+                            }}>
+                              {carta.tipo === 'pergunta' ? 'PERGUNTA' : 'RESPOSTA'}
                             </span>
                           )}
 
-                          {/* Conteúdo Principal */}
-                          {carta.tipo === 'surpresa-embaralhar' ? (
-                            <div style={{ textAlign: 'center' }}>
-                              <div style={{ fontSize: '2.5rem', filter: 'drop-shadow(0 0 10px #f59e0b)' }}>🌪️</div>
-                              <div style={{ fontSize: '0.85rem', fontWeight: 900, color: '#fde047', textTransform: 'uppercase', marginTop: '6px' }}>Troca-Tudo!</div>
-                            </div>
-                          ) : carta.tipo === 'surpresa-olho' ? (
-                            <div style={{ textAlign: 'center' }}>
-                              <div style={{ fontSize: '2.5rem', filter: 'drop-shadow(0 0 10px #8b5cf6)' }}>👁️</div>
-                              <div style={{ fontSize: '0.85rem', fontWeight: 900, color: '#c084fc', textTransform: 'uppercase', marginTop: '6px' }}>Olho Mágico!</div>
-                            </div>
-                          ) : (
-                            <div style={{
-                              fontSize: carta.texto.length > 35 ? '0.72rem' : '0.85rem',
-                              fontWeight: 'bold',
-                              lineHeight: 1.3,
-                              textAlign: 'center',
-                              width: '100%',
-                              wordBreak: 'break-word',
-                              color: encontrada ? '#f8fafc' : carta.tipo === 'pergunta' ? '#a5f3fc' : '#c7f9d0'
-                            }}>
-                              {carta.texto.length > 48 ? carta.texto.substring(0, 45) + '...' : carta.texto}
-                            </div>
+                          {/* Tipo de Carta Surpresa */}
+                          {!encontrada && (carta.tipo === 'surpresa-embaralhar' || carta.tipo === 'surpresa-olho') && (
+                            <span style={{ fontSize: '0.62rem', fontWeight: 900, background: '#f59e0b', color: '#000', borderRadius: '4px', padding: '2px 6px', position: 'absolute', top: '5px', left: '5px', boxShadow: '0 0 8px rgba(0,0,0,0.5)', zIndex: 2 }}>
+                              SURPRESA
+                            </span>
                           )}
                         </div>
                       </div>
