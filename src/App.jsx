@@ -1472,6 +1472,7 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('projetor') === 'true') return 'ia-projetor';
       const last = localStorage.getItem('dm_last_tela');
+      if (last === 'ia-projetor' || last === 'ia-projetor-fim') return 'menu';
       return last || 'menu';
     } catch (e) {
       return 'menu';
@@ -1483,10 +1484,11 @@ export default function App() {
     setTela(dest);
   };
 
-  // Persistir tela atual para reinício seguro
+  // Persistir tela atual para reinício seguro (apenas se não for modo projetor)
   useEffect(() => {
+    if (isProjetorMode) return;
     try { localStorage.setItem('dm_last_tela', tela); } catch (e) { /* noop */ }
-  }, [tela]);
+  }, [tela, isProjetorMode]);
 
   // --- ESTADOS DO GAMEPAD E DETECÇÃO ---
   const [gamepadsConectados, setGamepadsConectados] = useState([]);
