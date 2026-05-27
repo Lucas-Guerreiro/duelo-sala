@@ -1511,22 +1511,22 @@ export default function App() {
     // Pega exatamente as primeiras 14 perguntas
     const pergsPartida = pergsFiltradas.slice(0, 14);
 
-    // Array de 14 imagens educativas selecionadas de alta qualidade do Unsplash
+    // Array de 14 imagens selecionadas de alta qualidade no estilo Jovem / Adolescente do Unsplash
     const IMAGENS_PARES = [
-      "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=250&auto=format&fit=crop", // Livros / Estudo
-      "https://images.unsplash.com/photo-1507668077129-56e32842fceb?q=80&w=250&auto=format&fit=crop", // Ideia / Lâmpada
-      "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=250&auto=format&fit=crop", // Ciência / Laboratório
-      "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=250&auto=format&fit=crop", // Matemática / Fórmulas
-      "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=250&auto=format&fit=crop", // Planeta / Tecnologia
-      "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?q=80&w=250&auto=format&fit=crop", // História / Escrita antiga
-      "https://images.unsplash.com/photo-1516979187457-637abb4f9353?q=80&w=250&auto=format&fit=crop", // Livros abertos
-      "https://images.unsplash.com/photo-1501504905252-473c47e087f8?q=80&w=250&auto=format&fit=crop", // Notebook / Aprendizado
-      "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=250&auto=format&fit=crop", // Sala de aula / Quadro
-      "https://images.unsplash.com/photo-1532274402911-5a369e4c4bb5?q=80&w=250&auto=format&fit=crop", // Natureza / Geografia
-      "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?q=80&w=250&auto=format&fit=crop", // Arte / Pintura
-      "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?q=80&w=250&auto=format&fit=crop", // Criatividade / Cores
-      "https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?q=80&w=250&auto=format&fit=crop", // Espaço / Astronomia
-      "https://images.unsplash.com/photo-1447069387593-a5de0862481e?q=80&w=250&auto=format&fit=crop"  // História / Ampulheta antiga
+      "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=250&auto=format&fit=crop", // Controle de videogame / Gaming
+      "https://images.unsplash.com/photo-1547447134-cd3f5c716030?q=80&w=250&auto=format&fit=crop", // Skate urbano / Cultura jovem
+      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=250&auto=format&fit=crop", // Headphone moderno / Música
+      "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=250&auto=format&fit=crop", // Setup Gamer Neon / Tecnologia
+      "https://images.unsplash.com/photo-1561055657-b9e0bf0fa360?q=80&w=250&auto=format&fit=crop", // Graffiti colorido / Arte urbana
+      "https://images.unsplash.com/photo-1519766304817-4f37bda74a27?q=80&w=250&auto=format&fit=crop", // Basquete de rua / Esportes
+      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=250&auto=format&fit=crop", // Tênis Sneaker estiloso / Moda jovem
+      "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?q=80&w=250&auto=format&fit=crop", // Óculos de Realidade Virtual (VR)
+      "https://images.unsplash.com/photo-1484755560695-a4c7477ab9ea?q=80&w=250&auto=format&fit=crop", // Guitarra elétrica neon / Rock
+      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=250&auto=format&fit=crop", // Astronauta Cyberpunk / Arte digital
+      "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=250&auto=format&fit=crop", // Grupo de amigos rindo / Social
+      "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=250&auto=format&fit=crop", // Cinema / Pipoca / Filmes
+      "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=250&auto=format&fit=crop", // Robótica / Tecnologia do futuro
+      "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=250&auto=format&fit=crop"  // Aventura / Acampamento ao ar livre
     ];
 
     // 2. Criar cartas (14 perguntas e 14 respostas correspondentes)
@@ -7730,10 +7730,14 @@ export default function App() {
                     fontSize: '0.55rem', 
                     fontWeight: 'bold', 
                     color: '#fff',
-                    border: '1px solid rgba(255,255,255,0.1)'
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    alignItems: 'center'
                   }}>
                     <span style={{ color: carta.parId >= 0 ? '#cbd5e1' : '#fbbf24' }}>
                       {carta.parId >= 0 ? `PAR ${carta.parId + 1}` : 'SURPRESA'}
+                    </span>
+                    <span style={{ background: '#3b82f6', color: '#fff', padding: '1px 4px', borderRadius: '3px', fontSize: '0.55rem', fontWeight: 900 }}>
+                      {idx + 1}
                     </span>
                   </div>
                   
