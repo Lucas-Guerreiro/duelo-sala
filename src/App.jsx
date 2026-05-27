@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+import { initFirebase, salvarBackupImAcao } from './firebase';
 
 // Componente para renderização de fórmulas matemáticas KaTeX de forma offline
 function MathText({ text }) {
@@ -47,6 +48,40 @@ function MathText({ text }) {
   }, [text]);
 
   return <span ref={containerRef} />;
+}
+
+// Error Boundary para capturar erros de renderização
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('ErrorBoundary caught:', error, errorInfo);
+    this.setState({ errorInfo });
+    if (this.props.onError) this.props.onError({ message: String(error), stack: errorInfo && errorInfo.componentStack });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 24 }}>
+          <h2>Ocorreu um erro na aplicação.</h2>
+          <pre style={{ whiteSpace: 'pre-wrap' }}>{String(this.state.error && this.state.error.toString())}</pre>
+          <details style={{ whiteSpace: 'pre-wrap', marginTop: 12 }}>{this.state.errorInfo && this.state.errorInfo.componentStack}</details>
+          <div style={{ marginTop: 12 }}>
+            <button className="btn-menu btn-outline" onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}>Tentar novamente</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 
@@ -460,6 +495,18 @@ const obterCorCasaImAcao = (cat) => {
   }
 };
 
+const obterDesafioTexto = (num) => {
+  switch (num) {
+    case 1: return { topo: 'Desafio', centro: 'NENHUM', desc: 'Normal' };
+    case 2: return { topo: 'Desafio', centro: 'MÃO', desc: 'Oposta' };
+    case 3: return { topo: 'Desafio', centro: 'OLHOS', desc: 'Fechados' };
+    case 4: return { topo: 'Desafio', centro: 'DUAS', desc: 'Figuras' };
+    case 5: return { topo: 'Desafio', centro: 'LÁPIS', desc: 'Sem Tirar' };
+    case 6: return { topo: 'Desafio', centro: 'NENHUM', desc: 'Normal' };
+    default: return { topo: 'Desafio', centro: 'NENHUM', desc: 'Normal' };
+  }
+};
+
 export default function App() {
   // --- ESTADOS DO JOGO DAS TRÊS PISTAS ---
   const [modoJogo, setModoJogo] = useState('duelo'); // 'duelo' | 'pistas' | 'imacao'
@@ -505,7 +552,16 @@ export default function App() {
   const [imAcaoDadoCategoria, setImAcaoDadoCategoria] = useState(1); // 1 a 6
   const [imAcaoDadoMovimentacao, setImAcaoDadoMovimentacao] = useState(2); // 1 a 6
   const [imAcaoDadosRolando, setImAcaoDadosRolando] = useState(false);
+  const [imAcaoDadoDesafio, setImAcaoDadoDesafio] = useState(1); // 1 a 6
+  const [imAcaoDadoDesafioRolando, setImAcaoDadoDesafioRolando] = useState(false);
+  const [imAcaoLousaAberta, setImAcaoLousaAberta] = useState(false);
+  const [imAcaoTelaBrancaAtiva, setImAcaoTelaBrancaAtiva] = useState(false);
   const [iaImAcaoGeradas, setIaImAcaoGeradas] = useState([]);
+  const [backupStatus, setBackupStatus] = useState('');
+  const [appError, setAppError] = useState(null);
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(() => {
+    try { return localStorage.getItem('dm_auto_backup') === '1'; } catch (e) { return false; }
+  });
 
   const imAcaoChannelRef = useRef(null);
   const imAcaoTimerIntRef = useRef(null);
@@ -542,12 +598,116 @@ export default function App() {
 
     return () => {
       channel.close();
-      if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
     };
   }, []);
 
+  useEffect(() => {
+    initFirebase();
+  }, []);
+
+  // Captura global de erros para diagnosticar tela em branco
+  useEffect(() => {
+    const onErr = (message, source, lineno, colno, error) => {
+      try {
+        console.error('Global error captured:', message, error || { source, lineno, colno });
+        setAppError({ message: message?.toString?.() || String(message), stack: (error && error.stack) || `${source}:${lineno}:${colno}` });
+      } catch (e) {
+        // noop
+      }
+      return false;
+    };
+
+    const onRej = (ev) => {
+      try {
+        console.error('Unhandled rejection captured:', ev);
+        const reason = ev && (ev.reason || ev.detail || ev);
+        setAppError({ message: String(reason && reason.message ? reason.message : reason), stack: reason && reason.stack ? reason.stack : JSON.stringify(reason) });
+      } catch (e) {}
+    };
+
+    window.addEventListener('error', onErr);
+    window.addEventListener('unhandledrejection', onRej);
+
+    return () => {
+      window.removeEventListener('error', onErr);
+      window.removeEventListener('unhandledrejection', onRej);
+    };
+  }, []);
+
+  // Automatic backup (conditional)
+  useEffect(() => {
+    try { localStorage.setItem('dm_auto_backup', autoBackupEnabled ? '1' : '0'); } catch (e) {}
+  }, [autoBackupEnabled]);
+
+  useEffect(() => {
+    if (!autoBackupEnabled) return;
+
+    const backupPayload = {
+      timestamp: new Date().toISOString(),
+      cartasImAcao,
+      imAcaoFila,
+      imAcaoPontuacao,
+      imAcaoRodada,
+      imAcaoCartaAtual,
+      imAcaoTimer,
+      imAcaoMaxTimer,
+      imAcaoFluxo,
+      imAcaoCartaRevelada,
+      imAcaoProjetorRevelado,
+      imAcaoEquipeVez,
+      imAcaoOpcaoSelecionada,
+      imAcaoModoRepresentacao,
+      imAcaoDadoCategoria,
+      imAcaoDadoMovimentacao,
+      imAcaoDadosRolando,
+      imAcaoDadoDesafio,
+      imAcaoDadoDesafioRolando,
+      imAcaoLousaAberta,
+      imAcaoTelaBrancaAtiva,
+      iaImAcaoGeradas,
+    };
+
+    const timer = setTimeout(() => {
+      salvarBackupImAcao(backupPayload)
+        .then(() => setBackupStatus('Backup salvo em nuvem.'))
+        .catch((error) => {
+          console.error('Backup Firebase falhou:', error);
+          setBackupStatus('Falha ao salvar backup em nuvem.');
+        });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [
+    autoBackupEnabled,
+    cartasImAcao,
+    imAcaoFila,
+    imAcaoPontuacao,
+    imAcaoRodada,
+    imAcaoCartaAtual,
+    imAcaoTimer,
+    imAcaoMaxTimer,
+    imAcaoFluxo,
+    imAcaoCartaRevelada,
+    imAcaoProjetorRevelado,
+    imAcaoEquipeVez,
+    imAcaoOpcaoSelecionada,
+    imAcaoModoRepresentacao,
+    imAcaoDadoCategoria,
+    imAcaoDadoMovimentacao,
+    imAcaoDadosRolando,
+    imAcaoDadoDesafio,
+    imAcaoDadoDesafioRolando,
+    imAcaoLousaAberta,
+    imAcaoTelaBrancaAtiva,
+    iaImAcaoGeradas,
+  ]);
+
   const enviarMsgProjetor = (type, data = {}) => {
     if (imAcaoChannelRef.current) {
+      let lousaAbertaSinc = imAcaoLousaAberta;
+      if (type === 'ABRIR_LOUSA') lousaAbertaSinc = true;
+      if (type === 'FECHAR_LOUSA') lousaAbertaSinc = false;
+
       // Injeta incondicionalmente todos os estados críticos da partida de Imagem e Ação para sincronização atômica
       const dataSinc = {
         ...data,
@@ -564,13 +724,55 @@ export default function App() {
           dadoCat: imAcaoDadoCategoria,
           dadoMov: imAcaoDadoMovimentacao,
           dadosRolando: imAcaoDadosRolando,
+          dadoDesafio: imAcaoDadoDesafio,
+          dadoDesafioRolando: imAcaoDadoDesafioRolando,
+          lousaAberta: lousaAbertaSinc,
           cartaRevelada: imAcaoCartaRevelada,
           projetorRevelado: imAcaoProjetorRevelado,
           nomeJ1,
-          nomeJ2
+          nomeJ2,
+          telaBrancaAtiva: imAcaoTelaBrancaAtiva
         }
       };
       imAcaoChannelRef.current.postMessage({ type, data: dataSinc });
+    }
+  };
+
+  // Backup manual acionado pelo usuário
+  const triggerManualBackup = async () => {
+    setBackupStatus('Salvando backup...');
+    const backupPayload = {
+      timestamp: new Date().toISOString(),
+      cartasImAcao,
+      imAcaoFila,
+      imAcaoPontuacao,
+      imAcaoRodada,
+      imAcaoCartaAtual,
+      imAcaoTimer,
+      imAcaoMaxTimer,
+      imAcaoFluxo,
+      imAcaoCartaRevelada,
+      imAcaoProjetorRevelado,
+      imAcaoEquipeVez,
+      imAcaoOpcaoSelecionada,
+      imAcaoModoRepresentacao,
+      imAcaoDadoCategoria,
+      imAcaoDadoMovimentacao,
+      imAcaoDadosRolando,
+      imAcaoDadoDesafio,
+      imAcaoDadoDesafioRolando,
+      imAcaoLousaAberta,
+      imAcaoTelaBrancaAtiva,
+      iaImAcaoGeradas,
+      tela,
+    };
+
+    try {
+      await salvarBackupImAcao(backupPayload);
+      setBackupStatus('Backup salvo em nuvem.');
+    } catch (err) {
+      console.error('Erro backup manual:', err);
+      setBackupStatus('Falha ao salvar backup em nuvem.');
     }
   };
 
@@ -591,10 +793,14 @@ export default function App() {
           dadoCat: imAcaoDadoCategoria,
           dadoMov: imAcaoDadoMovimentacao,
           dadosRolando: imAcaoDadosRolando,
+          dadoDesafio: imAcaoDadoDesafio,
+          dadoDesafioRolando: imAcaoDadoDesafioRolando,
+          lousaAberta: imAcaoLousaAberta,
           cartaRevelada: imAcaoCartaRevelada,
           projetorRevelado: imAcaoProjetorRevelado,
           nomeJ1,
-          nomeJ2
+          nomeJ2,
+          telaBrancaAtiva: imAcaoTelaBrancaAtiva
         });
       }
       return;
@@ -616,10 +822,14 @@ export default function App() {
         if (data.dadoCat !== undefined) setImAcaoDadoCategoria(data.dadoCat);
         if (data.dadoMov !== undefined) setImAcaoDadoMovimentacao(data.dadoMov);
         if (data.dadosRolando !== undefined) setImAcaoDadosRolando(data.dadosRolando);
+        if (data.dadoDesafio !== undefined) setImAcaoDadoDesafio(data.dadoDesafio);
+        if (data.dadoDesafioRolando !== undefined) setImAcaoDadoDesafioRolando(data.dadoDesafioRolando);
+        if (data.lousaAberta !== undefined) setImAcaoLousaAberta(data.lousaAberta);
         if (data.cartaRevelada !== undefined) setImAcaoCartaRevelada(data.cartaRevelada);
         if (data.projetorRevelado !== undefined) setImAcaoProjetorRevelado(data.projetorRevelado);
         if (data.nomeJ1 !== undefined) setNomeJ1(data.nomeJ1);
         if (data.nomeJ2 !== undefined) setNomeJ2(data.nomeJ2);
+        if (data.telaBrancaAtiva !== undefined) setImAcaoTelaBrancaAtiva(data.telaBrancaAtiva);
       }
       return;
     }
@@ -637,16 +847,28 @@ export default function App() {
       if (s.nomeJ2 !== undefined) setNomeJ2(s.nomeJ2);
       if (s.fluxo !== undefined) setImAcaoFluxo(s.fluxo);
       if (s.maxTimer !== undefined) setImAcaoMaxTimer(s.maxTimer);
+      if (s.telaBrancaAtiva !== undefined) setImAcaoTelaBrancaAtiva(s.telaBrancaAtiva);
 
       if (type !== 'ROLAR_DADOS') {
         if (s.dadoCat !== undefined) setImAcaoDadoCategoria(s.dadoCat);
         if (s.dadoMov !== undefined) setImAcaoDadoMovimentacao(s.dadoMov);
         if (s.dadosRolando !== undefined) setImAcaoDadosRolando(s.dadosRolando);
       }
+
+      if (type !== 'ROLAR_DADO_DESAFIO') {
+        if (s.dadoDesafio !== undefined) setImAcaoDadoDesafio(s.dadoDesafio);
+        if (s.dadoDesafioRolando !== undefined) setImAcaoDadoDesafioRolando(s.dadoDesafioRolando);
+      }
+
+      if (s.lousaAberta !== undefined) setImAcaoLousaAberta(s.lousaAberta);
     }
 
     switch (type) {
+      case 'TOGGLE_TELA_BRANCA':
+        setImAcaoTelaBrancaAtiva(data.telaBrancaAtiva);
+        break;
       case 'INICIAR_PARTIDA':
+        setImAcaoTelaBrancaAtiva(false);
         setTela('ia-projetor');
         setImAcaoPontuacao(data.pontuacao);
         setImAcaoRodada(data.rodada);
@@ -666,6 +888,7 @@ export default function App() {
         setImAcaoDadosRolando(false);
         break;
       case 'SORTEAR_CARTA':
+        setImAcaoTelaBrancaAtiva(false);
         setImAcaoCartaAtual(data.carta);
         setImAcaoFluxo('preparacao');
         setImAcaoCartaRevelada(false);
@@ -686,6 +909,7 @@ export default function App() {
         setImAcaoProjetorRevelado(false);
         break;
       case 'PROXIMA_RODADA':
+        setImAcaoTelaBrancaAtiva(false);
         setImAcaoRodada(data.rodada);
         setImAcaoCartaAtual(data.carta);
         setImAcaoEquipeVez(data.equipeVez);
@@ -710,6 +934,7 @@ export default function App() {
         if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
         break;
       case 'PONTUAR_EQUIPE':
+        setImAcaoTelaBrancaAtiva(false);
         setImAcaoPontuacao(data.pontuacao);
         setImAcaoFluxo('preparacao');
         setImAcaoCartaRevelada(false);
@@ -722,6 +947,7 @@ export default function App() {
         if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
         break;
       case 'ERROU_RODADA':
+        setImAcaoTelaBrancaAtiva(false);
         setImAcaoFluxo('preparacao');
         setImAcaoCartaRevelada(false);
         setImAcaoProjetorRevelado(false);
@@ -740,6 +966,7 @@ export default function App() {
         setTela('ia-projetor-fim');
         break;
       case 'ROLAR_DADOS':
+        setImAcaoTelaBrancaAtiva(false);
         setImAcaoCartaRevelada(false);
         setImAcaoProjetorRevelado(false);
         
@@ -769,6 +996,15 @@ export default function App() {
         setImAcaoOpcaoSelecionada(data.opcaoIdx);
         setImAcaoModoRepresentacao(data.modo);
         break;
+      case 'ROLAR_DADO_DESAFIO':
+        setImAcaoDadoDesafio(data.dadoDesafio);
+        setImAcaoDadoDesafioRolando(true);
+        let chacoalharSonsDesafio = setInterval(() => playSound('dice'), 110);
+        setTimeout(() => {
+          clearInterval(chacoalharSonsDesafio);
+          setImAcaoDadoDesafioRolando(false);
+        }, 3000);
+        break;
       default:
         break;
     }
@@ -793,6 +1029,29 @@ export default function App() {
     }, 1000);
   };
 
+  const rolarDadoDesafioImAcao = () => {
+    if (imAcaoDadoDesafioRolando) return;
+    
+    playSound('click');
+    setImAcaoDadoDesafioRolando(true);
+    
+    const dadoDesafio = Math.floor(Math.random() * 6) + 1;
+    
+    enviarMsgProjetor('ROLAR_DADO_DESAFIO', {
+      dadoDesafio
+    });
+    
+    let chacoalharSons = setInterval(() => playSound('dice'), 110);
+    
+    setTimeout(() => {
+      clearInterval(chacoalharSons);
+      setImAcaoDadoDesafio(dadoDesafio);
+      setImAcaoDadoDesafioRolando(false);
+    }, 3000);
+  };
+
+
+
   const rolarDadosImAcao = () => {
     if (imAcaoDadosRolando) return;
     
@@ -802,6 +1061,7 @@ export default function App() {
     // Oculta a carta imediatamente no clique dos dados
     setImAcaoCartaRevelada(false);
     setImAcaoProjetorRevelado(false);
+    setImAcaoTelaBrancaAtiva(false);
     enviarMsgProjetor('OCULTAR_PROJETOR', {});
 
     const oponente = imAcaoEquipeVez === 0 ? 1 : 0;
@@ -890,6 +1150,7 @@ export default function App() {
     setImAcaoDadoCategoria(1);
     setImAcaoDadoMovimentacao(2);
     setImAcaoDadosRolando(false);
+    setImAcaoTelaBrancaAtiva(false);
     
     enviarMsgProjetor('INICIAR_PARTIDA', {
       pontuacao: [1, 1],
@@ -914,6 +1175,7 @@ export default function App() {
     setImAcaoOpcaoSelecionada(0);
     setImAcaoDadoCategoria(1);
     setImAcaoDadoMovimentacao(2);
+    setImAcaoTelaBrancaAtiva(false);
     
     enviarMsgProjetor('SORTEAR_CARTA', {
       carta: novaCarta,
@@ -940,11 +1202,19 @@ export default function App() {
     enviarMsgProjetor('PAUSAR_TIMER', {});
   };
 
+  const toggleTelaBrancaImAcao = () => {
+    playSound('click');
+    const novoEstado = !imAcaoTelaBrancaAtiva;
+    setImAcaoTelaBrancaAtiva(novoEstado);
+    enviarMsgProjetor('TOGGLE_TELA_BRANCA', { telaBrancaAtiva: novoEstado });
+  };
+
   const julgarImAcao = (acertou) => {
     if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
 
     // Revela imediatamente a palavra correta para toda a sala
     setImAcaoProjetorRevelado(true);
+    setImAcaoTelaBrancaAtiva(false);
     enviarMsgProjetor('REVELAR_PROJETOR', {});
 
     const oponente = imAcaoEquipeVez === 0 ? 1 : 0;
@@ -970,6 +1240,35 @@ export default function App() {
     } else {
       playSound('error');
       // No erro, apenas define o fluxo como julgada e notifica o projetor, mantendo a carta aberta.
+      setImAcaoFluxo('julgada');
+      enviarMsgProjetor('FLUXO_JULGADA', {});
+    }
+  };
+
+  const julgarImAcaoEspecial = (equipeVencedoraIndex) => {
+    if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
+
+    // Revela imediatamente a resposta secreta para toda a sala
+    setImAcaoProjetorRevelado(true);
+    setImAcaoTelaBrancaAtiva(false);
+    enviarMsgProjetor('REVELAR_PROJETOR', {});
+
+    if (equipeVencedoraIndex !== null) {
+      playSound('victory');
+      const casasAvançar = imAcaoDadoMovimentacao;
+      const posFinal = Math.min(30, imAcaoPontuacao[equipeVencedoraIndex] + casasAvançar);
+      
+      moverPeaoImAcaoGradual(equipeVencedoraIndex, posFinal, () => {
+        if (posFinal >= 30) {
+          enviarMsgProjetor('FIM_JOGO', {});
+          irParaTela('ia-fim');
+          return;
+        }
+        setImAcaoFluxo('julgada');
+        enviarMsgProjetor('FLUXO_JULGADA', {});
+      });
+    } else {
+      playSound('error');
       setImAcaoFluxo('julgada');
       enviarMsgProjetor('FLUXO_JULGADA', {});
     }
@@ -1010,11 +1309,51 @@ export default function App() {
   };
 
   // --- ESTADOS DO CADASTRO MANUAL DO TRÊS PISTAS ---
-  const [cadGerenciadorAba, setCadGerenciadorAba] = useState('duelo'); // 'duelo' | 'pistas'
+  const [cadGerenciadorAba, setCadGerenciadorAba] = useState('duelo'); // 'duelo' | 'pistas' | 'imacao'
   const [cadPistasCat, setCadPistasCat] = useState('');
   const [cadPistasResp, setCadPistasResp] = useState('');
   const [cadPistasTextos, setCadPistasTextos] = useState(['', '', '', '', '']);
   const [cadPistasEfeitos, setCadPistasEfeitos] = useState([null, null, null, null, null]);
+
+  // --- ESTADOS DO CADASTRO MANUAL DO IMAGEM E AÇÃO ---
+  const [cadImAcaoNome, setCadImAcaoNome] = useState('');
+  const [cadImAcaoRespostas, setCadImAcaoRespostas] = useState(['', '', '', '', '']);
+
+  const adicionarCartaImAcaoManual = () => {
+    if (!cadImAcaoNome.trim()) {
+      alert('Por favor, digite o nome/tema da carta!');
+      return;
+    }
+    
+    const categorias = ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'];
+    const opcoes = categorias.map((cat, idx) => {
+      const resp = cadImAcaoRespostas[idx]?.trim() || '';
+      return {
+        num: idx + 1,
+        cat,
+        resp: resp || 'Segredo Oculto'
+      };
+    });
+    
+    const novaCarta = {
+      id: Date.now(),
+      nome: cadImAcaoNome.trim(),
+      opcoes
+    };
+    
+    setCartasImAcao(prev => [...prev, novaCarta]);
+    setCadImAcaoNome('');
+    setCadImAcaoRespostas(['', '', '', '', '']);
+    alert('Carta de Imagem e Ação salva com sucesso!');
+  };
+
+  const deletarCartaImAcao = (index) => {
+    if (cartasImAcao.length <= 1) {
+      alert('Você precisa ter pelo menos 1 carta cadastrada no banco para jogar!');
+      return;
+    }
+    setCartasImAcao(prev => prev.filter((_, idx) => idx !== index));
+  };
 
   // Salvar cartas de pistas no localStorage
   useEffect(() => {
@@ -1080,12 +1419,26 @@ export default function App() {
   };
 
   // --- ESTADOS DE NAVEGAÇÃO ---
-  const [tela, setTela] = useState('menu'); // 'menu' | 'ia' | 'controles' | 'cadastro' | 'selecao' | 'nomes' | 'jogo' | 'fim'
+  const [tela, setTela] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('projetor') === 'true') return 'ia-projetor';
+      const last = localStorage.getItem('dm_last_tela');
+      return last || 'menu';
+    } catch (e) {
+      return 'menu';
+    }
+  }); // 'menu' | 'ia' | 'controles' | 'cadastro' | 'selecao' | 'nomes' | 'jogo' | 'fim'
 
   const irParaTela = (dest) => {
     playSound('click');
     setTela(dest);
   };
+
+  // Persistir tela atual para reinício seguro
+  useEffect(() => {
+    try { localStorage.setItem('dm_last_tela', tela); } catch (e) { /* noop */ }
+  }, [tela]);
 
   // --- ESTADOS DO GAMEPAD E DETECÇÃO ---
   const [gamepadsConectados, setGamepadsConectados] = useState([]);
@@ -1111,6 +1464,24 @@ export default function App() {
       window.removeEventListener('gamepadconnected', updateGamepads);
       window.removeEventListener('gamepaddisconnected', updateGamepads);
     };
+  }, []);
+
+  // Segurança: se por algum motivo nenhuma tela estiver ativa, garante que a tela padrão seja 'menu'
+  useEffect(() => {
+    const checkActiveTela = () => {
+      try {
+        const telas = document.querySelectorAll('.tela');
+        const anyActive = Array.from(telas).some(el => el.classList.contains('ativa'));
+        if (!anyActive) setTela('menu');
+      } catch (e) {
+        // noop
+      }
+    };
+
+    // checa logo após o primeiro render e novamente um pouco depois (por segurança)
+    const t1 = setTimeout(checkActiveTela, 50);
+    const t2 = setTimeout(checkActiveTela, 350);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
   const handleGamepadButtonPressRef = useRef(null);
@@ -1282,6 +1653,10 @@ export default function App() {
   const [cadFiltroTema, setCadFiltroTema] = useState('');
   const [planilhaFeedback, setPlanilhaFeedback] = useState(null);
   const [planilhaNovasPerguntas, setPlanilhaNovasPerguntas] = useState([]);
+  const [planilhaPistasFeedback, setPlanilhaPistasFeedback] = useState(null);
+  const [planilhaPistasNovasCartas, setPlanilhaPistasNovasCartas] = useState([]);
+  const [planilhaImAcaoFeedback, setPlanilhaImAcaoFeedback] = useState(null);
+  const [planilhaImAcaoNovasCartas, setPlanilhaImAcaoNovasCartas] = useState([]);
 
   // --- ESTADOS DA SELEÇÃO DE MATÉRIA E NOMES ---
   const [materiasSelecionadas, setMateriasSelecionadas] = useState([]);
@@ -2161,6 +2536,195 @@ export default function App() {
     setPlanilhaFeedback(null);
   };
 
+  // Processamento de planilha para CARTAS DE PISTAS
+  const processarPlanilhaPistas = (e) => {
+    setPlanilhaPistasFeedback({ txt: '⏳ Analisando arquivo de planilha...', tipo: 'warn' });
+    const file = e.target.files?.[0] || e.dataTransfer?.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+        if (!rows.length) throw new Error('A planilha está vazia!');
+
+        const norm = (s) => String(s).toLowerCase().trim().replace(/\s+/g, '_').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+        const novas = [];
+        const erros = [];
+
+        rows.forEach((row, idx) => {
+          const r = {};
+          Object.keys(row).forEach(k => {
+            r[norm(k)] = String(row[k]).trim();
+          });
+
+          const categoria = r['categoria'] || r['cat'] || 'Geral';
+          const resposta = r['resposta'] || r['resp'] || r['segredo'] || '';
+
+          if (!resposta) {
+            erros.push(`Linha ${idx + 2}: Resposta/Segredo vazia.`);
+            return;
+          }
+
+          const pistas = [];
+          for (let i = 1; i <= 5; i++) {
+            const pistaKey = `pista_${i}` || `pista${i}` || `p${i}`;
+            const efeitoKey = `efeito_${i}` || `efeito${i}`;
+            
+            const pistaText = r[`pista_${i}`] || r[`pista${i}`] || r[`p${i}`] || '';
+            const efeitoText = r[`efeito_${i}`] || r[`efeito${i}`] || '';
+
+            if (pistaText) {
+              pistas.push({
+                txt: pistaText,
+                efeito: efeitoText || null
+              });
+            }
+          }
+
+          if (pistas.length === 0) {
+            erros.push(`Linha ${idx + 2}: Nenhuma pista fornecida.`);
+            return;
+          }
+
+          const novaCarta = {
+            cat: categoria,
+            resp: resposta,
+            pistas: pistas
+          };
+
+          novas.push(novaCarta);
+        });
+
+        if (!novas.length) {
+          setPlanilhaPistasFeedback({ txt: `❌ Nenhuma carta válida encontrada!\n${erros.join('\n')}`, tipo: 'err' });
+          return;
+        }
+
+        setPlanilhaPistasNovasCartas(novas);
+        setPlanilhaPistasFeedback({ txt: `✅ Planilha analisada! ${novas.length} cartas prontas para importação.`, tipo: 'ok' });
+
+      } catch (err) {
+        setPlanilhaPistasFeedback({ txt: `❌ Erro de processamento: ${err.message}`, tipo: 'err' });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const confirmarImportacaoPlanilhaPistas = (modo) => {
+    if (!planilhaPistasNovasCartas.length) return;
+    if (modo === 'sub') {
+      setCartasPistas(planilhaPistasNovasCartas);
+    } else {
+      const novas = [...cartasPistas, ...planilhaPistasNovasCartas];
+      setCartasPistas(novas);
+    }
+    alert(`Sucesso! ${planilhaPistasNovasCartas.length} cartas de pistas importadas.`);
+    setPlanilhaPistasNovasCartas([]);
+    setPlanilhaPistasFeedback(null);
+  };
+
+  // Processamento de planilha para CARTAS DE IMAGEM E AÇÃO
+  const processarPlanilhaImAcao = (e) => {
+    setPlanilhaImAcaoFeedback({ txt: '⏳ Analisando arquivo de planilha...', tipo: 'warn' });
+    const file = e.target.files?.[0] || e.dataTransfer?.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+        if (!rows.length) throw new Error('A planilha está vazia!');
+
+        const norm = (s) => String(s).toLowerCase().trim().replace(/\s+/g, '_').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+        const novas = [];
+        const erros = [];
+
+        rows.forEach((row, idx) => {
+          const r = {};
+          Object.keys(row).forEach(k => {
+            r[norm(k)] = String(row[k]).trim();
+          });
+
+          const nome = r['nome'] || r['theme'] || r['tema'] || '';
+
+          if (!nome) {
+            erros.push(`Linha ${idx + 2}: Nome/tema vazio.`);
+            return;
+          }
+
+          const categorias = ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'];
+          const opcoes = [];
+
+          categorias.forEach(cat => {
+            const normCat = norm(cat);
+            const respKey = `${normCat}_resposta` || `${normCat}_resp` || `resposta_${normCat}`;
+            
+            // Buscar com várias variações de chaves
+            let respText = r[normCat] || r[`${normCat}_resposta`] || r[`resposta_${normCat}`] || '';
+            
+            if (respText) {
+              opcoes.push({
+                cat: cat,
+                resp: respText
+              });
+            }
+          });
+
+          if (opcoes.length === 0) {
+            erros.push(`Linha ${idx + 2}: Nenhuma resposta para as categorias.`);
+            return;
+          }
+
+          const novaCarta = {
+            id: `imacao_${Date.now()}_${idx}`,
+            nome: nome,
+            opcoes: opcoes
+          };
+
+          novas.push(novaCarta);
+        });
+
+        if (!novas.length) {
+          setPlanilhaImAcaoFeedback({ txt: `❌ Nenhuma carta válida encontrada!\n${erros.join('\n')}`, tipo: 'err' });
+          return;
+        }
+
+        setPlanilhaImAcaoNovasCartas(novas);
+        setPlanilhaImAcaoFeedback({ txt: `✅ Planilha analisada! ${novas.length} cartas prontas para importação.`, tipo: 'ok' });
+
+      } catch (err) {
+        setPlanilhaImAcaoFeedback({ txt: `❌ Erro de processamento: ${err.message}`, tipo: 'err' });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const confirmarImportacaoPlanilhaImAcao = (modo) => {
+    if (!planilhaImAcaoNovasCartas.length) return;
+    if (modo === 'sub') {
+      setCartasImAcao(planilhaImAcaoNovasCartas);
+    } else {
+      const novas = [...cartasImAcao, ...planilhaImAcaoNovasCartas];
+      setCartasImAcao(novas);
+    }
+    alert(`Sucesso! ${planilhaImAcaoNovasCartas.length} cartas de Imagem e Ação importadas.`);
+    setPlanilhaImAcaoNovasCartas([]);
+    setPlanilhaImAcaoFeedback(null);
+  };
+
   // Gerador de Planilha Modelo
   const baixarModeloExcel = () => {
     const data = [
@@ -2995,6 +3559,27 @@ export default function App() {
 
   return (
     <div style={{ width: '100%' }}>
+      {appError && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(2,6,23,0.92)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ maxWidth: 900, width: '100%', borderRadius: 12, padding: 18, background: 'linear-gradient(180deg, rgba(17,24,39,0.98), rgba(7,10,20,0.98))', boxShadow: '0 8px 40px rgba(2,6,23,0.6)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>Erro de Aplicação Detectado</div>
+                <div style={{ fontSize: '0.85rem', color: '#9ca3af', marginTop: 6 }}>{appError.message}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn-menu btn-outline" style={{ padding: '8px 12px' }} onClick={() => { navigator.clipboard?.writeText(`${appError.message}\n\n${appError.stack || ''}`); }}>
+                  Copiar
+                </button>
+                <button className="btn-menu btn-outline" style={{ padding: '8px 12px' }} onClick={() => setAppError(null)}>
+                  Fechar
+                </button>
+              </div>
+            </div>
+            <pre style={{ marginTop: 12, maxHeight: '50vh', overflow: 'auto', background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 8, fontSize: '0.8rem', color: '#f8fafc' }}>{appError.stack}</pre>
+          </div>
+        </div>
+      )}
       {/* 1. TELA MENU */}
       <div id="tela-menu" className={`tela ${tela === 'menu' ? 'ativa' : ''}`}>
         <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(124, 58, 237, 0.45))' }}>🏆</div>
@@ -3542,20 +4127,26 @@ export default function App() {
         {/* Abas superiores do gerenciador geral */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
           <button 
-            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'duelo' ? '#4f46e5' : 'transparent', color: cadGerenciadorAba === 'duelo' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'duelo' ? '#4f46e5' : 'transparent', color: cadGerenciadorAba === 'duelo' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
             onClick={() => setCadGerenciadorAba('duelo')}
           >
             ⚔️ Perguntas do Duelo
           </button>
           <button 
-            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'pistas' ? '#7c3aed' : 'transparent', color: cadGerenciadorAba === 'pistas' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'pistas' ? '#7c3aed' : 'transparent', color: cadGerenciadorAba === 'pistas' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
             onClick={() => setCadGerenciadorAba('pistas')}
           >
             🗺️ Cartas de Três Pistas
           </button>
+          <button 
+            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'imacao' ? '#10b981' : 'transparent', color: cadGerenciadorAba === 'imacao' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+            onClick={() => setCadGerenciadorAba('imacao')}
+          >
+            🎨 Cartas de Imagem e Ação
+          </button>
         </div>
 
-        {cadGerenciadorAba === 'duelo' ? (
+        {cadGerenciadorAba === 'duelo' && (
           <>
             <div className="tabs">
           <button className={`tab ${cadTab === 'manual' ? 'ativa' : ''}`} onClick={() => setCadTab('manual')}>✏️ Manual</button>
@@ -3993,9 +4584,19 @@ export default function App() {
           );
         })()}
           </>
-        ) : (
-          /* GERENCIADOR DO JOGO DAS TRÊS PISTAS */
+        )}
+
+        {/* GERENCIADOR DO JOGO DAS TRÊS PISTAS */}
+        {cadGerenciadorAba === 'pistas' && (
           <div className="tab-panel ativa">
+            <div className="tabs">
+              <button className={`tab ${cadTab === 'manual' ? 'ativa' : ''}`} onClick={() => setCadTab('manual')}>✏️ Manual</button>
+              <button className={`tab ${cadTab === 'importar' ? 'ativa' : ''}`} onClick={() => setCadTab('importar')}>📥 Importar Planilha</button>
+              <button className={`tab ${cadTab === 'lista' ? 'ativa' : ''}`} onClick={() => setCadTab('lista')}>📋 Cartas ({cartasPistas.length})</button>
+            </div>
+
+            {cadTab === 'manual' && (
+            <div className="tab-panel ativa">
             <div className="card">
               <div className="sec">➕ Cadastrar Carta de Três Pistas</div>
               
@@ -4106,6 +4707,389 @@ export default function App() {
                 )}
               </div>
             </div>
+            </div>
+            )}
+
+            {/* TAB: IMPORTAR PLANILHA PISTAS */}
+            {cadTab === 'importar' && (
+            <div className="tab-panel ativa">
+            <div className="card">
+              <div className="sec">📥 Importar Cartas de Pistas via Planilha Excel</div>
+              <p style={{ color: '#c4b5fd', fontSize: '0.85rem', marginBottom: '14px' }}>
+                O sistema lê arquivos Excel (.xlsx, .xls) ou arquivos texto delimitados (.csv).
+              </p>
+
+              <div className="msg-warn" style={{ marginTop: '14px' }}>
+                <strong>Regras de Colunas:</strong><br />
+                A planilha precisa ter as seguintes colunas:<br />
+                <code>categoria | resposta | pista_1 | efeito_1 | pista_2 | efeito_2 | ... | pista_5 | efeito_5</code><br />
+                • categoria: Ex: Pessoa, Lugar, Coisa<br />
+                • resposta: O segredo/resposta correta<br />
+                • pista_X: O texto da pista (1 a 5)<br />
+                • efeito_X: Opcional - nenhum efeito, avance_1, avance_2, recue_1, recue_2, oponente_avance_1, oponente_recue_1, oponente_recue_2
+              </div>
+
+              <div 
+                className="drop-area" 
+                style={{ marginTop: '20px' }}
+                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag'); }}
+                onDragLeave={(e) => e.currentTarget.classList.remove('drag')}
+                onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drag'); processarPlanilhaPistas(e); }}
+                onClick={() => document.getElementById('sheet-file-pistas').click()}
+              >
+                <input 
+                  type="file" 
+                  id="sheet-file-pistas" 
+                  accept=".xlsx,.xls,.csv" 
+                  style={{ display: 'none' }}
+                  onChange={processarPlanilhaPistas}
+                />
+                <div style={{ fontSize: '2.5rem' }}>📊</div>
+                <div style={{ color: '#c4b5fd', fontWeight: 700 }}>Arraste a planilha ou clique para fazer upload</div>
+                <div style={{ color: '#6b7280', fontSize: '0.8rem' }}>Suporta planilhas .xlsx, .xls e .csv</div>
+              </div>
+
+              {planilhaPistasFeedback && (
+                <div className={planilhaPistasFeedback.tipo === 'ok' ? 'msg-ok' : planilhaPistasFeedback.tipo === 'err' ? 'msg-err' : 'msg-warn'}>
+                  {planilhaPistasFeedback.txt}
+                </div>
+              )}
+
+              {planilhaPistasNovasCartas.length > 0 && (
+                <div style={{ marginTop: '20px' }}>
+                  <div className="sec">Preview das cartas da planilha</div>
+                  <table className="preview-table">
+                    <thead>
+                      <tr>
+                        <th>Categoria</th>
+                        <th>Resposta</th>
+                        <th>Pistas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {planilhaPistasNovasCartas.slice(0, 5).map((c, idx) => (
+                        <tr key={idx}>
+                          <td>{c.cat}</td>
+                          <td>{c.resp}</td>
+                          <td>{c.pistas.length}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {planilhaPistasNovasCartas.length > 5 && (
+                    <p style={{ color: '#6b7280', fontSize: '0.8rem', marginTop: '6px', fontStyle: 'italic' }}>
+                      ... e mais {planilhaPistasNovasCartas.length - 5} carta(s).
+                    </p>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
+                    <button className="btn-importar" onClick={() => confirmarImportacaoPlanilhaPistas('add')}>
+                      ➕ Mesclar ao Banco de Dados
+                    </button>
+                    <button className="btn-importar" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => confirmarImportacaoPlanilhaPistas('sub')}>
+                      ⬆ Substituir Banco Completo
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            </div>
+            )}
+
+            {/* TAB: LISTA PISTAS */}
+            {cadTab === 'lista' && (
+            <div className="tab-panel ativa">
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div className="sec" style={{ margin: 0 }}>Cartas no Banco ({cartasPistas.length})</div>
+                <button 
+                  className="btn-del" 
+                  onClick={() => {
+                    if (window.confirm('Deseja realmente restaurar as cartas padrão e apagar todas as customizadas?')) {
+                      setCartasPistas(PISTAS_PADRAO);
+                    }
+                  }}
+                >
+                  🔄 Restaurar Padrão
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+                {cartasPistas.length === 0 ? (
+                  <div className="lista-vazia">Nenhuma carta de pistas cadastrada.</div>
+                ) : (
+                  cartasPistas.map((c, i) => (
+                    <div key={i} className="item-row">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                        <span className="badge" style={{ background: 'rgba(124, 58, 237, 0.15)', color: '#a78bfa', fontSize: '0.75rem', padding: '2px 8px' }}>
+                          🔍 {c.cat}
+                        </span>
+                        <strong style={{ fontSize: '0.9rem', color: '#e5e7eb', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                          {c.resp}
+                        </strong>
+                        <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>
+                          ({c.pistas.filter(p => p.efeito).length} efeito(s))
+                        </span>
+                      </div>
+                      <button className="btn-del" onClick={() => deletarCartaPistas(i)}>✕</button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            </div>
+            )}
+          </div>
+        )}
+
+        {/* GERENCIADOR DO JOGO IMAGEM E AÇÃO */}
+        {cadGerenciadorAba === 'imacao' && (
+          <div className="tab-panel ativa">
+            <div className="tabs">
+              <button className={`tab ${cadTab === 'manual' ? 'ativa' : ''}`} onClick={() => setCadTab('manual')}>✏️ Manual</button>
+              <button className={`tab ${cadTab === 'importar' ? 'ativa' : ''}`} onClick={() => setCadTab('importar')}>📥 Importar Planilha</button>
+              <button className={`tab ${cadTab === 'lista' ? 'ativa' : ''}`} onClick={() => setCadTab('lista')}>📋 Cartas ({cartasImAcao.length})</button>
+            </div>
+
+            {cadTab === 'manual' && (
+            <div className="tab-panel ativa">
+            <div className="card">
+              <div className="sec">➕ Cadastrar Carta de Imagem e Ação</div>
+              
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontWeight: 'bold' }}>Nome da Carta / Tema / Assunto</label>
+                <input 
+                  placeholder="Ex: Esportes, Super-Heróis, Comidas..." 
+                  value={cadImAcaoNome}
+                  onChange={(e) => setCadImAcaoNome(e.target.value)}
+                />
+              </div>
+
+              {/* 5 inputs para as respostas de cada categoria */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'].map((cat, idx) => {
+                  const corCat = obterCorCasaImAcao(cat);
+                  return (
+                    <div key={idx} style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '14px', borderRadius: '12px', border: `1.5px solid ${corCat}33`, boxShadow: `0 0 10px ${corCat}0f` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ 
+                          width: '24px', 
+                          height: '24px', 
+                          borderRadius: '50%', 
+                          background: corCat, 
+                          color: '#fff', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          fontWeight: 'bold', 
+                          fontSize: '0.75rem' 
+                        }}>
+                          {idx + 1}
+                        </span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: corCat, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Categoria: {cat}
+                        </span>
+                      </div>
+                      <input 
+                        placeholder={`Digite a resposta secreta de ${cat}...`}
+                        value={cadImAcaoRespostas[idx]}
+                        onChange={(e) => {
+                          const novasRespostas = [...cadImAcaoRespostas];
+                          novasRespostas[idx] = e.target.value;
+                          setCadImAcaoRespostas(novasRespostas);
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button 
+                className="btn-ac btn-add" 
+                style={{ width: '100%', marginTop: '20px', background: 'linear-gradient(90deg, #10b981, #059669)', padding: '14px', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.25)' }}
+                onClick={adicionarCartaImAcaoManual}
+              >
+                🎨 Salvar Carta de Imagem e Ação
+              </button>
+            </div>
+
+            {/* Listagem de Cartas Salvas */}
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div className="sec" style={{ margin: 0 }}>Cartas no Banco ({cartasImAcao.length})</div>
+                <button 
+                  className="btn-del" 
+                  onClick={() => {
+                    if (window.confirm('Deseja realmente restaurar as cartas padrão e apagar todas as customizadas?')) {
+                      setCartasImAcao(IMAGEM_ACAO_PADRAO);
+                    }
+                  }}
+                >
+                  🔄 Restaurar Padrão
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }}>
+                {cartasImAcao.length === 0 ? (
+                  <div className="lista-vazia">Nenhuma carta de Imagem e Ação cadastrada.</div>
+                ) : (
+                  cartasImAcao.map((c, i) => (
+                    <div key={c.id || i} className="item-row" style={{ padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#6ee7b7', fontSize: '0.78rem', padding: '2px 10px', fontWeight: 'bold' }}>
+                            🏷️ {c.nome}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '2px' }}>
+                          {c.opcoes.map((op, idx) => (
+                            <span key={idx} style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                              <strong style={{ color: obterCorCasaImAcao(op.cat) }}>{op.cat[0]}:</strong> {op.resp}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <button className="btn-del" style={{ alignSelf: 'center' }} onClick={() => deletarCartaImAcao(i)}>✕</button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            </div>
+            )}
+
+            {/* TAB: IMPORTAR PLANILHA IMAGEM E AÇÃO */}
+            {cadTab === 'importar' && (
+            <div className="tab-panel ativa">
+            <div className="card">
+              <div className="sec">📥 Importar Cartas de Imagem e Ação via Planilha Excel</div>
+              <p style={{ color: '#c4b5fd', fontSize: '0.85rem', marginBottom: '14px' }}>
+                O sistema lê arquivos Excel (.xlsx, .xls) ou arquivos texto delimitados (.csv).
+              </p>
+
+              <div className="msg-warn" style={{ marginTop: '14px' }}>
+                <strong>Regras de Colunas:</strong><br />
+                A planilha precisa ter as seguintes colunas:<br />
+                <code>nome | acao | objeto | lugar | pessoa_animal | dificil</code><br />
+                • nome: O tema/assunto da carta (Ex: Esportes, Animais)<br />
+                • acao: Resposta para categoria "Ação"<br />
+                • objeto: Resposta para categoria "Objeto"<br />
+                • lugar: Resposta para categoria "Lugar"<br />
+                • pessoa_animal: Resposta para categoria "Pessoa/Animal"<br />
+                • dificil: Resposta para categoria "Difícil"
+              </div>
+
+              <div 
+                className="drop-area" 
+                style={{ marginTop: '20px' }}
+                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag'); }}
+                onDragLeave={(e) => e.currentTarget.classList.remove('drag')}
+                onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drag'); processarPlanilhaImAcao(e); }}
+                onClick={() => document.getElementById('sheet-file-imacao').click()}
+              >
+                <input 
+                  type="file" 
+                  id="sheet-file-imacao" 
+                  accept=".xlsx,.xls,.csv" 
+                  style={{ display: 'none' }}
+                  onChange={processarPlanilhaImAcao}
+                />
+                <div style={{ fontSize: '2.5rem' }}>📊</div>
+                <div style={{ color: '#c4b5fd', fontWeight: 700 }}>Arraste a planilha ou clique para fazer upload</div>
+                <div style={{ color: '#6b7280', fontSize: '0.8rem' }}>Suporta planilhas .xlsx, .xls e .csv</div>
+              </div>
+
+              {planilhaImAcaoFeedback && (
+                <div className={planilhaImAcaoFeedback.tipo === 'ok' ? 'msg-ok' : planilhaImAcaoFeedback.tipo === 'err' ? 'msg-err' : 'msg-warn'}>
+                  {planilhaImAcaoFeedback.txt}
+                </div>
+              )}
+
+              {planilhaImAcaoNovasCartas.length > 0 && (
+                <div style={{ marginTop: '20px' }}>
+                  <div className="sec">Preview das cartas da planilha</div>
+                  <table className="preview-table">
+                    <thead>
+                      <tr>
+                        <th>Nome/Tema</th>
+                        <th>Opções</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {planilhaImAcaoNovasCartas.slice(0, 5).map((c, idx) => (
+                        <tr key={idx}>
+                          <td>{c.nome}</td>
+                          <td>{c.opcoes.length}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {planilhaImAcaoNovasCartas.length > 5 && (
+                    <p style={{ color: '#6b7280', fontSize: '0.8rem', marginTop: '6px', fontStyle: 'italic' }}>
+                      ... e mais {planilhaImAcaoNovasCartas.length - 5} carta(s).
+                    </p>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
+                    <button className="btn-importar" onClick={() => confirmarImportacaoPlanilhaImAcao('add')}>
+                      ➕ Mesclar ao Banco de Dados
+                    </button>
+                    <button className="btn-importar" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => confirmarImportacaoPlanilhaImAcao('sub')}>
+                      ⬆ Substituir Banco Completo
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            </div>
+            )}
+
+            {/* TAB: LISTA IMAGEM E AÇÃO */}
+            {cadTab === 'lista' && (
+            <div className="tab-panel ativa">
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div className="sec" style={{ margin: 0 }}>Cartas no Banco ({cartasImAcao.length})</div>
+                <button 
+                  className="btn-del" 
+                  onClick={() => {
+                    if (window.confirm('Deseja realmente restaurar as cartas padrão e apagar todas as customizadas?')) {
+                      setCartasImAcao(IMAGEM_ACAO_PADRAO);
+                    }
+                  }}
+                >
+                  🔄 Restaurar Padrão
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+                {cartasImAcao.length === 0 ? (
+                  <div className="lista-vazia">Nenhuma carta de Imagem e Ação cadastrada.</div>
+                ) : (
+                  cartasImAcao.map((c, i) => (
+                    <div key={c.id || i} className="item-row" style={{ padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#6ee7b7', fontSize: '0.78rem', padding: '2px 10px', fontWeight: 'bold' }}>
+                            🏷️ {c.nome}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '2px' }}>
+                          {c.opcoes.map((op, idx) => (
+                            <span key={idx} style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                              <strong style={{ color: obterCorCasaImAcao(op.cat) }}>{op.cat[0]}:</strong> {op.resp}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <button className="btn-del" style={{ alignSelf: 'center' }} onClick={() => deletarCartaImAcao(i)}>✕</button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            </div>
+            )}
           </div>
         )}
       </div>
@@ -5584,478 +6568,67 @@ export default function App() {
         </div>
       </div>
 
-      {/* 11. TELA FIM DE PARTIDA TRÊS PISTAS */}
-      <div id="tela-pistas-fim" className={`tela ${tela === 'pistas-fim' ? 'ativa' : ''}`} style={{ alignItems: 'center' }}>
-        <div className="trofeu">🏆</div>
-        <h2>Resultado Final do Tabuleiro</h2>
-        
-        <div className="venc-final" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #ec4899 50%, #7c3aed 100%)', webkitBackgroundClip: 'text', webkitTextFillColor: 'transparent', textAlign: 'center' }}>
-          {pistasPontuacao[0] >= 30 ? `🎉 ${nomeJ1} é a Campeã! 🏆` : `🎉 ${nomeJ2} é a Campeã! 🏆`}
-        </div>
-
-        <div className="placar-final">
-          <div className="pf-item">
-            <div className="pf-nome" style={{ color: '#60a5fa' }}>🔵 {nomeJ1}</div>
-            <div className="pf-pts" style={{ color: '#60a5fa' }}>Casa {pistasPontuacao[0]}</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', color: '#a78bfa', fontSize: '1.6rem', fontWeight: 800 }}>×</div>
-          <div className="pf-item">
-            <div className="pf-nome" style={{ color: '#f472b6' }}>🩷 {nomeJ2}</div>
-            <div className="pf-pts" style={{ color: '#f472b6' }}>Casa {pistasPontuacao[1]}</div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '10px' }}>
-          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #ec4899, #7c3aed)', boxShadow: '0 8px 30px rgba(236, 72, 153, 0.45)' }} onClick={iniciarPartidaPistas}>
-            Jogar Novamente 🔄
-          </button>
-          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('menu')}>
-            Voltar ao Menu 🏠
-          </button>
-        </div>
-      </div>
-
-      {/* 12. TELA DE CONFIGURAÇÃO IMAGEM E AÇÃO */}
-      <div id="tela-ia-nomes" className={`tela ${tela === 'ia-nomes' ? 'ativa' : ''}`} style={{ alignItems: 'center', textAlign: 'center', justifyContent: 'center' }}>
-        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'center', marginBottom: '14px' }}>← Voltar ao Menu</button>
-        <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(16, 185, 129, 0.45))', margin: '14px 0', width: '100%' }}>🎨</div>
-        <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%', fontFamily: 'Outfit' }}>Configurar Equipes (Imagem e Ação)</h2>
-        <p style={{ color: '#6ee7b7', fontSize: '1.05rem', textAlign: 'center', width: '100%', marginTop: '4px' }}>Configuração da disputa tática de desenho e mímica</p>
-
-        <div className="dupla" style={{ margin: '24px auto 16px', width: '100%', maxWidth: '600px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
-          <div className="jcard j1" style={{ flex: 1, textAlign: 'center' }}>
-            <h3 style={{ textAlign: 'center', justifyContent: 'center' }}>🔵 Equipe 1</h3>
-            <input value={nomeJ1} onChange={(e) => setNomeJ1(e.target.value)} placeholder="Equipe Azul" style={{ textAlign: 'center' }} />
-          </div>
-          <div className="jcard j2" style={{ flex: 1, textAlign: 'center' }}>
-            <h3 style={{ textAlign: 'center', justifyContent: 'center' }}>🩷 Equipe 2</h3>
-            <input value={nomeJ2} onChange={(e) => setNomeJ2(e.target.value)} placeholder="Equipe Rosa" style={{ textAlign: 'center' }} />
-          </div>
-        </div>
-
-        {/* Seletor de Tempo */}
-        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'center' }}>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>
-            ⏱️ Tempo Limite por Carta
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: '#6ee7b7', fontWeight: 'bold', textAlign: 'center' }}>
-              Duração da rodada: <span style={{ color: '#fb923c', fontSize: '1rem' }}>{imAcaoMaxTimer} segundos</span>
-            </span>
-            <input 
-              type="range" 
-              min="30" 
-              max="120" 
-              step="15"
-              value={imAcaoMaxTimer}
-              onChange={(e) => setImAcaoMaxTimer(Number(e.target.value))}
-              style={{ accentColor: '#10b981', height: '6px', background: 'rgba(255, 255, 255, 0.1)', border: 'none', width: '100%', cursor: 'pointer' }}
-            />
-          </div>
-        </div>
-
-        {/* Botão de segunda tela */}
-        <div style={{ margin: '20px 0 10px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <button 
-            className="btn-menu btn-outline" 
-            style={{ borderColor: '#10b981', color: '#10b981', background: 'rgba(16, 185, 129, 0.05)', fontSize: '1rem', padding: '12px 30px', alignSelf: 'center' }}
-            onClick={() => window.open('?projetor=true', '_blank', 'width=1200,height=800')}
-          >
-            📺 Abrir Tela do Projetor (Segunda Tela)
-          </button>
-          <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: '6px', maxWidth: '400px', textAlign: 'center' }}>
-            Dica: Abra esta segunda tela e arraste-a para o projetor/quadro da sala de aula antes de clicar em começar.
-          </p>
-        </div>
-
-        <button className="btn-start" style={{ background: 'linear-gradient(90deg, #10b981, #3b82f6)', boxShadow: '0 8px 30px rgba(16, 185, 129, 0.45)', padding: '16px 64px', marginTop: '20px', alignSelf: 'center' }} onClick={() => iniciarPartidaImAcao(imAcaoMaxTimer)}>
-          Começar Disputa! 🚀
-        </button>
-      </div>
-
-      {/* 13. TELA DE ARENA DE CONTROLE / MODERAÇÃO IMAGEM E AÇÃO */}
       <div id="tela-ia-jogo" className={`tela ${tela === 'ia-jogo' ? 'ativa' : ''}`}>
         {imAcaoCartaAtual && (
-          <div className="imacao-layout">
-            
-            {/* Coluna 1: Tabuleiro Lateral */}
-            <div className="imacao-col-tabuleiro" id="ia-tabuleiro-container">
-              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981', marginBottom: '14px', borderLeft: '3px solid #10b981', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left' }}>
-                🗺️ Trilha do Tabuleiro
+          <div className="imacao-wrapper">
+
+            {/* ── BARRA DE PLACAR NO TOPO ── */}
+            <div className="imacao-placar-top">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#3b82f6', boxShadow: '0 0 8px #3b82f6' }} />
+                <span style={{ fontWeight: 800, color: '#60a5fa', fontFamily: 'Outfit', fontSize: '0.95rem' }}>🔵 {nomeJ1}</span>
+                <span style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd', borderRadius: '8px', padding: '2px 10px', fontSize: '0.85rem', fontWeight: 700 }}>
+                  Casa {imAcaoPontuacao[0]}
+                </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', maxHeight: '480px', overflowY: 'auto' }}>
-                {Array.from({ length: 30 }, (_, index) => {
-                  const num = index + 1;
-                  const catCasa = obterCatCasaImAcao(num);
-                  const corCasa = obterCorCasaImAcao(catCasa);
-                  const j1Aqui = imAcaoPontuacao[0] === num;
-                  const j2Aqui = imAcaoPontuacao[1] === num;
-
-                  return (
-                    <div 
-                      key={num}
-                      id={`casa-ia-${num}`}
-                      className="tab-casa"
-                      style={{
-                        height: '65px',
-                        background: 'rgba(22, 33, 62, 0.55)',
-                        border: `2.5px solid ${corCasa}`,
-                        borderRadius: '10px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '4px',
-                        position: 'relative'
-                      }}
-                    >
-                      <span style={{ fontSize: num === 1 || num === 30 ? '0.62rem' : '0.72rem', fontWeight: 'bold', color: num === 1 || num === 30 ? '#10b981' : '#9ca3af', textTransform: 'uppercase' }}>
-                        {num === 1 ? '🚪 Saída' : num === 30 ? '🏁 Chegada' : num - 1}
-                      </span>
-                      
-                      {/* Categoria ou Ícone de Grupo */}
-                      {catCasa === 'Todos Jogam' && num !== 30 ? (
-                        <span style={{ fontSize: '0.9rem', filter: 'drop-shadow(0 0 5px #a855f7)', marginTop: '2px' }} title="Todos Jogam">👥</span>
-                      ) : null}
-
-                      {/* Peões Neon Gigantes */}
-                      <div style={{ display: 'flex', gap: '3px', position: 'absolute', bottom: '2px', left: '50%', transform: 'translateX(-50%)' }}>
-                        {j1Aqui && (
-                          <div className="peon-gigante" style={{ '--glow-color': '#3b82f6', background: '#3b82f6', width: '22px', height: '22px', fontSize: '0.62rem', borderWidth: '1.5px', boxShadow: '0 0 10px #3b82f6' }}>AZ</div>
-                        )}
-                        {j2Aqui && (
-                          <div className="peon-gigante" style={{ '--glow-color': '#ec4899', background: '#ec4899', width: '22px', height: '22px', fontSize: '0.62rem', borderWidth: '1.5px', boxShadow: '0 0 10px #ec4899' }}>RS</div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div style={{ textAlign: 'center', flex: 1 }}>
+                <span style={{ fontSize: '0.78rem', color: '#a78bfa', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '1px', fontFamily: 'Outfit' }}>
+                  Rodada {imAcaoRodada}
+                </span>
+                <div style={{ fontSize: '0.8rem', background: imAcaoEquipeVez === 0 ? 'rgba(59,130,246,0.15)' : 'rgba(236,72,153,0.15)', color: imAcaoEquipeVez === 0 ? '#60a5fa' : '#f472b6', padding: '2px 10px', borderRadius: '10px', fontWeight: 700, display: 'inline-block', marginTop: '2px' }}>
+                  ▶ Vez de: {imAcaoEquipeVez === 0 ? nomeJ1 : nomeJ2}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ background: 'rgba(236,72,153,0.15)', border: '1px solid rgba(236,72,153,0.3)', color: '#f9a8d4', borderRadius: '8px', padding: '2px 10px', fontSize: '0.85rem', fontWeight: 700 }}>
+                  Casa {imAcaoPontuacao[1]}
+                </span>
+                <span style={{ fontWeight: 800, color: '#f472b6', fontFamily: 'Outfit', fontSize: '0.95rem' }}>🩷 {nomeJ2}</span>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ec4899', boxShadow: '0 0 8px #ec4899' }} />
               </div>
             </div>
 
-            {/* Coluna 2: Controle e Gabarito */}
-            <div className="imacao-col-conteudo">
-              
-              {/* Placar e Turno */}
-              <div className="placar-bar" style={{ background: 'rgba(22, 33, 62, 0.65)' }}>
-                <div className="pl-bloco pl-j1">
-                  <div className="pl-nome" style={{ color: '#60a5fa' }}>🔵 {nomeJ1}</div>
-                  <div className="pl-pts" style={{ color: '#60a5fa', fontSize: '1.3rem' }}>Casa {imAcaoPontuacao[0]}</div>
+            {/* ── GRID PRINCIPAL 3 COLUNAS ── */}
+            <div className="imacao-layout">
+
+              {/* ═══ COLUNA 1: TABULEIRO ═══ */}
+              <div className="imacao-col-tabuleiro" id="ia-tabuleiro-container">
+                <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#10b981', marginBottom: '10px', borderLeft: '3px solid #10b981', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  🗺️ Trilha do Tabuleiro
                 </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div className="rod-info" style={{ color: '#10b981' }}>Rodada {imAcaoRodada}</div>
-                  <span style={{ fontSize: '0.8rem', background: imAcaoEquipeVez === 0 ? 'rgba(59, 130, 246, 0.15)' : 'rgba(236, 72, 153, 0.15)', color: imAcaoEquipeVez === 0 ? '#60a5fa' : '#f472b6', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
-                    Vez de: {imAcaoEquipeVez === 0 ? nomeJ1 : nomeJ2}
-                  </span>
-                </div>
-                <div className="pl-bloco pl-j2">
-                  <div className="pl-nome" style={{ color: '#f472b6' }}>🩷 {nomeJ2}</div>
-                  <div className="pl-pts" style={{ color: '#f472b6', fontSize: '1.3rem' }}>Casa {imAcaoPontuacao[1]}</div>
-                </div>
-              </div>
-
-              {/* Painel de Dados Virtuais */}
-              <div className="card" style={{ padding: '16px', textAlign: 'center', border: '1px solid rgba(167, 139, 250, 0.25)', background: 'rgba(22, 33, 62, 0.55)', display: 'flex', flexDirection: 'column', gap: '10px', margin: '0 0 16px 0' }}>
-                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#a78bfa', marginBottom: '4px', borderLeft: '3px solid #7c3aed', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left' }}>
-                  🎲 Dados Virtuais Síncronos
-                </div>
-                
-                {(imAcaoFluxo === 'julgada' || (imAcaoFluxo === 'preparacao' && imAcaoRodada === 1)) && (
-                  <div style={{
-                    background: 'rgba(245, 158, 11, 0.12)',
-                    border: '2.5px solid #f59e0b',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    color: '#fbe5a2',
-                    fontSize: '0.9rem',
-                    fontWeight: '900',
-                    textAlign: 'center',
-                    margin: '4px 0 10px 0',
-                    boxShadow: '0 0 15px rgba(245, 158, 11, 0.25)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    animation: 'pulse 1.2s infinite alternate'
-                  }}>
-                    {imAcaoFluxo === 'preparacao' && imAcaoRodada === 1 ? '🎲 Gire os dados para iniciar o jogo!' : '🎲 Jogue os dados para iniciar a próxima rodada!'}
-                  </div>
-                )}
-                
-                <div className="dados-area-flex">
-                  <div className="dado-virtual-wrap">
-                    <div className={`dado-virtual ${imAcaoDadosRolando ? 'rolando' : ''} dado-cat-${imAcaoDadoCategoria}`}>
-                      <span style={{ fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Categoria</span>
-                      <strong style={{ fontSize: '1.8rem', color: '#fff', margin: '2px 0' }}>{imAcaoDadoCategoria}</strong>
-                      <span style={{
-                        fontSize: imAcaoDadoCategoria === 4 ? '0.45rem' : '0.62rem',
-                        letterSpacing: imAcaoDadoCategoria === 4 ? '-0.3px' : 'normal',
-                        color: obterCorCasaImAcao(imAcaoDadoCategoria === 6 ? 'Difícil' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]),
-                        fontWeight: 'bold',
-                        textTransform: 'uppercase'
-                      }}>
-                        {imAcaoDadoCategoria === 6 ? '🌟 Livre' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="dado-virtual-wrap">
-                    <div className={`dado-virtual dado-mov ${imAcaoDadosRolando ? 'rolando' : ''}`}>
-                      <span style={{ fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Casas</span>
-                      <strong style={{ fontSize: '1.8rem', color: '#3b82f6', margin: '0px' }}>{imAcaoDadoMovimentacao}</strong>
-                      <span style={{ fontSize: '0.6rem', color: '#60a5fa', fontWeight: 'bold' }}>AVANÇAR</span>
-                    </div>
-                  </div>
-                </div>
-
-                <button 
-                  className="btn-start" 
-                  style={{ background: 'linear-gradient(90deg, #7c3aed, #4f46e5)', fontSize: '0.9rem', padding: '8px 24px', width: 'fit-content', margin: '4px auto 0' }}
-                  onClick={rolarDadosImAcao}
-                  disabled={imAcaoDadosRolando}
-                >
-                  🎲 Rolar Dados!
-                </button>
-              </div>
-
-              {/* Painel do Desenhista */}
-              <div className="card" style={{ padding: '20px', border: '1.5px solid rgba(16, 185, 129, 0.25)', margin: '0 0 16px 0' }}>
-                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981', marginBottom: '14px', borderLeft: '3px solid #10b981', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left' }}>
-                  🕵️ Painel de Escolha do Desenhista / Mímico
-                </div>
-
-                {/* Seletor de Modo: Mímica ou Desenho */}
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '16px' }}>
-                  <button 
-                    className="btn-poder"
-                    style={{ 
-                      flex: 1, 
-                      padding: '10px', 
-                      background: imAcaoModoRepresentacao === 'Mímica' ? 'rgba(124, 58, 237, 0.2)' : 'rgba(0,0,0,0.15)',
-                      borderColor: imAcaoModoRepresentacao === 'Mímica' ? '#7c3aed' : 'rgba(255,255,255,0.08)',
-                      color: imAcaoModoRepresentacao === 'Mímica' ? '#c4b5fd' : '#9ca3af',
-                      fontSize: '0.85rem'
-                    }}
-                    onClick={() => { if (!imAcaoDadosRolando) selecionarModoRepresentacaoImAcao('Mímica'); }}
-                  >
-                    🎭 Fazer Mímica
-                  </button>
-                  <button 
-                    className="btn-poder"
-                    style={{ 
-                      flex: 1, 
-                      padding: '10px', 
-                      background: imAcaoModoRepresentacao === 'Desenho' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(0,0,0,0.15)',
-                      borderColor: imAcaoModoRepresentacao === 'Desenho' ? '#10b981' : 'rgba(255,255,255,0.08)',
-                      color: imAcaoModoRepresentacao === 'Desenho' ? '#6ee7b7' : '#9ca3af',
-                      fontSize: '0.85rem'
-                    }}
-                    onClick={() => { if (!imAcaoDadosRolando) selecionarModoRepresentacaoImAcao('Desenho'); }}
-                  >
-                    ✏️ Fazer Desenho
-                  </button>
-                </div>
-
-                {/* Lista das 5 opções da Carta */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                  {imAcaoCartaAtual.opcoes.map((opcao, idx) => {
-                    const sorteada = (imAcaoDadoCategoria === (idx + 1)) || (imAcaoDadoCategoria === 6 && imAcaoOpcaoSelecionada === idx);
-                    const selecionada = imAcaoOpcaoSelecionada === idx;
-                    const corCat = obterCorCasaImAcao(opcao.cat);
-                    
-                    return (
-                      <div 
-                        key={opcao.num}
-                        style={{
-                          background: selecionada ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.15)',
-                          border: selecionada 
-                            ? `2.5px solid ${corCat}` 
-                            : sorteada 
-                              ? '2px dashed rgba(250, 204, 21, 0.4)' 
-                              : '1px solid rgba(255,255,255,0.05)',
-                          boxShadow: selecionada ? `0 0 15px ${corCat}33` : 'none',
-                          borderRadius: '12px',
-                          padding: '10px 14px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '12px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                        onClick={() => { if (!imAcaoDadosRolando) selecionarOpcaoImAcao(idx); }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ 
-                            width: '26px', 
-                            height: '26px', 
-                            borderRadius: '50%', 
-                            background: corCat, 
-                            color: '#fff', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            fontWeight: 'bold',
-                            fontSize: '0.8rem'
-                          }}>
-                            {opcao.num}
-                          </span>
-                          <span style={{ fontSize: '0.88rem', fontWeight: 'bold', color: corCat, textTransform: 'uppercase' }}>
-                            {opcao.cat}
-                          </span>
-                        </div>
-
-                        {/* Palavra Secreta visível apenas para o moderador/desenhista */}
-                        <div style={{ textAlign: 'right' }}>
-                          {imAcaoCartaRevelada && imAcaoOpcaoSelecionada === idx ? (
-                            <strong style={{ fontSize: '1rem', color: '#fff' }}>
-                              <MathText text={opcao.resp} />
-                            </strong>
-                          ) : (
-                            <span style={{ fontSize: '0.8rem', color: '#6b7280', fontStyle: 'italic' }}>Oculto</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {!imAcaoCartaRevelada ? (
-                  <button className="btn-prox" style={{ background: '#10b981', fontSize: '0.9rem', padding: '10px 24px' }} onClick={revelarCartaImAcao}>
-                    👁️ Revelar Segredo
-                  </button>
-                ) : (
-                  <div style={{ color: '#fb923c', fontSize: '0.82rem', fontWeight: 'bold', background: 'rgba(245,158,11,0.08)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.2)', width: 'fit-content', margin: '0 auto' }}>
-                    💡 O jogador da vez deve representar a opção {imAcaoOpcaoSelecionada + 1} em modo de {imAcaoModoRepresentacao}!
-                  </div>
-                )}
-              </div>
-
-              {/* Controles de Cronômetro */}
-              <div className="card" style={{ padding: '16px', textAlign: 'center', margin: '0 0 16px 0' }}>
-                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#a78bfa', marginBottom: '12px', borderLeft: '3px solid #7c3aed', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left' }}>
-                  ⏱️ Controle de Tempo
-                </div>
-                
-                <div style={{ fontSize: '2.4rem', fontWeight: 'bold', fontFamily: 'monospace', color: imAcaoTimer <= 5 ? '#ef4444' : '#fff' }}>
-                  {imAcaoTimer}s
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '12px' }}>
-                  {imAcaoFluxo !== 'jogando' ? (
-                    <button className="btn-ac btn-add" style={{ background: '#10b981', padding: '10px 24px' }} onClick={iniciarCronometroImAcao}>
-                      ▶ Iniciar Cronômetro
-                    </button>
-                  ) : (
-                    <button className="btn-ac" style={{ background: '#f59e0b', color: '#fff', padding: '10px 24px' }} onClick={pausarCronometroImAcao}>
-                      ⏸ Pausar Cronômetro
-                    </button>
-                  )}
-                  
-                  <button className="btn-del" style={{ padding: '10px 24px' }} onClick={() => { pausarCronometroImAcao(); setImAcaoTimer(imAcaoMaxTimer); enviarMsgProjetor('SORTEAR_CARTA', { carta: imAcaoCartaAtual, timer: imAcaoMaxTimer }); }}>
-                    🔄 Reiniciar
-                  </button>
-                </div>
-              </div>
-
-              {/* Julgamento */}
-              {imAcaoCartaRevelada && (
-                <div className="card" style={{ padding: '16px', border: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', flexDirection: 'column', gap: '12px', margin: '0 0 16px 0' }}>
-                  <div style={{ fontSize: '0.9rem', color: '#9ca3af', fontWeight: 'bold', textAlign: 'center' }}>
-                    O grupo adivinhou a palavra secreta a tempo?
-                  </div>
-                  
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="btn-ac btn-add" style={{ flex: 1, background: '#10b981', padding: '12px' }} onClick={() => julgarImAcao(true)}>
-                      ✅ Sim! Adivinhou (+{imAcaoDadoMovimentacao} Casas)
-                    </button>
-                    <button className="btn-ac" style={{ flex: 1, background: '#dc2626', color: '#fff', padding: '12px' }} onClick={() => julgarImAcao(false)}>
-                      ❌ Não / Passar a Vez
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Botão Abandonar */}
-              <button className="btn-del" style={{ width: 'fit-content', margin: '10px auto 0' }} onClick={() => { if(window.confirm('Quer mesmo sair da partida?')) irParaTela('menu'); }}>
-                🚪 Abandonar Partida
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 14. TELA SECUNDÁRIA DO PROJETOR IMAGEM E AÇÃO */}
-      <div id="tela-ia-projetor" className={`tela ${tela === 'ia-projetor' ? 'ativa' : ''}`} style={{ background: 'radial-gradient(circle at 50% 50%, #0d0722 0%, #03020a 100%)', minHeight: '100vh', padding: '24px', boxSizing: 'border-box' }}>
-        {imAcaoCartaAtual && (
-          <div className="projetor-screen" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            
-            {/* Header Síncrono */}
-            <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <span style={{ fontSize: '2.5rem' }}>🎨</span>
-                <div style={{ textAlign: 'left' }}>
-                  <h1 style={{ fontSize: '1.8rem', fontWeight: 900, color: '#fff', margin: 0, fontFamily: 'Outfit' }}>Imagem e Ação</h1>
-                  <span style={{ fontSize: '0.9rem', color: '#6ee7b7', fontWeight: 'bold' }}>Disputa Pedagógica de Trilha</span>
-                </div>
-              </div>
-
-              {/* Rodada */}
-              <div style={{ background: 'rgba(124, 58, 237, 0.15)', border: '1px solid rgba(124, 58, 237, 0.3)', borderRadius: '20px', padding: '6px 20px', fontSize: '1.2rem', color: '#c4b5fd', fontWeight: 'bold' }}>
-                Rodada {imAcaoRodada}
-              </div>
-            </div>
-
-            {/* Layout Principal do Projetor */}
-            <div className="imacao-layout" style={{ width: '100%' }}>
-              
-              {/* Tabuleiro no Projetor */}
-              <div className="imacao-col-tabuleiro" style={{ flex: 1.3, background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#10b981', marginBottom: '16px', borderLeft: '4px solid #10b981', paddingLeft: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left' }}>
-                  🗺️ Tabuleiro de Equipes
-                </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '12px' }}>
+                <div className="imacao-grid-casas">
                   {Array.from({ length: 30 }, (_, index) => {
                     const num = index + 1;
                     const catCasa = obterCatCasaImAcao(num);
                     const corCasa = obterCorCasaImAcao(catCasa);
                     const j1Aqui = imAcaoPontuacao[0] === num;
                     const j2Aqui = imAcaoPontuacao[1] === num;
-
                     return (
                       <div 
                         key={num}
+                        id={`casa-ia-${num}`}
                         className="tab-casa"
-                        style={{
-                          height: '80px',
-                          background: 'rgba(15, 23, 42, 0.5)',
-                          border: `3px solid ${corCasa}`,
-                          borderRadius: '12px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '6px',
-                          position: 'relative',
-                          boxShadow: (j1Aqui || j2Aqui) ? `0 0 15px ${corCasa}` : 'none'
-                        }}
+                        style={{ background: 'rgba(22, 33, 62, 0.55)', border: `2px solid ${corCasa}`, borderRadius: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', padding: '3px', position: 'relative', width: '100%' }}
                       >
-                        <span style={{ fontSize: num === 1 || num === 30 ? '0.72rem' : '0.85rem', fontWeight: 'bold', color: num === 1 || num === 30 ? '#10b981' : '#9ca3af', textTransform: 'uppercase' }}>
+                        <span style={{ fontSize: num === 1 || num === 30 ? '0.55rem' : '0.65rem', fontWeight: 'bold', color: num === 1 || num === 30 ? '#10b981' : '#9ca3af', textTransform: 'uppercase', lineHeight: 1, textAlign: 'center' }}>
                           {num === 1 ? '🚪 Saída' : num === 30 ? '🏁 Chegada' : num - 1}
                         </span>
-                        
-                        {/* Categoria ou Ícone de Grupo */}
                         {catCasa === 'Todos Jogam' && num !== 30 ? (
-                          <span style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 8px #a855f7)', marginTop: '4px' }} title="Todos Jogam">👥</span>
+                          <span style={{ fontSize: '0.8rem', filter: 'drop-shadow(0 0 5px #a855f7)' }} title="Todos Jogam">👥</span>
                         ) : null}
-
-                        {/* Peões Gigantes Neon de Alta Visibilidade no Projetor */}
-                        <div style={{ display: 'flex', gap: '4px', position: 'absolute', bottom: '6px', left: '50%', transform: 'translateX(-50%)' }}>
-                          {j1Aqui && (
-                            <div className="peon-gigante" style={{ '--glow-color': '#3b82f6', background: '#3b82f6', width: '38px', height: '38px', fontSize: '1rem', borderWidth: '3px', boxShadow: '0 0 15px #3b82f6' }}>AZ</div>
-                          )}
-                          {j2Aqui && (
-                            <div className="peon-gigante" style={{ '--glow-color': '#ec4899', background: '#ec4899', width: '38px', height: '38px', fontSize: '1rem', borderWidth: '3px', boxShadow: '0 0 15px #ec4899' }}>RS</div>
-                          )}
+                        <div style={{ display: 'flex', gap: '2px', position: 'absolute', bottom: '1px', left: '50%', transform: 'translateX(-50%)' }}>
+                          {j1Aqui && (<div className="peon-gigante" style={{ '--glow-color': '#3b82f6', background: '#3b82f6', boxShadow: '0 0 8px #3b82f6' }}>AZ</div>)}
+                          {j2Aqui && (<div className="peon-gigante" style={{ '--glow-color': '#ec4899', background: '#ec4899', boxShadow: '0 0 8px #ec4899' }}>RS</div>)}
                         </div>
                       </div>
                     );
@@ -6063,162 +6636,293 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Lado Direito: A Carta Misteriosa e o Cronômetro Circular */}
-              <div className="imacao-col-conteudo" style={{ flex: 0.9, gap: '24px', alignItems: 'center' }}>
-                
-                {/* Placar de Equipes no Projetor */}
-                <div style={{ display: 'flex', gap: '20px', width: '100%', justifyContent: 'center' }}>
-                  <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '2px solid #3b82f6', borderRadius: '16px', padding: '12px 24px', textAlign: 'center', flex: 1, boxShadow: imAcaoEquipeVez === 0 ? '0 0 20px rgba(59, 130, 246, 0.3)' : 'none' }}>
-                    <div style={{ color: '#60a5fa', fontSize: '1.2rem', fontWeight: 'bold' }}>🔵 {nomeJ1}</div>
-                    <div style={{ color: '#fff', fontSize: '1.6rem', fontWeight: '900' }}>Casa {imAcaoPontuacao[0]}</div>
+              {/* ═══ COLUNA 2: DADOS + DESENHISTA ═══ */}
+              <div className="imacao-col-conteudo">
+                {/* Painel de Dados */}
+                <div className="card" style={{ padding: '12px', textAlign: 'center', border: '1px solid rgba(167, 139, 250, 0.25)', background: 'rgba(22, 33, 62, 0.55)', display: 'flex', flexDirection: 'column', gap: '8px', margin: 0 }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#a78bfa', borderLeft: '3px solid #7c3aed', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left' }}>
+                    🎲 Dados Virtuais
                   </div>
-                  <div style={{ background: 'rgba(236, 72, 153, 0.1)', border: '2px solid #ec4899', borderRadius: '16px', padding: '12px 24px', textAlign: 'center', flex: 1, boxShadow: imAcaoEquipeVez === 1 ? '0 0 20px rgba(236, 72, 153, 0.3)' : 'none' }}>
-                    <div style={{ color: '#f472b6', fontSize: '1.2rem', fontWeight: 'bold' }}>🩷 {nomeJ2}</div>
-                    <div style={{ color: '#fff', fontSize: '1.6rem', fontWeight: '900' }}>Casa {imAcaoPontuacao[1]}</div>
-                  </div>
-                </div>
-
-                {/* Vez de Quem no Projetor */}
-                <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: imAcaoEquipeVez === 0 ? '#60a5fa' : '#f472b6', padding: '8px 24px', borderRadius: '30px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  🎭 Vez da Equipe: {imAcaoEquipeVez === 0 ? nomeJ1 : nomeJ2}
-                </div>
-
-                {(imAcaoFluxo === 'julgada' || (imAcaoFluxo === 'preparacao' && imAcaoRodada === 1)) && (
-                  <div style={{
-                    background: 'rgba(124, 58, 237, 0.1)',
-                    border: '2px dashed #7c3aed',
-                    borderRadius: '16px',
-                    padding: '12px 24px',
-                    color: '#d8b4fe',
-                    fontSize: '1.25rem',
-                    fontWeight: 'bold',
-                    textAlign: 'center',
-                    boxShadow: '0 0 20px rgba(124, 58, 237, 0.15)',
-                    margin: '4px 0',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    animation: 'pulse 1.2s infinite alternate'
-                  }}>
-                    {imAcaoFluxo === 'preparacao' && imAcaoRodada === 1 ? '🎲 Gire os dados!' : '🎲 Jogue os dados!'}
-                  </div>
-                )}
-
-                {/* Dados Virtuais Síncronos no Projetor */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center', width: '100%' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                    🎲 Dados Sorteados
-                  </div>
-                  <div className="dados-area-flex" style={{ transform: 'scale(1.1)', margin: '4px 0' }}>
+                  {(imAcaoFluxo === 'julgada' || (imAcaoFluxo === 'preparacao' && imAcaoRodada === 1)) && (
+                    <div style={{ background: 'rgba(245,158,11,0.12)', border: '2px solid #f59e0b', borderRadius: '10px', padding: '8px', color: '#fbe5a2', fontSize: '0.8rem', fontWeight: 900, textAlign: 'center', boxShadow: '0 0 12px rgba(245,158,11,0.2)', textTransform: 'uppercase', letterSpacing: '0.5px', animation: 'pulse 1.2s infinite alternate' }}>
+                      {imAcaoFluxo === 'preparacao' && imAcaoRodada === 1 ? '🎲 Gire os dados para iniciar!' : '🎲 Jogue os dados para a próxima rodada!'}
+                    </div>
+                  )}
+                  <div className="dados-area-flex">
                     <div className="dado-virtual-wrap">
-                      <div className={`dado-virtual ${imAcaoDadosRolando ? 'rolando' : ''} dado-cat-${imAcaoDadoCategoria}`}>
-                        <span style={{ fontSize: '0.62rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Categoria</span>
+                      <div className={`dado-virtual ${imAcaoDadosRolando ? 'rolando-cat' : ''} dado-cat-${imAcaoDadoCategoria}`}>
+                        <span style={{ fontSize: '0.65rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Categoria</span>
                         <strong style={{ fontSize: '1.6rem', color: '#fff', margin: '1px 0' }}>{imAcaoDadoCategoria}</strong>
-                        <span style={{
-                          fontSize: imAcaoDadoCategoria === 4 ? '0.42rem' : '0.55rem',
-                          letterSpacing: imAcaoDadoCategoria === 4 ? '-0.3px' : 'normal',
-                          color: obterCorCasaImAcao(imAcaoDadoCategoria === 6 ? 'Difícil' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]),
-                          fontWeight: 'bold',
-                          textTransform: 'uppercase'
-                        }}>
+                        <span style={{ fontSize: imAcaoDadoCategoria === 4 ? '0.4rem' : '0.55rem', letterSpacing: imAcaoDadoCategoria === 4 ? '-0.3px' : 'normal', color: obterCorCasaImAcao(imAcaoDadoCategoria === 6 ? 'Difícil' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]), fontWeight: 'bold', textTransform: 'uppercase' }}>
                           {imAcaoDadoCategoria === 6 ? '🌟 Livre' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]}
                         </span>
                       </div>
                     </div>
-
                     <div className="dado-virtual-wrap">
-                      <div className={`dado-virtual dado-mov ${imAcaoDadosRolando ? 'rolando' : ''}`}>
-                        <span style={{ fontSize: '0.6rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Casas</span>
+                      <div className={`dado-virtual dado-mov ${imAcaoDadosRolando ? 'rolando-mov' : ''}`}>
+                        <span style={{ fontSize: '0.65rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Casas</span>
                         <strong style={{ fontSize: '1.6rem', color: '#3b82f6', margin: '0px' }}>{imAcaoDadoMovimentacao}</strong>
-                        <span style={{ fontSize: '0.52rem', color: '#60a5fa', fontWeight: 'bold' }}>AVANÇAR</span>
+                        <span style={{ fontSize: '0.55rem', color: '#60a5fa', fontWeight: 'bold' }}>AVANÇAR</span>
+                      </div>
+                    </div>
+                    <div className="dado-virtual-wrap" title="Clique para Rolar o Desafio!" onClick={rolarDadoDesafioImAcao} style={{ cursor: imAcaoDadoDesafioRolando ? 'not-allowed' : 'pointer' }}>
+                      <div className={`dado-virtual dado-desafio ${imAcaoDadoDesafioRolando ? 'rolando-desafio' : ''}`}>
+                        <span style={{ fontSize: '0.65rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Desafio</span>
+                        <strong style={{ fontSize: '1.1rem', color: '#fff', margin: '1px 0', textShadow: '0 0 10px rgba(249,115,22,0.6)' }}>{obterDesafioTexto(imAcaoDadoDesafio).centro}</strong>
+                        <span style={{ fontSize: '0.5rem', color: '#f97316', fontWeight: 'bold', textTransform: 'uppercase' }}>{obterDesafioTexto(imAcaoDadoDesafio).desc}</span>
                       </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Cronômetro Circular Gigante no Projetor */}
-                <div className="cronometro-circular" style={{ width: '160px', height: '160px' }}>
-                  <svg viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="42" className="bg-circle" />
-                    <circle 
-                      cx="50" 
-                      cy="50" 
-                      r="42" 
-                      className="progress-circle" 
-                      stroke={imAcaoTimer <= 5 ? '#ef4444' : obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}
-                      strokeDasharray="264"
-                      strokeDashoffset={264 - (264 * (imAcaoTimer / imAcaoMaxTimer))}
-                      style={{ filter: `drop-shadow(0 0 8px ${imAcaoTimer <= 5 ? '#ef4444' : obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)})` }}
-                    />
-                  </svg>
-                  <div className="timer-text" style={{ fontSize: '3rem', color: imAcaoTimer <= 5 ? '#ef4444' : '#fff' }}>
-                    {imAcaoTimer}s
+                  <button className="btn-start" style={{ background: 'linear-gradient(90deg, #7c3aed, #4f46e5)', fontSize: '0.85rem', padding: '7px 20px', width: 'fit-content', margin: '2px auto 0' }} onClick={rolarDadosImAcao} disabled={imAcaoDadosRolando}>
+                    🎲 Rolar Dados!
+                  </button>
+                  <div style={{ fontSize: '0.72rem', color: '#f97316', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                    💡 Toque no dado de desafio para rolá-lo opcionalmente!
                   </div>
                 </div>
 
-                {/* Painel/Label de Revelação da Palavra Secreta (Plano e Premium) */}
-                <div 
-                  style={{ 
-                    width: '100%', 
-                    maxWidth: '420px', 
-                    minHeight: '180px', 
-                    background: 'rgba(15, 23, 42, 0.75)',
-                    border: `3px solid ${imAcaoDadosRolando ? '#7c3aed' : obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}`, 
-                    boxShadow: `0 0 30px ${imAcaoDadosRolando ? '#7c3aed' : obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}55`,
-                    borderRadius: '20px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    padding: '24px',
-                    boxSizing: 'border-box',
-                    textAlign: 'center',
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  {imAcaoDadosRolando ? (
-                    // Estado de Rolagem (Enquanto os dados giram)
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', animation: 'pulse 0.8s infinite alternate' }}>
-                      <span style={{ fontSize: '3.6rem', filter: 'drop-shadow(0 0 8px #7c3aed)' }}>🎲</span>
-                      <strong style={{ fontSize: '1.6rem', color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '2px', textShadow: '0 0 10px rgba(124, 58, 237, 0.4)' }}>
-                        Sorteando...
-                      </strong>
-                      <span style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 'bold' }}>
-                        Aguarde a definição da Categoria
-                      </span>
-                    </div>
-                  ) : !imAcaoProjetorRevelado ? (
-                    // Estado Oculto (Categoria e Modo de Jogo no verso plano)
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '3.6rem', filter: `drop-shadow(0 0 6px ${obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)})` }}>
-                        {imAcaoModoRepresentacao === 'Mímica' ? '🎭' : '✏️'}
-                      </span>
-                      <strong style={{ fontSize: '1.8rem', color: '#fff', textTransform: 'uppercase', letterSpacing: '1.5px', textShadow: `0 0 10px ${obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat)}` }}>
-                        {imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat}
-                      </strong>
-                      <span style={{ fontSize: '0.9rem', color: '#9ca3af', fontWeight: 'bold' }}>
-                        Modo: {imAcaoModoRepresentacao}
-                      </span>
-                    </div>
+                {/* Painel do Desenhista / Mímico */}
+                <div className="card" style={{ padding: '12px', border: '1.5px solid rgba(16, 185, 129, 0.25)', margin: 0, flex: 1 }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#10b981', marginBottom: '10px', borderLeft: '3px solid #10b981', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left' }}>
+                    🕵️ Escolha do Desenhista / Mímico
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '12px' }}>
+                    <button className="btn-poder" style={{ flex: 1, padding: '8px', background: imAcaoModoRepresentacao === 'Mímica' ? 'rgba(124,58,237,0.2)' : 'rgba(0,0,0,0.15)', borderColor: imAcaoModoRepresentacao === 'Mímica' ? '#7c3aed' : 'rgba(255,255,255,0.08)', color: imAcaoModoRepresentacao === 'Mímica' ? '#c4b5fd' : '#9ca3af', fontSize: '0.8rem' }} onClick={() => { if (!imAcaoDadosRolando) selecionarModoRepresentacaoImAcao('Mímica'); }}>🎭 Fazer Mímica</button>
+                    <button className="btn-poder" style={{ flex: 1, padding: '8px', background: imAcaoModoRepresentacao === 'Desenho' ? 'rgba(16,185,129,0.15)' : 'rgba(0,0,0,0.15)', borderColor: imAcaoModoRepresentacao === 'Desenho' ? '#10b981' : 'rgba(255,255,255,0.08)', color: imAcaoModoRepresentacao === 'Desenho' ? '#6ee7b7' : '#9ca3af', fontSize: '0.8rem' }} onClick={() => { if (!imAcaoDadosRolando) selecionarModoRepresentacaoImAcao('Desenho'); }}>✏️ Fazer Desenho</button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: '12px' }}>
+                    {imAcaoCartaAtual.opcoes.map((opcao, idx) => {
+                      const sorteada = (imAcaoDadoCategoria === (idx + 1)) || (imAcaoDadoCategoria === 6 && imAcaoOpcaoSelecionada === idx);
+                      const selecionada = imAcaoOpcaoSelecionada === idx;
+                      const corCat = obterCorCasaImAcao(opcao.cat);
+                      return (
+                        <div key={opcao.num} style={{ background: selecionada ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.15)', border: selecionada ? `2px solid ${corCat}` : sorteada ? '2px dashed rgba(250,204,21,0.4)' : '1px solid rgba(255,255,255,0.05)', boxShadow: selecionada ? `0 0 12px ${corCat}33` : 'none', borderRadius: '10px', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => { if (!imAcaoDadosRolando) selecionarOpcaoImAcao(idx); }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: corCat, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem', flexShrink: 0 }}>{opcao.num}</span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: corCat, textTransform: 'uppercase' }}>{opcao.cat}</span>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            {imAcaoCartaRevelada && imAcaoOpcaoSelecionada === idx ? (
+                              <strong style={{ fontSize: '0.92rem', color: '#fff' }}><MathText text={opcao.resp} /></strong>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic' }}>Oculto</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {!imAcaoCartaRevelada ? (
+                    <button className="btn-prox" style={{ background: '#10b981', fontSize: '0.85rem', padding: '8px 20px' }} onClick={revelarCartaImAcao}>👁️ Revelar Segredo</button>
                   ) : (
-                    // Estado Revelado (A Palavra Secreta Gigante Fluorescente)
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
-                      <span style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.06)', color: obterCorCasaImAcao(imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat), padding: '4px 12px', borderRadius: '6px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', width: 'fit-content', margin: '0 auto' }}>
-                        {imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.cat}
-                      </span>
-                      <span style={{ color: '#9ca3af', fontSize: '0.85rem', display: 'block', marginTop: '8px' }}>
-                        A resposta secreta é:
-                      </span>
-                      <strong style={{ fontSize: '2.5rem', color: '#4ade80', textShadow: '0 0 15px rgba(74, 222, 128, 0.6)', fontWeight: '900', lineHeight: '1.2', margin: '6px 0 0 0', wordBreak: 'break-word' }}>
-                        <MathText text={imAcaoCartaAtual.opcoes[imAcaoOpcaoSelecionada]?.resp} />
-                      </strong>
+                    <div style={{ color: '#fb923c', fontSize: '0.78rem', fontWeight: 'bold', background: 'rgba(245,158,11,0.08)', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.2)', textAlign: 'center' }}>
+                      💡 Opção {imAcaoOpcaoSelecionada + 1} · Modo: {imAcaoModoRepresentacao}
                     </div>
                   )}
                 </div>
               </div>
+
+              {/* ═══ COLUNA 3: CRONÔMETRO + JULGAMENTO + CONTROLES ═══ */}
+              <div className="imacao-col-controles">
+                {/* Cronômetro */}
+                <div className="card" style={{ padding: '14px', textAlign: 'center', margin: 0 }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#a78bfa', marginBottom: '10px', borderLeft: '3px solid #7c3aed', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left' }}>
+                    ⏱️ Controle de Tempo
+                  </div>
+                  <div style={{ fontSize: '3.2rem', fontWeight: 'bold', fontFamily: 'monospace', color: imAcaoTimer <= 5 ? '#ef4444' : '#fff', textShadow: imAcaoTimer <= 5 ? '0 0 20px rgba(239,68,68,0.5)' : 'none', lineHeight: 1, margin: '4px 0 12px' }}>
+                    {imAcaoTimer}s
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    {imAcaoFluxo !== 'jogando' ? (
+                      <button className="btn-ac btn-add" style={{ background: '#10b981', padding: '8px 18px', fontSize: '0.85rem' }} onClick={iniciarCronometroImAcao}>▶ Iniciar</button>
+                    ) : (
+                      <button className="btn-ac" style={{ background: '#f59e0b', color: '#fff', padding: '8px 18px', fontSize: '0.85rem' }} onClick={pausarCronometroImAcao}>⏸ Pausar</button>
+                    )}
+                    <button className="btn-del" style={{ padding: '8px 18px', fontSize: '0.85rem' }} onClick={() => { pausarCronometroImAcao(); setImAcaoTimer(imAcaoMaxTimer); enviarMsgProjetor('SORTEAR_CARTA', { carta: imAcaoCartaAtual, timer: imAcaoMaxTimer }); }}>🔄 Reiniciar</button>
+                </div>
+                </div>
+
+                {/* Julgamento */}
+                {imAcaoCartaRevelada && (() => {
+                  const numeroCasaAtual = imAcaoPontuacao[imAcaoEquipeVez];
+                  const ehTodosJogam = obterCatCasaImAcao(numeroCasaAtual) === 'Todos Jogam';
+                  return (
+                    <div className="card" style={{ padding: '14px', border: ehTodosJogam ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.08)', boxShadow: ehTodosJogam ? '0 0 15px rgba(168,85,247,0.15)' : 'none', display: 'flex', flexDirection: 'column', gap: '10px', margin: 0 }}>
+                      {ehTodosJogam ? (
+                        <>
+                          <div style={{ fontSize: '0.85rem', color: '#d8b4fe', fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>👥 Todos Jogam!</div>
+                          <div style={{ fontSize: '0.78rem', color: '#9ca3af', fontWeight: 'bold', textAlign: 'center' }}>Quem adivinhou primeiro?</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <button className="btn-ac btn-add" style={{ background: 'rgba(59,130,246,0.15)', borderColor: '#3b82f6', color: '#60a5fa', padding: '10px', fontSize: '0.85rem' }} onClick={() => julgarImAcaoEspecial(0)}>🔵 {nomeJ1} Adivinhou! (+{imAcaoDadoMovimentacao})</button>
+                            <button className="btn-ac btn-add" style={{ background: 'rgba(236,72,153,0.15)', borderColor: '#ec4899', color: '#f472b6', padding: '10px', fontSize: '0.85rem' }} onClick={() => julgarImAcaoEspecial(1)}>🩷 {nomeJ2} Adivinhou! (+{imAcaoDadoMovimentacao})</button>
+                            <button className="btn-ac" style={{ background: 'rgba(220,38,38,0.15)', borderColor: '#dc2626', color: '#f87171', padding: '10px', fontSize: '0.85rem' }} onClick={() => julgarImAcaoEspecial(null)}>❌ Nenhuma adivinhou</button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 'bold', textAlign: 'center' }}>O grupo adivinhou a tempo?</div>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <button className="btn-ac btn-add" style={{ flex: 1, background: '#10b981', padding: '10px', fontSize: '0.85rem', minWidth: '110px' }} onClick={() => julgarImAcao(true)}>✅ Adivinhou (+{imAcaoDadoMovimentacao})</button>
+                            <button className="btn-ac" style={{ flex: 1, background: '#dc2626', color: '#fff', padding: '10px', fontSize: '0.85rem', minWidth: '110px' }} onClick={() => julgarImAcao(false)}>❌ Passou a Vez</button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Botão Abandonar */}
+                <button className="btn-del" style={{ width: '100%', marginTop: 'auto', fontSize: '0.82rem', padding: '8px' }} onClick={() => { if(window.confirm('Quer mesmo sair da partida?')) irParaTela('menu'); }}>
+                  🚪 Abandonar Partida
+                </button>
+              </div>
+
             </div>
           </div>
         )}
       </div>
+
+      <div id="tela-ia-projetor" className={`tela ${tela === 'ia-projetor' ? 'ativa' : ''}`} style={{ background: 'radial-gradient(circle at 50% 50%, #0d0722 0%, #03020a 100%)', minHeight: '100vh', padding: '24px', boxSizing: 'border-box', position: 'relative' }}>
+        {imAcaoCartaAtual && (() => {
+          const bgProjetor = 'radial-gradient(circle at 50% 50%, #0d0722 0%, #03020a 100%)';
+          return (
+            <div className="projetor-screen">
+              {/* ── Header ── */}
+              <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: '12px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <span style={{ fontSize: '2rem' }}>🎨</span>
+                  <div>
+                    <h1 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fff', margin: 0, fontFamily: 'Outfit' }}>Imagem e Ação</h1>
+                    <div style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.95rem', fontSize: '0.82rem', color: '#6ee7b7', fontWeight: 'bold' }}>
+                      <span>Rodada {imAcaoRodada}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#a5f3fc' }}>
+                        <span>▶</span>
+                        <span style={{ fontWeight: 800 }}>Vez de:</span>
+                        <span style={{ color: '#c7f9d0' }}>{imAcaoEquipeVez === 0 ? nomeJ1 : nomeJ2}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '12px', padding: '5px 14px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#93c5fd', fontWeight: 'bold' }}>🔵 {nomeJ1}</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 900, color: '#60a5fa' }}>Casa {imAcaoPontuacao[0]}</div>
+                  </div>
+                  <div style={{ background: 'rgba(236,72,153,0.15)', border: '1px solid rgba(236,72,153,0.3)', borderRadius: '12px', padding: '5px 14px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#f9a8d4', fontWeight: 'bold' }}>🩷 {nomeJ2}</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 900, color: '#f472b6' }}>Casa {imAcaoPontuacao[1]}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Grid 3 Colunas ── */}
+              <div className="projetor-grid">
+
+                {/* ═══ COL 1: TABULEIRO ═══ */}
+                <div className="projetor-col">
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#10b981', borderLeft: '4px solid #10b981', paddingLeft: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>🗺️ Tabuleiro</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '7px', overflowY: 'visible' }}>
+                    {Array.from({ length: 30 }, (_, index) => {
+                      const num = index + 1;
+                      const catCasa = obterCatCasaImAcao(num);
+                      const corCasa = obterCorCasaImAcao(catCasa);
+                      const j1Aqui = imAcaoPontuacao[0] === num;
+                      const j2Aqui = imAcaoPontuacao[1] === num;
+                      const casaLabel = num === 1 ? '🚪 Saída' : num === 30 ? '🏁 Chegada' : num - 1;
+                      return (
+                        <div key={num} id={`casa-ia-proj-${num}`} className="tab-casa" style={{ height: '68px', background: (j1Aqui || j2Aqui) ? `${corCasa}18` : 'rgba(15,23,42,0.5)', border: `2.5px solid ${corCasa}`, borderRadius: '10px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', padding: '4px', position: 'relative', boxShadow: (j1Aqui || j2Aqui) ? `0 0 14px ${corCasa}` : 'none', maxWidth: 'none' }}>
+                          <span style={{ fontSize: num === 1 || num === 30 ? '0.6rem' : '0.68rem', fontWeight: 'bold', color: num === 1 || num === 30 ? '#10b981' : '#9ca3af', lineHeight: 1, textAlign: 'center' }}>{casaLabel}</span>
+                          {catCasa === 'Todos Jogam' && num !== 30 ? (<span style={{ fontSize: '1rem', filter: 'drop-shadow(0 0 5px #a855f7)' }}>👥</span>) : null}
+                          <div style={{ display: 'flex', gap: '2px', position: 'absolute', bottom: '3px', left: '50%', transform: 'translateX(-50%)' }}>
+                            {j1Aqui && (<div className="peon-gigante" style={{ '--glow-color': '#3b82f6', background: '#3b82f6', width: '28px', height: '28px', fontSize: '0.72rem', borderWidth: '2px', boxShadow: '0 0 10px #3b82f6' }}>AZ</div>)}
+                            {j2Aqui && (<div className="peon-gigante" style={{ '--glow-color': '#ec4899', background: '#ec4899', width: '28px', height: '28px', fontSize: '0.72rem', borderWidth: '2px', boxShadow: '0 0 10px #ec4899' }}>RS</div>)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ═══ COL 2: DADOS + CRONÔMETRO ═══ */}
+                <div className="projetor-col" style={{ alignItems: 'center', justifyContent: 'flex-start' }}>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 'bold', color: imAcaoEquipeVez === 0 ? '#60a5fa' : '#f472b6', padding: '6px 16px', borderRadius: '30px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center' }}>
+                    🎭 {imAcaoEquipeVez === 0 ? nomeJ1 : nomeJ2}
+                  </div>
+
+                  {(imAcaoFluxo === 'julgada' || (imAcaoFluxo === 'preparacao' && imAcaoRodada === 1)) && (
+                    <div style={{ background: 'rgba(124,58,237,0.1)', border: '2px dashed #7c3aed', borderRadius: '14px', padding: '10px 16px', color: '#d8b4fe', fontSize: '0.95rem', fontWeight: 'bold', textAlign: 'center', animation: 'pulse 1.2s infinite alternate' }}>
+                      {imAcaoFluxo === 'preparacao' && imAcaoRodada === 1 ? '🎲 Gire os dados!' : '🎲 Jogue os dados!'}
+                    </div>
+                  )}
+
+                  <div className="dados-area-flex" style={{ width: '100%', padding: '0 8px' }}>
+                    <div className="dado-virtual-wrap" style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center' }}>
+                      <div className={`dado-virtual ${imAcaoDadosRolando ? 'rolando-cat' : ''} dado-cat-${imAcaoDadoCategoria}`}>
+                        <span style={{ fontSize: '0.6rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Cat.</span>
+                        <strong style={{ fontSize: '1.6rem', color: '#fff' }}>{imAcaoDadoCategoria}</strong>
+                        <span style={{ fontSize: '0.45rem', color: obterCorCasaImAcao(imAcaoDadoCategoria === 6 ? 'Difícil' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]), fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center', lineHeight: 1.1 }}>
+                          {imAcaoDadoCategoria === 6 ? '🌟 Livre' : ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'][imAcaoDadoCategoria - 1]}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="dado-virtual-wrap" style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center' }}>
+                      <div className={`dado-virtual dado-mov ${imAcaoDadosRolando ? 'rolando-mov' : ''}`}>
+                        <span style={{ fontSize: '0.6rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Casas</span>
+                        <strong style={{ fontSize: '1.6rem', color: '#3b82f6' }}>{imAcaoDadoMovimentacao}</strong>
+                        <span style={{ fontSize: '0.5rem', color: '#60a5fa', fontWeight: 'bold' }}>AVANÇAR</span>
+                      </div>
+                    </div>
+                    <div className="dado-virtual-wrap" style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center' }}>
+                      <div className={`dado-virtual dado-desafio ${imAcaoDadoDesafioRolando ? 'rolando-desafio' : ''}`}>
+                        <span style={{ fontSize: '0.6rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 'bold' }}>Desafio</span>
+                        <strong style={{ fontSize: '1rem', color: '#fff', textShadow: '0 0 8px rgba(249,115,22,0.6)', textAlign: 'center', lineHeight: 1.1 }}>{obterDesafioTexto(imAcaoDadoDesafio).centro}</strong>
+                        <span style={{ fontSize: '0.48rem', color: '#f97316', fontWeight: 'bold', textTransform: 'uppercase' }}>{obterDesafioTexto(imAcaoDadoDesafio).desc}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="cronometro-circular">
+                    <svg viewBox="0 0 120 120">
+                      <circle className="bg-circle" cx="60" cy="60" r="54" />
+                      <circle className="progress-circle" cx="60" cy="60" r="54"
+                        stroke={imAcaoTimer <= 5 ? '#ef4444' : imAcaoTimer <= 15 ? '#f59e0b' : '#10b981'}
+                        strokeDasharray={`${2 * Math.PI * 54}`}
+                        strokeDashoffset={`${2 * Math.PI * 54 * (1 - imAcaoTimer / imAcaoMaxTimer)}`}
+                      />
+                    </svg>
+                    <span className="timer-text" style={{ color: imAcaoTimer <= 5 ? '#ef4444' : '#fff' }}>{imAcaoTimer}</span>
+                  </div>
+
+                  {imAcaoModoRepresentacao && (
+                    <div style={{ background: imAcaoModoRepresentacao === 'Mímica' ? 'rgba(124,58,237,0.15)' : 'rgba(16,185,129,0.15)', border: `1.5px solid ${imAcaoModoRepresentacao === 'Mímica' ? '#7c3aed' : '#10b981'}`, borderRadius: '12px', padding: '7px 18px', color: imAcaoModoRepresentacao === 'Mímica' ? '#c4b5fd' : '#6ee7b7', fontSize: '0.95rem', fontWeight: 'bold', textAlign: 'center' }}>
+                      {imAcaoModoRepresentacao === 'Mímica' ? '🎭 Modo: Mímica' : '✏️ Modo: Desenho'}
+                    </div>
+                  )}
+                </div>
+
+                {/* ═══ COL 3: QUADRO BRANCO ═══ */}
+                <div className="projetor-col">
+                  <button
+                    id="btn-toggle-quadro"
+                    className="projetor-btn-toggle"
+                    onClick={toggleTelaBrancaImAcao}
+                    style={{
+                      background: imAcaoTelaBrancaAtiva ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)',
+                      borderColor: imAcaoTelaBrancaAtiva ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)',
+                      color: imAcaoTelaBrancaAtiva ? '#ffffff' : '#cbd5e1'
+                    }}
+                  >
+                    {imAcaoTelaBrancaAtiva ? '🌑 Escurecer o quadro' : '⬜ Iluminar o quadro'}
+                  </button>
+                  <div className={`projetor-quadro ${imAcaoTelaBrancaAtiva ? 'branco' : 'escuro'}`} />
+                </div>
+
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
 
       {/* 15. TELA DE FIM DE PARTIDA IMAGEM E AÇÃO */}
       <div id="tela-ia-fim" className={`tela ${tela === 'ia-fim' ? 'ativa' : ''}`} style={{ alignItems: 'center' }}>
@@ -6250,6 +6954,8 @@ export default function App() {
           </button>
         </div>
       </div>
+
+
     </div>
   );
 }

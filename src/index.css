@@ -35,17 +35,54 @@ h1, h2, h3, h4, h5, h6 {
   animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Tela de jogo Imagem e Ação: ocupa toda a viewport sem scroll */
+#tela-ia-jogo {
+  max-width: 100% !important;
+  width: 100vw !important;
+  min-height: 100vh;
+  height: 100vh;
+  padding: 0 !important;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+#tela-ia-projetor {
+  max-width: none !important;
+  width: 100vw !important;
+  min-height: 100vh;
+  height: 100vh;
+  margin: 0;
+  padding: 0 !important;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+#tela-ia-projetor .projetor-screen {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+
 .tela.ativa {
   display: flex;
 }
 
 /* Telas Específicas com Fundo Centralizado */
-#tela-menu, #tela-selecao, #tela-nomes {
+#tela-selecao, #tela-nomes {
   align-items: center;
   justify-content: center;
   gap: 20px;
   max-width: 680px;
   min-height: 100vh;
+}
+
+#tela-menu {
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  max-width: 1150px !important;
+  min-height: 100vh;
+  margin: 0 auto;
 }
 
 #tela-menu h1 {
@@ -1575,38 +1612,118 @@ input::placeholder, textarea::placeholder {
 }
 
 /* ================== ESTILOS DO JOGO IMAGEM E AÇÃO ================== */
-.imacao-layout {
-  display: flex;
-  gap: 24px;
-  width: 100%;
-  align-items: flex-start;
-}
 
-.imacao-col-tabuleiro {
-  flex: 1.1;
-  min-width: 340px;
-  background: rgba(22, 33, 62, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(20px);
-}
-
-.imacao-col-conteudo {
-  flex: 1.2;
+/* Wrapper que ocupa o espaço do placar + grid */
+.imacao-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  width: 100%;
+  height: 100vh;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Barra de placar compacta no topo */
+.imacao-placar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(10, 8, 30, 0.85);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  padding: 8px 20px;
+  height: 52px;
+  flex-shrink: 0;
+  gap: 12px;
+  backdrop-filter: blur(10px);
+}
+
+/* Grid principal de 3 colunas */
+.imacao-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.1fr) minmax(260px, 1.4fr) minmax(240px, 1.1fr);
+  gap: 12px;
+  padding: 12px;
+  width: 100%;
+  flex: 1;
+  overflow: hidden;
+  align-items: start;
+  box-sizing: border-box;
+}
+
+/* Coluna 1 — Tabuleiro */
+.imacao-col-tabuleiro {
+  background: rgba(22, 33, 62, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* Coluna 2 — Dados e Carta */
+.imacao-col-conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* Coluna 3 — Cronômetro, Julgamento e Controles */
+.imacao-col-controles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* Scrollbar sutil nas colunas */
+.imacao-col-tabuleiro::-webkit-scrollbar,
+.imacao-col-conteudo::-webkit-scrollbar,
+.imacao-col-controles::-webkit-scrollbar {
+  width: 4px;
+}
+.imacao-col-tabuleiro::-webkit-scrollbar-thumb,
+.imacao-col-conteudo::-webkit-scrollbar-thumb,
+.imacao-col-controles::-webkit-scrollbar-thumb {
+  background: rgba(167, 139, 250, 0.25);
+  border-radius: 4px;
+}
+
+/* Tabuleiro 30 casas em grid 5 colunas compacto */
+.imacao-grid-casas {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
 }
 
 @media (max-width: 950px) {
-  .imacao-layout {
-    flex-direction: column;
+  #tela-ia-jogo {
+    height: auto !important;
+    overflow: auto !important;
   }
-  .imacao-col-tabuleiro, .imacao-col-conteudo {
-    width: 100%;
-    min-width: 100%;
+  .imacao-wrapper {
+    height: auto;
+  }
+  .imacao-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
+  }
+  .imacao-col-tabuleiro,
+  .imacao-col-conteudo,
+  .imacao-col-controles {
+    height: auto;
+    overflow: visible;
   }
 }
 
@@ -1737,25 +1854,88 @@ input::placeholder, textarea::placeholder {
 
 /* Modos de Tela para Projetor */
 .projetor-screen {
-  background: radial-gradient(circle at 50% 50%, #0d0722 0%, #03020a 100%) !important;
-  min-height: 100vh;
   width: 100%;
-  padding: 30px;
+  height: 100%;
+  padding: 20px 24px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  gap: 14px;
+}
+
+/* Grid 3 colunas do projetor */
+.projetor-grid {
+  display: grid;
+  grid-template-columns: 4fr 3fr 5fr;
+  gap: 16px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.projetor-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+
+/* Quadro branco / lousa do projetor */
+.projetor-quadro {
+  flex: 1;
+  border-radius: 16px;
+  border: 3px solid rgba(255,255,255,0.12);
+  transition: background 0.4s ease, border-color 0.4s ease;
+  min-height: 0;
+}
+
+.projetor-quadro.branco {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.08);
+}
+
+.projetor-quadro.escuro {
+  background: rgba(5, 4, 18, 0.6);
+  border-color: rgba(167,139,250,0.15);
+  backdrop-filter: blur(12px);
+}
+
+.projetor-btn-toggle {
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid rgba(255,255,255,0.15);
+  color: #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
   align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'Outfit', sans-serif;
+  flex-shrink: 0;
+}
+
+.projetor-btn-toggle:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.3);
+  transform: translateY(-1px);
 }
 
 /* ================== ESTILOS DE DADOS INTERATIVOS 3D ================== */
 .dados-area-flex {
   display: flex;
-  gap: 20px;
+  gap: 8px;
   justify-content: center;
   align-items: center;
-  margin: 10px 0;
+  margin: 6px 0;
   width: 100%;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .dado-virtual-wrap {
@@ -1763,16 +1943,19 @@ input::placeholder, textarea::placeholder {
 }
 
 .dado-virtual {
-  width: 84px;
-  height: 84px;
-  background: rgba(15, 23, 42, 0.85);
-  border: 3.5px solid #a78bfa;
+  width: 98px;
+  min-height: 100px;
+  padding: 10px 8px;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 4px solid #a78bfa;
   border-radius: 18px;
-  box-shadow: 0 0 20px rgba(167, 139, 250, 0.35), inset 0 0 15px rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 24px rgba(167, 139, 250, 0.38), inset 0 0 16px rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  text-align: center;
   cursor: default;
   user-select: none;
   font-family: 'Outfit', sans-serif;
@@ -1780,17 +1963,40 @@ input::placeholder, textarea::placeholder {
   transform-style: preserve-3d;
 }
 
-/* Animação Giro 3D do Dado */
-.dado-virtual.rolando {
-  animation: girar-dado-3d 0.5s linear infinite;
+.dado-virtual span,
+.dado-virtual strong {
+  width: 100%;
+  line-height: 1.1;
+  word-break: break-word;
 }
 
-@keyframes girar-dado-3d {
+/* Animações de Giro 3D Dessincronizadas e Modernas */
+.dado-virtual.rolando-cat {
+  animation: girar-dado-cat 0.4s ease-in-out infinite alternate;
+}
+.dado-virtual.rolando-mov {
+  animation: girar-dado-mov 0.36s ease-in-out infinite;
+}
+.dado-virtual.rolando-desafio {
+  animation: girar-dado-desafio 0.44s ease-in-out infinite alternate;
+}
+
+@keyframes girar-dado-cat {
   0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); }
-  25% { transform: rotateX(180deg) rotateY(90deg) rotateZ(45deg) scale(1.08); }
-  50% { transform: rotateX(360deg) rotateY(180deg) rotateZ(90deg) scale(0.92); }
-  75% { transform: rotateX(540deg) rotateY(270deg) rotateZ(135deg) scale(1.08); }
-  100% { transform: rotateX(720deg) rotateY(360deg) rotateZ(180deg) scale(1); }
+  50% { transform: rotateX(270deg) rotateY(90deg) rotateZ(30deg) scale(1.12); }
+  100% { transform: rotateX(540deg) rotateY(360deg) rotateZ(90deg) scale(0.95); }
+}
+
+@keyframes girar-dado-mov {
+  0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(0.95); }
+  50% { transform: rotateX(-90deg) rotateY(180deg) rotateZ(-45deg) scale(1.08); }
+  100% { transform: rotateX(-360deg) rotateY(540deg) rotateZ(-180deg) scale(1); }
+}
+
+@keyframes girar-dado-desafio {
+  0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1.05); }
+  50% { transform: rotateX(180deg) rotateY(-90deg) rotateZ(60deg) scale(0.9); }
+  100% { transform: rotateX(360deg) rotateY(-270deg) rotateZ(120deg) scale(1.1); }
 }
 
 /* Cores Neon do Dado de Categoria conforme o resultado */
@@ -1811,4 +2017,75 @@ input::placeholder, textarea::placeholder {
 .dado-mov {
   border-color: #3b82f6;
   box-shadow: 0 0 25px rgba(59, 130, 246, 0.5);
+}
+
+/* Dado de Desafio Opcional Independente */
+.dado-desafio {
+  border-color: #f97316 !important;
+  box-shadow: 0 0 25px rgba(249, 115, 22, 0.5) !important;
+  cursor: pointer !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.dado-desafio:hover {
+  transform: scale(1.05) rotate(3deg) !important;
+  box-shadow: 0 0 35px rgba(249, 115, 22, 0.75) !important;
+}
+
+
+
+/* ================== OTIMIZAÇÃO DE PROPORÇÕES E TABULEIRO QUADRADO 16:9 ================== */
+.tab-casa {
+  aspect-ratio: 1 / 1 !important;
+  height: auto !important;
+  max-width: 72px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#tela-ia-projetor .tab-casa {
+  max-width: 82px !important;
+}
+
+/* Reduções para caber em 16:9 na tela de moderação */
+#tela-ia-jogo .imacao-col-tabuleiro .tab-casa {
+  max-width: 100% !important;
+}
+
+#tela-ia-jogo .dado-virtual {
+  width: 62px;
+  height: 62px;
+  border-radius: 14px;
+  border-width: 2.5px;
+}
+
+#tela-ia-jogo .dados-area-flex {
+  gap: 6px;
+  padding: 0 4px;
+  justify-content: space-evenly;
+}
+
+#tela-ia-jogo .dado-virtual-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+@media (min-aspect-ratio: 16/9) {
+  .projetor-screen {
+    padding: 12px 24px !important;
+  }
+  .peon-gigante {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 0.75rem !important;
+    border-width: 2px !important;
+  }
+  .cronometro-circular {
+    width: 100px !important;
+    height: 100px !important;
+  }
+  .cronometro-circular .timer-text {
+    font-size: 1.9rem !important;
+  }
 }
