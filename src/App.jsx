@@ -978,6 +978,11 @@ export default function App() {
         if (data.efeitoAtivo !== undefined) setMemoEfeitoAtivo(data.efeitoAtivo);
         if (data.som) playSound(data.som);
         break;
+      case 'MEMO_PEDIR_VIRAR':
+        if (!isProjetorMode) {
+          virarCartaMemoria(data.index);
+        }
+        break;
       case 'TOGGLE_TELA_BRANCA':
         setImAcaoTelaBrancaAtiva(data.telaBrancaAtiva);
         break;
@@ -1571,8 +1576,13 @@ export default function App() {
   };
 
   const virarCartaMemoria = (index) => {
-    // Validações básicas de clique
-    if (isProjetorMode) return;
+    // Se estiver no modo projetor, envia mensagem para o moderador fazer a virada
+    if (isProjetorMode) {
+      enviarMsgProjetor('MEMO_PEDIR_VIRAR', { index });
+      return;
+    }
+    
+    // Validações básicas de clique (no moderador)
     if (memoBloqueioCliques || memoEfeitoAtivo) return;
     
     const carta = memoCartas[index];
@@ -7591,6 +7601,39 @@ export default function App() {
           </div>
         )}
 
+        {/* Destaque das Cartas Viradas no Turno (Moderador) */}
+        {memoCartasSelecionadas.length > 0 && (
+          <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '900px', margin: '0 auto 12px', justifyContent: 'center', flexShrink: 0 }}>
+            {memoCartasSelecionadas.map(idx => {
+              const carta = memoCartas[idx];
+              if (!carta) return null;
+              if (carta.tipo === 'surpresa-embaralhar' || carta.tipo === 'surpresa-olho') return null;
+              return (
+                <div key={carta.id} style={{
+                  flex: 1,
+                  background: 'rgba(15, 23, 42, 0.85)',
+                  border: carta.tipo === 'pergunta' ? '2px solid #3b82f6' : '2px solid #10b981',
+                  borderRadius: '10px',
+                  padding: '8px 16px',
+                  color: '#fff',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', color: carta.tipo === 'pergunta' ? '#60a5fa' : '#34d399', marginBottom: '2px' }}>
+                    {carta.tipo === 'pergunta' ? '❓ Pergunta Virada' : '💡 Resposta Virada'}
+                  </span>
+                  <div style={{ fontSize: '0.92rem', fontWeight: 'bold', lineHeight: 1.25 }}>
+                    {carta.texto}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Tabuleiro de Cartas (Painel do Professor - Semitransparentes) */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
           <div className="memo-grid-moderacao">
@@ -7669,7 +7712,7 @@ export default function App() {
 
                   {/* Conteúdo Principal (sempre visível para o Moderador!) */}
                   <div style={{ fontSize: '0.72rem', color: textColor, fontWeight: 'bold', display: '-webkit-box', webkitLineClamp: 3, webkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%', lineHeight: 1.25, marginTop: '8px' }}>
-                    {carta.tipo === 'surpresa-embaralhar' ? '🌪️ Troca-Tudo' : carta.tipo === 'surpresa-olho' ? '👁️ Olho Mágico' : carta.texto}
+                    {carta.tipo === 'surpresa-embaralhar' ? '🌪️ Troca-Tudo' : carta.tipo === 'surpresa-olho' ? '👁️ Olho Mágico' : (carta.texto.length > 48 ? carta.texto.substring(0, 45) + '...' : carta.texto)}
                   </div>
                   
                   {/* Indicador de carta aberta no projetor */}
@@ -7740,6 +7783,40 @@ export default function App() {
               </div>
             )}
 
+            {/* Destaque das Cartas Viradas no Turno */}
+            {memoCartasSelecionadas.length > 0 && (
+              <div style={{ display: 'flex', gap: '16px', width: '100%', maxWidth: '1100px', margin: '0 auto 12px', justifyContent: 'center', flexShrink: 0 }}>
+                {memoCartasSelecionadas.map(idx => {
+                  const carta = memoCartas[idx];
+                  if (!carta) return null;
+                  if (carta.tipo === 'surpresa-embaralhar' || carta.tipo === 'surpresa-olho') return null;
+                  return (
+                    <div key={carta.id} style={{
+                      flex: 1,
+                      background: 'rgba(15, 23, 42, 0.9)',
+                      border: carta.tipo === 'pergunta' ? '2.5px solid #3b82f6' : '2.5px solid #10b981',
+                      boxShadow: carta.tipo === 'pergunta' ? '0 0 15px rgba(59, 130, 246, 0.4)' : '0 0 15px rgba(16, 185, 129, 0.4)',
+                      borderRadius: '12px',
+                      padding: '12px 20px',
+                      color: '#fff',
+                      textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: carta.tipo === 'pergunta' ? '#60a5fa' : '#34d399', marginBottom: '4px' }}>
+                        {carta.tipo === 'pergunta' ? '❓ Pergunta Virada' : '💡 Resposta Virada'}
+                      </span>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', lineHeight: 1.35, color: '#fff' }}>
+                        {carta.texto}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Tabuleiro de Cartas 3D */}
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, margin: '20px 0' }}>
               <div className="memo-grid">
@@ -7764,6 +7841,7 @@ export default function App() {
                   return (
                     <div 
                       key={carta.id} 
+                      onClick={() => virarCartaMemoria(idx)}
                       className={`card-3d ${virada ? 'virada' : ''} ${cardTypeClass} ${rolandoEmbaralhar ? 'efeito-redemoinho' : ''}`}
                     >
                       <div className="card-3d-inner">
@@ -7804,7 +7882,7 @@ export default function App() {
                             </div>
                           ) : (
                             <div style={{
-                              fontSize: carta.texto.length > 55 ? '0.72rem' : carta.texto.length > 30 ? '0.82rem' : '0.95rem',
+                              fontSize: carta.texto.length > 35 ? '0.72rem' : '0.85rem',
                               fontWeight: 'bold',
                               lineHeight: 1.3,
                               textAlign: 'center',
@@ -7812,7 +7890,7 @@ export default function App() {
                               wordBreak: 'break-word',
                               color: encontrada ? '#f8fafc' : carta.tipo === 'pergunta' ? '#a5f3fc' : '#c7f9d0'
                             }}>
-                              {carta.texto}
+                              {carta.texto.length > 48 ? carta.texto.substring(0, 45) + '...' : carta.texto}
                             </div>
                           )}
                         </div>
