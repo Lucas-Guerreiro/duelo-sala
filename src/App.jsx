@@ -524,6 +524,15 @@ const IMAGENS_PADRAO_MEMORIA = [
   "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=250&auto=format&fit=crop"  // Aventura / Acampamento ao ar livre
 ];
 
+const obterTituloAura = (pares) => {
+  if (pares === 0) return "Sem Aura 😐";
+  if (pares >= 1 && pares <= 2) return "Aura Básica (+1000) 😎";
+  if (pares >= 3 && pares <= 4) return "Aura Sigma (+3000) 🗿";
+  if (pares >= 5 && pares <= 6) return "Muita Aura (+5000) 🔥";
+  if (pares >= 7 && pares <= 8) return "Monstro da Aura (+7000) 👑";
+  return "Pico de Aura / Deus da Aura (10000+) 🌌💫";
+};
+
 export default function App() {
   // --- ESTADOS DO JOGO DAS TRÊS PISTAS ---
   const [modoJogo, setModoJogo] = useState('duelo'); // 'duelo' | 'pistas' | 'imacao'
@@ -598,6 +607,7 @@ export default function App() {
   const [memoEfeitoAtivo, setMemoEfeitoAtivo] = useState(null); // 'embaralhar' | 'revelar' | null
   const [memoMateria, setMemoMateria] = useState('');
   const [memoBloqueioCliques, setMemoBloqueioCliques] = useState(false);
+  const [memoAuraFeedback, setMemoAuraFeedback] = useState(null);
   const [memoImagensPool, setMemoImagensPool] = useState(() => {
     const saved = localStorage.getItem('dm_memo_imagens');
     return saved ? JSON.parse(saved) : IMAGENS_PADRAO_MEMORIA;
@@ -992,6 +1002,7 @@ export default function App() {
         setMemoEquipeVez(data.equipeVez);
         setMemoCartasSelecionadas([]);
         setMemoEfeitoAtivo(null);
+        setMemoAuraFeedback(null);
         setMemoMateria(data.materia);
         setNomeJ1(data.nomeJ1);
         setNomeJ2(data.nomeJ2);
@@ -1002,6 +1013,7 @@ export default function App() {
         if (data.equipeVez !== undefined) setMemoEquipeVez(data.equipeVez);
         if (data.cartasSelecionadas !== undefined) setMemoCartasSelecionadas(data.cartasSelecionadas);
         if (data.efeitoAtivo !== undefined) setMemoEfeitoAtivo(data.efeitoAtivo);
+        if (data.auraFeedback !== undefined) setMemoAuraFeedback(data.auraFeedback);
         if (data.som) playSound(data.som);
         break;
       case 'MEMO_PEDIR_VIRAR':
@@ -1621,6 +1633,7 @@ export default function App() {
     setMemoCartasSelecionadas([]);
     setMemoEfeitoAtivo(null);
     setMemoBloqueioCliques(false);
+    setMemoAuraFeedback(null);
 
     // 6. Notificar e sincronizar com o Projetor via BroadcastChannel
     enviarMsgProjetor('MEMO_INICIAR', {
@@ -1838,12 +1851,31 @@ export default function App() {
           setMemoCartasSelecionadas([]);
           setMemoBloqueioCliques(false);
 
+          // Dispara animação de pop-up de Aura no Projetor!
+          const feedback = {
+            equipe: memoEquipeVez,
+            txt: `+1000 de AURA para a Equipe ${memoEquipeVez === 0 ? nomeJ1 : nomeJ2}! 🗿🔥`
+          };
+          setMemoAuraFeedback(feedback);
+
           enviarMsgProjetor('MEMO_ATUALIZAR', {
             cartas: cartasAcertadas,
             pontuacao: novosPontos,
             cartasSelecionadas: [],
+            auraFeedback: feedback,
             som: 'success'
           });
+
+          // Limpa o feedback após 2200ms
+          setTimeout(() => {
+            setMemoAuraFeedback(null);
+            enviarMsgProjetor('MEMO_ATUALIZAR', {
+              cartas: cartasAcertadas,
+              pontuacao: novosPontos,
+              cartasSelecionadas: [],
+              auraFeedback: null
+            });
+          }, 2200);
 
           // Verifica se o jogo acabou (14 pares encontrados)
           const totalEncontradas = cartasAcertadas.filter(c => c.encontradaPor !== null).length;
@@ -7945,6 +7977,39 @@ export default function App() {
       {/* 18. TELA DE PROJEÇÃO DO JOGO DA MEMÓRIA (TELA DOS ALUNOS) */}
       <div id="tela-memo-projetor" className={`tela ${tela === 'memo-projetor' ? 'ativa' : ''}`} style={{ background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)', minHeight: '100vh', padding: '24px', boxSizing: 'border-box', position: 'relative', display: tela === 'memo-projetor' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         
+        {/* POP-UP GIGACHAD DE AURA POINTS (Meme "Farmar Aura" 🗿🔥) */}
+        {memoAuraFeedback && (
+          <div 
+            style={{ 
+              position: 'absolute', 
+              top: '50%', 
+              left: '50%', 
+              transform: 'translate(-50%, -50%)', 
+              zIndex: 9999, 
+              background: memoAuraFeedback.equipe === 0 ? 'rgba(30, 58, 138, 0.95)' : 'rgba(131, 24, 67, 0.95)', 
+              border: `4px solid ${memoAuraFeedback.equipe === 0 ? '#3b82f6' : '#ec4899'}`, 
+              borderRadius: '24px', 
+              padding: '24px 48px', 
+              color: '#fff', 
+              fontSize: '2rem', 
+              fontWeight: 900, 
+              textAlign: 'center', 
+              boxShadow: memoAuraFeedback.equipe === 0 ? '0 0 50px rgba(59, 130, 246, 0.8)' : '0 0 50px rgba(236, 72, 153, 0.8)', 
+              animation: 'pulse 0.4s ease infinite alternate',
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <div style={{ fontSize: '3.5rem', marginBottom: '8px' }}>🗿🔥⚡</div>
+            <div style={{ textTransform: 'uppercase', letterSpacing: '1px', fontSize: '1.6rem' }}>
+              {memoAuraFeedback.txt}
+            </div>
+            <div style={{ fontSize: '1.2rem', color: '#fde047', marginTop: '8px', fontWeight: 800 }}>
+              +1000 Aura Points! FARMARAM MUITO! 😎👑
+            </div>
+          </div>
+        )}
+
         {memoCartas.length > 0 ? (
           <div className="projetor-screen" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             {/* Header Projetado */}
@@ -7975,6 +8040,69 @@ export default function App() {
                 <div style={{ background: 'rgba(236,72,153,0.15)', border: `2.5px solid ${memoEquipeVez === 1 ? '#ec4899' : 'rgba(236,72,153,0.2)'}`, borderRadius: '14px', padding: '6px 20px', textAlign: 'center', boxShadow: memoEquipeVez === 1 ? '0 0 15px rgba(236,72,153,0.4)' : 'none', transition: 'all 0.3s' }}>
                   <div style={{ fontSize: '0.72rem', color: '#f9a8d4', fontWeight: 'bold' }}>🩷 {nomeJ2}</div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#f472b6' }}>{memoPontuacao[1]} pares</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Medidores de Aura Points (Meme "Farmar Aura" 🗿🔥) */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              width: '100%', 
+              gap: '24px', 
+              margin: '10px 0 16px', 
+              background: 'rgba(15, 23, 42, 0.65)', 
+              border: '1px solid rgba(255, 255, 255, 0.05)', 
+              borderRadius: '16px', 
+              padding: '12px 24px', 
+              boxSizing: 'border-box' 
+            }}>
+              {/* Aura Equipe Azul */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    🔵 {nomeJ1} — <strong style={{ color: '#fff' }}>{obterTituloAura(memoPontuacao[0])}</strong>
+                  </span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#93c5fd', textShadow: '0 0 8px rgba(59, 130, 246, 0.6)' }}>
+                    +{memoPontuacao[0] * 1000} AURA POINTS
+                  </span>
+                </div>
+                {/* Barra de Progresso de Aura Azul */}
+                <div style={{ width: '100%', height: '14px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                  <div style={{ 
+                    width: `${Math.min((memoPontuacao[0] / 8) * 100, 100)}%`, 
+                    height: '100%', 
+                    background: 'linear-gradient(90deg, #1d4ed8, #3b82f6, #60a5fa)', 
+                    borderRadius: '20px', 
+                    boxShadow: '0 0 12px #3b82f6', 
+                    transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)' 
+                  }} />
+                </div>
+              </div>
+
+              {/* Divisor vertical */}
+              <div style={{ width: '1px', background: 'rgba(255, 255, 255, 0.1)', alignSelf: 'stretch' }} />
+
+              {/* Aura Equipe Rosa */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f472b6', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    🩷 {nomeJ2} — <strong style={{ color: '#fff' }}>{obterTituloAura(memoPontuacao[1])}</strong>
+                  </span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#f9a8d4', textShadow: '0 0 8px rgba(236, 72, 153, 0.6)' }}>
+                    +{memoPontuacao[1] * 1000} AURA POINTS
+                  </span>
+                </div>
+                {/* Barra de Progresso de Aura Rosa */}
+                <div style={{ width: '100%', height: '14px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(236, 72, 153, 0.2)' }}>
+                  <div style={{ 
+                    width: `${Math.min((memoPontuacao[1] / 8) * 100, 100)}%`, 
+                    height: '100%', 
+                    background: 'linear-gradient(90deg, #be185d, #ec4899, #f472b6)', 
+                    borderRadius: '20px', 
+                    boxShadow: '0 0 12px #ec4899', 
+                    transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)' 
+                  }} />
                 </div>
               </div>
             </div>
