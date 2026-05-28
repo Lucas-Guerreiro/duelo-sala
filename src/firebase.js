@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDMRvUf6SoTmDmqcFRD5pJbPjBYJ6VwuzU",
@@ -46,5 +46,47 @@ export async function salvarBackupImAcao(payload) {
   } catch (error) {
     console.error('Erro ao salvar backup no Firebase:', error);
     // não propaga para evitar quebrar a UI — deixa o chamador lidar com status
+  }
+}
+
+export async function publicarBancoNuvem(codigoSala, dados) {
+  try {
+    const firestore = initFirebase();
+    if (!firestore) {
+      console.warn('publicarBancoNuvem: firestore não inicializado.');
+      return false;
+    }
+
+    const docRef = doc(firestore, 'duelo_sala_professores', codigoSala.trim().toUpperCase());
+    await setDoc(docRef, {
+      ...dados,
+      codigoSala: codigoSala.trim().toUpperCase(),
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+    return true;
+  } catch (error) {
+    console.error('Erro ao publicar banco no Firebase:', error);
+    throw error;
+  }
+}
+
+export async function obterBancoNuvem(codigoSala) {
+  try {
+    const firestore = initFirebase();
+    if (!firestore) {
+      console.warn('obterBancoNuvem: firestore não inicializado.');
+      return null;
+    }
+
+    const docRef = doc(firestore, 'duelo_sala_professores', codigoSala.trim().toUpperCase());
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data();
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error('Erro ao obter banco do Firebase:', error);
+    throw error;
   }
 }

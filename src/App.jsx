@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-import { initFirebase, salvarBackupImAcao } from './firebase';
+import { initFirebase, salvarBackupImAcao, publicarBancoNuvem, obterBancoNuvem } from './firebase';
 
 // Componente para renderização de fórmulas matemáticas KaTeX de forma offline
 function MathText({ text }) {
@@ -621,6 +621,18 @@ export default function App() {
   const [memoImgSurpresaGanharAura, setMemoImgSurpresaGanharAura] = useState(() => localStorage.getItem('memoImgSurpresaGanharAura') || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=250&auto=format&fit=crop");
   const [memoImgSurpresaPerderAura, setMemoImgSurpresaPerderAura] = useState(() => localStorage.getItem('memoImgSurpresaPerderAura') || "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop");
   const [memoImgSurpresaVezExtra, setMemoImgSurpresaVezExtra] = useState(() => localStorage.getItem('memoImgSurpresaVezExtra') || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=250&auto=format&fit=crop");
+
+  const [codigoSalaOnline, setCodigoSalaOnline] = useState(() => localStorage.getItem('codigoSalaOnline') || '');
+  const [sincronismoAutomatico, setSincronismoAutomatico] = useState(() => localStorage.getItem('sincronismoAutomatico') === 'true');
+  const [statusSincronismo, setStatusSincronismo] = useState('Nuvem não ativa. Insira o Código de Acesso.');
+
+  useEffect(() => {
+    localStorage.setItem('codigoSalaOnline', codigoSalaOnline);
+  }, [codigoSalaOnline]);
+
+  useEffect(() => {
+    localStorage.setItem('sincronismoAutomatico', sincronismoAutomatico ? 'true' : 'false');
+  }, [sincronismoAutomatico]);
 
   useEffect(() => {
     localStorage.setItem('memoImgSurpresaEmbaralhar', memoImgSurpresaEmbaralhar);
@@ -3394,6 +3406,181 @@ export default function App() {
     e.target.value = '';
   };
 
+  // LÓGICA DE SINCRONIZAÇÃO ONLINE COM FIREBASE (FIREBASE FIRESTORE)
+  const handleEnviarParaNuvem = async () => {
+    if (!codigoSalaOnline.trim()) {
+      alert('Por favor, digite um Código de Acesso Online antes de sincronizar.');
+      return;
+    }
+    
+    setStatusSincronismo('⏳ Enviando dados para a nuvem...');
+    try {
+      const payload = {
+        perguntas: perguntas,
+        materias: materias,
+        cartasPistas: cartasPistas,
+        cartasImAcao: cartasImAcao,
+        memoImagensPool: memoImagensPool,
+        imagensSurpresas: {
+          embaralhar: memoImgSurpresaEmbaralhar,
+          olho: memoImgSurpresaOlho,
+          ganharAura: memoImgSurpresaGanharAura,
+          perderAura: memoImgSurpresaPerderAura,
+          vezExtra: memoImgSurpresaVezExtra
+        }
+      };
+
+      const sucesso = await publicarBancoNuvem(codigoSalaOnline, payload);
+      if (sucesso) {
+        setStatusSincronismo('✅ Sincronizado com a nuvem em: ' + new Date().toLocaleTimeString());
+        alert(`Sucesso! Seus dados de todos os jogos foram salvos na nuvem sob o código: ${codigoSalaOnline.trim().toUpperCase()}`);
+      } else {
+        setStatusSincronismo('❌ Erro: Firebase não inicializado.');
+      }
+    } catch (e) {
+      setStatusSincronismo('❌ Erro na sincronização.');
+      alert('Erro ao enviar dados para a nuvem: ' + e.message);
+    }
+  };
+
+  const handleBaixarDaNuvem = async () => {
+    if (!codigoSalaOnline.trim()) {
+      alert('Por favor, digite o Código de Acesso Online do qual deseja baixar os dados.');
+      return;
+    }
+
+    setStatusSincronismo('⏳ Buscando dados na nuvem...');
+    try {
+      const dados = await obterBancoNuvem(codigoSalaOnline);
+      if (!dados) {
+        setStatusSincronismo('⚠️ Nenhum dado encontrado na nuvem para este código.');
+        alert(`Não encontramos nenhum banco de dados associado ao código: ${codigoSalaOnline.trim().toUpperCase()}.\nVerifique se o código está correto ou envie seus dados locais primeiro.`);
+        return;
+      }
+
+      const confirmacao = window.confirm(
+        `Banco de dados encontrado!\n` +
+        `Atualizado em: ${dados.updatedAt ? new Date(dados.updatedAt).toLocaleString() : 'N/A'}\n\n` +
+        `Matérias cadastradas: ${dados.materias?.length || 0}\n` +
+        `Perguntas do Quiz: ${dados.perguntas?.length || 0}\n` +
+        `Cartas de Três Pistas: ${dados.cartasPistas?.length || 0}\n` +
+        `Cartas de Imagem e Ação: ${dados.cartasImAcao?.length || 0}\n` +
+        `Imagens da Memória: ${dados.memoImagensPool?.length || 0}\n\n` +
+        `Clique em OK para MESCLAR estes dados online aos seus dados locais do navegador.\n` +
+        `Clique em CANCELAR para SUBSTITUIR completamente todos os dados locais pelos dados salvos na nuvem.`
+      );
+
+      if (confirmacao) {
+        // MESCLAR
+        if (Array.isArray(dados.perguntas)) {
+          setPerguntas([...perguntas, ...dados.perguntas]);
+        }
+        if (Array.isArray(dados.materias)) {
+          const novasMats = [...materias];
+          dados.materias.forEach(m => {
+            if (!novasMats.includes(m)) novasMats.push(m);
+          });
+          setMaterias(novasMats);
+        }
+        if (Array.isArray(dados.cartasPistas)) {
+          setCartasPistas([...cartasPistas, ...dados.cartasPistas]);
+        }
+        if (Array.isArray(dados.cartasImAcao)) {
+          setCartasImAcao([...cartasImAcao, ...dados.cartasImAcao]);
+        }
+        if (Array.isArray(dados.memoImagensPool)) {
+          const novasImgs = [...memoImagensPool];
+          dados.memoImagensPool.forEach(img => {
+            if (!novasImgs.includes(img)) novasImgs.push(img);
+          });
+          setMemoImagensPool(novasImgs);
+        }
+        if (dados.imagensSurpresas) {
+          if (dados.imagensSurpresas.embaralhar) setMemoImgSurpresaEmbaralhar(dados.imagensSurpresas.embaralhar);
+          if (dados.imagensSurpresas.olho) setMemoImgSurpresaOlho(dados.imagensSurpresas.olho);
+          if (dados.imagensSurpresas.ganharAura) setMemoImgSurpresaGanharAura(dados.imagensSurpresas.ganharAura);
+          if (dados.imagensSurpresas.perderAura) setMemoImgSurpresaPerderAura(dados.imagensSurpresas.perderAura);
+          if (dados.imagensSurpresas.vezExtra) setMemoImgSurpresaVezExtra(dados.imagensSurpresas.vezExtra);
+        }
+        setStatusSincronismo('✅ Dados mesclados com a nuvem!');
+        alert('Dados da nuvem mesclados com sucesso!');
+      } else {
+        // SUBSTITUIR
+        const subConfirm = window.confirm('ATENÇÃO: Você escolheu SUBSTITUIR. Todos os dados atuais do navegador (Perguntas, Três Pistas, Imagem e Ação e Memória) serão permanentemente apagados e substituídos pelos dados da nuvem. Continuar?');
+        if (subConfirm) {
+          setPerguntas(dados.perguntas || []);
+          setMaterias(dados.materias || []);
+          setCartasPistas(dados.cartasPistas || []);
+          setCartasImAcao(dados.cartasImAcao || []);
+          setMemoImagensPool(dados.memoImagensPool || []);
+          if (dados.imagensSurpresas) {
+            setMemoImgSurpresaEmbaralhar(dados.imagensSurpresas.embaralhar || "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop");
+            setMemoImgSurpresaOlho(dados.imagensSurpresas.olho || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop");
+            setMemoImgSurpresaGanharAura(dados.imagensSurpresas.ganharAura || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=250&auto=format&fit=crop");
+            setMemoImgSurpresaPerderAura(dados.imagensSurpresas.perderAura || "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop");
+            setMemoImgSurpresaVezExtra(dados.imagensSurpresas.vezExtra || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=250&auto=format&fit=crop");
+          }
+          setStatusSincronismo('✅ Dados locais substituídos pelos da nuvem!');
+          alert('Banco de dados local substituído com sucesso pelos dados da nuvem!');
+        } else {
+          setStatusSincronismo('✅ Download da nuvem cancelado.');
+        }
+      }
+    } catch (e) {
+      setStatusSincronismo('❌ Erro ao baixar da nuvem.');
+      alert('Erro ao buscar dados na nuvem: ' + e.message);
+    }
+  };
+
+  // EFEITO DE AUTO-SINCRONIZAÇÃO EM NUVEM (DEBOUNCE 2.5s)
+  useEffect(() => {
+    if (!sincronismoAutomatico || !codigoSalaOnline.trim()) return;
+
+    const timer = setTimeout(async () => {
+      setStatusSincronismo('⏳ Salvamento automático em nuvem...');
+      try {
+        const payload = {
+          perguntas: perguntas,
+          materias: materias,
+          cartasPistas: cartasPistas,
+          cartasImAcao: cartasImAcao,
+          memoImagensPool: memoImagensPool,
+          imagensSurpresas: {
+            embaralhar: memoImgSurpresaEmbaralhar,
+            olho: memoImgSurpresaOlho,
+            ganharAura: memoImgSurpresaGanharAura,
+            perderAura: memoImgSurpresaPerderAura,
+            vezExtra: memoImgSurpresaVezExtra
+          }
+        };
+        const sucesso = await publicarBancoNuvem(codigoSalaOnline, payload);
+        if (sucesso) {
+          setStatusSincronismo('✅ Auto-Sincronizado: ' + new Date().toLocaleTimeString());
+        } else {
+          setStatusSincronismo('❌ Auto-Sincronismo falhou: Firestore inativo.');
+        }
+      } catch (err) {
+        setStatusSincronismo('❌ Auto-Sincronismo falhou.');
+        console.error('Erro no auto-sincronismo:', err);
+      }
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [
+    sincronismoAutomatico,
+    codigoSalaOnline,
+    perguntas,
+    materias,
+    cartasPistas,
+    cartasImAcao,
+    memoImagensPool,
+    memoImgSurpresaEmbaralhar,
+    memoImgSurpresaOlho,
+    memoImgSurpresaGanharAura,
+    memoImgSurpresaPerderAura,
+    memoImgSurpresaVezExtra
+  ]);
+
   // IMPORTAÇÃO DE PLANILHA VIA XLSX
   const processarPlanilha = (e) => {
     setPlanilhaFeedback({ txt: '⏳ Analisando arquivo de planilha...', tipo: 'warn' });
@@ -5113,6 +5300,122 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
           <button className="btn-volta" onClick={() => irParaTela('menu')}>← Voltar ao Menu</button>
           <h2 style={{ fontSize: '1.6rem', fontWeight: 900 }}>⚙️ Gerenciar Conteúdo do Jogo</h2>
+        </div>
+
+        {/* Painel de Sincronização em Nuvem (Firebase) */}
+        <div className="card" style={{ 
+          background: 'linear-gradient(135deg, rgba(22, 33, 62, 0.75) 0%, rgba(13, 10, 35, 0.9) 100%)', 
+          border: '1.5px solid rgba(139, 92, 246, 0.4)', 
+          boxShadow: '0 0 25px rgba(139, 92, 246, 0.15)',
+          padding: '18px', 
+          borderRadius: '16px', 
+          marginBottom: '20px', 
+          width: '100%', 
+          boxSizing: 'border-box'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '280px' }}>
+              <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                ☁️ Sincronização Online em Nuvem (Firebase)
+              </div>
+              <p style={{ fontSize: '0.82rem', color: '#cbd5e1', margin: 0 }}>
+                Sincronize todo o seu banco de perguntas, cartas e imagens de todos os jogos com a nuvem do Firebase!
+              </p>
+            </div>
+            
+            {/* Input e Controles */}
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', flex: 1.5, minWidth: '280px', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <label style={{ fontSize: '0.78rem', color: '#c4b5fd', fontWeight: 'bold' }}>Código de Acesso Online</label>
+                <input 
+                  value={codigoSalaOnline}
+                  onChange={(e) => setCodigoSalaOnline(e.target.value)}
+                  placeholder="Ex: LUCAS-GEOMETRIA"
+                  style={{
+                    background: '#0f172a',
+                    color: '#fff',
+                    border: '1.5px solid rgba(139, 92, 246, 0.4)',
+                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    fontSize: '0.88rem',
+                    textTransform: 'uppercase',
+                    textAlign: 'center',
+                    letterSpacing: '0.5px',
+                    width: '180px'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                <button 
+                  onClick={handleEnviarParaNuvem}
+                  className="btn-start"
+                  style={{
+                    padding: '10px 18px',
+                    fontSize: '0.85rem',
+                    background: 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)'
+                  }}
+                >
+                  ☁️ Enviar para Nuvem
+                </button>
+                <button 
+                  onClick={handleBaixarDaNuvem}
+                  className="btn-start"
+                  style={{
+                    padding: '10px 18px',
+                    fontSize: '0.85rem',
+                    background: 'linear-gradient(90deg, #10b981, #34d399)',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+                  }}
+                >
+                  ☁️ Baixar da Nuvem
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap', gap: '10px' }}>
+            {/* Status do Sincronismo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: '#9ca3af' }}>
+              <span>Status:</span>
+              <strong style={{ 
+                color: statusSincronismo.startsWith('✅') ? '#34d399' :
+                       statusSincronismo.startsWith('❌') ? '#f87171' :
+                       statusSincronismo.startsWith('⏳') ? '#fbbf24' : '#a78bfa',
+                textShadow: '0 0 10px rgba(255,255,255,0.05)'
+              }}>
+                {statusSincronismo}
+              </strong>
+            </div>
+
+            {/* Switch de Auto-Sincronismo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => setSincronismoAutomatico(!sincronismoAutomatico)}>
+              <div style={{
+                width: '40px',
+                height: '22px',
+                borderRadius: '11px',
+                background: sincronismoAutomatico ? '#3b82f6' : '#334155',
+                position: 'relative',
+                transition: 'background 0.2s',
+                boxShadow: sincronismoAutomatico ? '0 0 10px rgba(59, 130, 246, 0.5)' : 'none'
+              }}>
+                <div style={{
+                  width: '16px',
+                  height: '16px',
+                  borderRadius: '50%',
+                  background: '#fff',
+                  position: 'absolute',
+                  top: '3px',
+                  left: sincronismoAutomatico ? '21px' : '3px',
+                  transition: 'left 0.2s'
+                }} />
+              </div>
+              <span style={{ fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 'bold' }}>
+                🔄 Sincronização Automática ao Editar
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Abas superiores do gerenciador geral */}
