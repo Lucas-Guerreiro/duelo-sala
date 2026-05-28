@@ -3186,6 +3186,214 @@ export default function App() {
     reader.readAsText(file);
   };
 
+  // BACKUP E RESTAURAÇÃO DE TRÊS PISTAS
+  const exportarPistasBackup = () => {
+    try {
+      const backupObj = {
+        jogo: 'trespistas',
+        dataBackup: new Date().toISOString(),
+        cartasPistas: cartasPistas
+      };
+      const jsonStr = JSON.stringify(backupObj, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `duelo_sala_trespistas_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Erro ao exportar backup de Três Pistas: ' + e.message);
+    }
+  };
+
+  const importarPistasBackup = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const json = JSON.parse(evt.target.result);
+        if (!json || !Array.isArray(json.cartasPistas)) {
+          throw new Error('Arquivo de backup inválido para Três Pistas.');
+        }
+
+        const importadas = json.cartasPistas;
+        const confirmacao = window.confirm(
+          `Backup de Três Pistas lido com sucesso!\n` +
+          `Encontramos ${importadas.length} cartas no backup.\n\n` +
+          `Clique em OK para MESCLAR estas cartas com o banco atual.\n` +
+          `Clique em CANCELAR para SUBSTITUIR completamente o banco atual pelo backup.`
+        );
+
+        if (confirmacao) {
+          setCartasPistas([...cartasPistas, ...importadas]);
+          alert('Cartas de Três Pistas mescladas com sucesso!');
+        } else {
+          const subConfirm = window.confirm('ATENÇÃO: Você escolheu substituir. Todas as cartas de Três Pistas atuais serão permanentemente apagadas. Continuar?');
+          if (subConfirm) {
+            setCartasPistas(importadas);
+            alert('Banco de Três Pistas substituído com sucesso!');
+          }
+        }
+      } catch (err) {
+        alert('Erro ao importar backup: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // BACKUP E RESTAURAÇÃO DE IMAGEM E AÇÃO
+  const exportarImAcaoBackup = () => {
+    try {
+      const backupObj = {
+        jogo: 'imacao',
+        dataBackup: new Date().toISOString(),
+        cartasImAcao: cartasImAcao
+      };
+      const jsonStr = JSON.stringify(backupObj, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `duelo_sala_imacao_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Erro ao exportar backup de Imagem e Ação: ' + e.message);
+    }
+  };
+
+  const importarImAcaoBackup = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const json = JSON.parse(evt.target.result);
+        if (!json || !Array.isArray(json.cartasImAcao)) {
+          throw new Error('Arquivo de backup inválido para Imagem e Ação.');
+        }
+
+        const importadas = json.cartasImAcao;
+        const confirmacao = window.confirm(
+          `Backup de Imagem e Ação lido com sucesso!\n` +
+          `Encontramos ${importadas.length} cartas no backup.\n\n` +
+          `Clique em OK para MESCLAR estas cartas com o banco atual.\n` +
+          `Clique em CANCELAR para SUBSTITUIR completamente o banco atual pelo backup.`
+        );
+
+        if (confirmacao) {
+          setCartasImAcao([...cartasImAcao, ...importadas]);
+          alert('Cartas de Imagem e Ação mescladas com sucesso!');
+        } else {
+          const subConfirm = window.confirm('ATENÇÃO: Você escolheu substituir. Todas as cartas de Imagem e Ação atuais serão permanentemente apagadas. Continuar?');
+          if (subConfirm) {
+            setCartasImAcao(importadas);
+            alert('Banco de Imagem e Ação substituído com sucesso!');
+          }
+        }
+      } catch (err) {
+        alert('Erro ao importar backup: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // BACKUP E RESTAURAÇÃO DE JOGO DA MEMÓRIA
+  const exportarMemoriaBackup = () => {
+    try {
+      const backupObj = {
+        jogo: 'memoria',
+        dataBackup: new Date().toISOString(),
+        memoImagensPool: memoImagensPool,
+        imagensSurpresas: {
+          embaralhar: memoImgSurpresaEmbaralhar,
+          olho: memoImgSurpresaOlho,
+          ganharAura: memoImgSurpresaGanharAura,
+          perderAura: memoImgSurpresaPerderAura,
+          vezExtra: memoImgSurpresaVezExtra
+        }
+      };
+      const jsonStr = JSON.stringify(backupObj, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `duelo_sala_memoria_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Erro ao exportar backup de Memória: ' + e.message);
+    }
+  };
+
+  const importarMemoriaBackup = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const json = JSON.parse(evt.target.result);
+        if (!json || !Array.isArray(json.memoImagensPool)) {
+          throw new Error('Arquivo de backup inválido para o Jogo da Memória.');
+        }
+
+        const confirmacao = window.confirm(
+          `Backup de Jogo da Memória lido com sucesso!\n` +
+          `Encontramos ${json.memoImagensPool.length} imagens no backup.\n\n` +
+          `Clique em OK para MESCLAR estas imagens à sua lista atual de imagens do jogo.\n` +
+          `Clique em CANCELAR para SUBSTITUIR completamente a lista e configurações de surpresas pelo backup.`
+        );
+
+        if (confirmacao) {
+          const novasImagens = [...memoImagensPool];
+          json.memoImagensPool.forEach(img => {
+            if (!novasImagens.includes(img)) novasImagens.push(img);
+          });
+          setMemoImagensPool(novasImagens);
+
+          if (json.imagensSurpresas) {
+            if (json.imagensSurpresas.embaralhar) setMemoImgSurpresaEmbaralhar(json.imagensSurpresas.embaralhar);
+            if (json.imagensSurpresas.olho) setMemoImgSurpresaOlho(json.imagensSurpresas.olho);
+            if (json.imagensSurpresas.ganharAura) setMemoImgSurpresaGanharAura(json.imagensSurpresas.ganharAura);
+            if (json.imagensSurpresas.perderAura) setMemoImgSurpresaPerderAura(json.imagensSurpresas.perderAura);
+            if (json.imagensSurpresas.vezExtra) setMemoImgSurpresaVezExtra(json.imagensSurpresas.vezExtra);
+          }
+          alert('Dados do Jogo da Memória mesclados com sucesso!');
+        } else {
+          const subConfirm = window.confirm('ATENÇÃO: Você escolheu substituir. Todas as imagens e configurações de surpresas atuais serão apagadas permanentemente. Continuar?');
+          if (subConfirm) {
+            setMemoImagensPool(json.memoImagensPool);
+            if (json.imagensSurpresas) {
+              setMemoImgSurpresaEmbaralhar(json.imagensSurpresas.embaralhar || "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop");
+              setMemoImgSurpresaOlho(json.imagensSurpresas.olho || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop");
+              setMemoImgSurpresaGanharAura(json.imagensSurpresas.ganharAura || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=250&auto=format&fit=crop");
+              setMemoImgSurpresaPerderAura(json.imagensSurpresas.perderAura || "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop");
+              setMemoImgSurpresaVezExtra(json.imagensSurpresas.vezExtra || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=250&auto=format&fit=crop");
+            }
+            alert('Banco e configurações de cartas surpresas da Memória substituídos com sucesso!');
+          }
+        }
+      } catch (err) {
+        alert('Erro ao importar backup: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   // IMPORTAÇÃO DE PLANILHA VIA XLSX
   const processarPlanilha = (e) => {
     setPlanilhaFeedback({ txt: '⏳ Analisando arquivo de planilha...', tipo: 'warn' });
@@ -5382,6 +5590,7 @@ export default function App() {
               <button className={`tab ${cadTab === 'manual' ? 'ativa' : ''}`} onClick={() => setCadTab('manual')}>✏️ Manual</button>
               <button className={`tab ${cadTab === 'importar' ? 'ativa' : ''}`} onClick={() => setCadTab('importar')}>📥 Importar Planilha</button>
               <button className={`tab ${cadTab === 'lista' ? 'ativa' : ''}`} onClick={() => setCadTab('lista')}>📋 Cartas ({cartasPistas.length})</button>
+              <button className={`tab ${cadTab === 'backup' ? 'ativa' : ''}`} onClick={() => setCadTab('backup')}>💾 Backup JSON</button>
             </div>
 
             {cadTab === 'manual' && (
@@ -5628,6 +5837,59 @@ export default function App() {
             </div>
             </div>
             )}
+
+            {/* TAB: BACKUP TRÊS PISTAS */}
+            {cadTab === 'backup' && (
+              <div className="tab-panel ativa">
+                <div className="card">
+                  <div className="sec">💾 Backup e Restauração de Três Pistas</div>
+                  <p style={{ color: '#c4b5fd', fontSize: '0.85rem', marginBottom: '20px' }}>
+                    Exporte todo o seu banco de cartas personalizadas de Três Pistas para salvaguardar o seu trabalho ou compartilhe com outros computadores.
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    {/* Bloco Exportar */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+                      <h3 style={{ fontSize: '1.2rem', color: '#60a5fa', margin: '0 0 10px 0' }}>📤 Exportar Backup</h3>
+                      <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginBottom: '16px' }}>
+                        Gera um arquivo JSON contendo todas as suas {cartasPistas.length} cartas de Três Pistas cadastradas.
+                      </p>
+                      <button 
+                        className="btn-start" 
+                        onClick={exportarPistasBackup}
+                        style={{ padding: '10px 24px', fontSize: '0.9rem', width: '100%', background: 'linear-gradient(90deg, #3b82f6, #60a5fa)' }}
+                      >
+                        Exportar JSON
+                      </button>
+                    </div>
+
+                    {/* Bloco Importar */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+                      <h3 style={{ fontSize: '1.2rem', color: '#34d399', margin: '0 0 10px 0' }}>📥 Importar Backup</h3>
+                      <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginBottom: '16px' }}>
+                        Selecione um arquivo de backup (.json) gerado anteriormente para restaurar ou mesclar cartas.
+                      </p>
+                      <div style={{ position: 'relative', width: '100%' }}>
+                        <input 
+                          type="file" 
+                          accept=".json" 
+                          onChange={importarPistasBackup}
+                          style={{
+                            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer'
+                          }}
+                        />
+                        <button 
+                          className="btn-start" 
+                          style={{ padding: '10px 24px', fontSize: '0.9rem', width: '100%', background: 'linear-gradient(90deg, #10b981, #34d399)' }}
+                        >
+                          Selecionar Arquivo JSON
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -5638,6 +5900,7 @@ export default function App() {
               <button className={`tab ${cadTab === 'manual' ? 'ativa' : ''}`} onClick={() => setCadTab('manual')}>✏️ Manual</button>
               <button className={`tab ${cadTab === 'importar' ? 'ativa' : ''}`} onClick={() => setCadTab('importar')}>📥 Importar Planilha</button>
               <button className={`tab ${cadTab === 'lista' ? 'ativa' : ''}`} onClick={() => setCadTab('lista')}>📋 Cartas ({cartasImAcao.length})</button>
+              <button className={`tab ${cadTab === 'backup' ? 'ativa' : ''}`} onClick={() => setCadTab('backup')}>💾 Backup JSON</button>
             </div>
 
             {cadTab === 'manual' && (
@@ -5879,6 +6142,59 @@ export default function App() {
             </div>
             </div>
             )}
+
+            {/* TAB: BACKUP IMAGEM E AÇÃO */}
+            {cadTab === 'backup' && (
+              <div className="tab-panel ativa">
+                <div className="card">
+                  <div className="sec">💾 Backup e Restauração de Imagem e Ação</div>
+                  <p style={{ color: '#c4b5fd', fontSize: '0.85rem', marginBottom: '20px' }}>
+                    Exporte todo o seu banco de cartas personalizadas de Imagem e Ação para salvaguardar o seu trabalho ou compartilhe com outros computadores.
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    {/* Bloco Exportar */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+                      <h3 style={{ fontSize: '1.2rem', color: '#60a5fa', margin: '0 0 10px 0' }}>📤 Exportar Backup</h3>
+                      <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginBottom: '16px' }}>
+                        Gera um arquivo JSON contendo todas as suas {cartasImAcao.length} cartas de Imagem e Ação cadastradas.
+                      </p>
+                      <button 
+                        className="btn-start" 
+                        onClick={exportarImAcaoBackup}
+                        style={{ padding: '10px 24px', fontSize: '0.9rem', width: '100%', background: 'linear-gradient(90deg, #3b82f6, #60a5fa)' }}
+                      >
+                        Exportar JSON
+                      </button>
+                    </div>
+
+                    {/* Bloco Importar */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+                      <h3 style={{ fontSize: '1.2rem', color: '#34d399', margin: '0 0 10px 0' }}>📥 Importar Backup</h3>
+                      <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginBottom: '16px' }}>
+                        Selecione um arquivo de backup (.json) gerado anteriormente para restaurar ou mesclar cartas.
+                      </p>
+                      <div style={{ position: 'relative', width: '100%' }}>
+                        <input 
+                          type="file" 
+                          accept=".json" 
+                          onChange={importarImAcaoBackup}
+                          style={{
+                            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer'
+                          }}
+                        />
+                        <button 
+                          className="btn-start" 
+                          style={{ padding: '10px 24px', fontSize: '0.9rem', width: '100%', background: 'linear-gradient(90deg, #10b981, #34d399)' }}
+                        >
+                          Selecionar Arquivo JSON
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -6022,6 +6338,55 @@ export default function App() {
                       placeholder="URL da imagem para Turno Extra..."
                       style={{ fontSize: '0.82rem', padding: '6px 12px' }}
                     />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Backup e Restauração do Jogo da Memória */}
+            <div className="card" style={{ marginTop: '20px' }}>
+              <div className="sec" style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '8px' }}>💾 Backup e Restauração da Memória</div>
+              <p style={{ color: '#c4b5fd', fontSize: '0.85rem', marginBottom: '16px' }}>
+                Exporte todo o seu banco de imagens e configurações das cartas surpresas para salvaguardar o seu trabalho ou sincronizar em outros computadores.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                {/* Bloco Exportar */}
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+                  <h3 style={{ fontSize: '1.2rem', color: '#60a5fa', margin: '0 0 10px 0' }}>📤 Exportar Backup</h3>
+                  <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginBottom: '16px' }}>
+                    Gera um arquivo JSON contendo suas {memoImagensPool.length} imagens e as 5 imagens de cartas surpresas.
+                  </p>
+                  <button 
+                    className="btn-start" 
+                    onClick={exportarMemoriaBackup}
+                    style={{ padding: '10px 24px', fontSize: '0.9rem', width: '100%', background: 'linear-gradient(90deg, #3b82f6, #60a5fa)' }}
+                  >
+                    Exportar JSON
+                  </button>
+                </div>
+
+                {/* Bloco Importar */}
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+                  <h3 style={{ fontSize: '1.2rem', color: '#34d399', margin: '0 0 10px 0' }}>📥 Importar Backup</h3>
+                  <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginBottom: '16px' }}>
+                    Selecione um arquivo de backup (.json) gerado anteriormente para restaurar imagens e surpresas.
+                  </p>
+                  <div style={{ position: 'relative', width: '100%' }}>
+                    <input 
+                      type="file" 
+                      accept=".json" 
+                      onChange={importarMemoriaBackup}
+                      style={{
+                        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer'
+                      }}
+                    />
+                    <button 
+                      className="btn-start" 
+                      style={{ padding: '10px 24px', fontSize: '0.9rem', width: '100%', background: 'linear-gradient(90deg, #10b981, #34d399)' }}
+                    >
+                      Selecionar Arquivo JSON
+                    </button>
                   </div>
                 </div>
               </div>
