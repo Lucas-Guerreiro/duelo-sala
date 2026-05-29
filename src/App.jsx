@@ -610,6 +610,7 @@ export default function App() {
   const [memoAuraFeedback, setMemoAuraFeedback] = useState(null);
   const [memoSurpresaEfeito1, setMemoSurpresaEfeito1] = useState('embaralhar');
   const [memoSurpresaEfeito2, setMemoSurpresaEfeito2] = useState('olho');
+  const [memoSurpresaEfeito3, setMemoSurpresaEfeito3] = useState('vez-extra');
   const [memoImagensPool, setMemoImagensPool] = useState(() => {
     const saved = localStorage.getItem('dm_memo_imagens');
     return saved ? JSON.parse(saved) : IMAGENS_PADRAO_MEMORIA;
@@ -1629,27 +1630,27 @@ export default function App() {
     setMemoMateria(materiaEscolhida);
     setModoJogo('memoria');
 
-    // 1. Filtrar e completar perguntas para obter exatamente 15 pares (30 cartas normais)
+    // 1. Filtrar e completar perguntas para obter exatamente 16 pares (32 cartas normais)
     let pergsFiltradas = perguntas.filter(p => p.mat === materiaEscolhida);
     
     // Se faltarem perguntas, completa com outras da pool geral
-    if (pergsFiltradas.length < 15) {
+    if (pergsFiltradas.length < 16) {
       const outras = perguntas.filter(p => p.mat !== materiaEscolhida);
       pergsFiltradas = [...pergsFiltradas, ...outras];
     }
     
     // Se ainda assim faltarem, completa com as perguntas padrão
-    if (pergsFiltradas.length < 15) {
+    if (pergsFiltradas.length < 16) {
       pergsFiltradas = [...pergsFiltradas, ...PERGUNTAS_PADRAO];
     }
 
-    // Pega exatamente as primeiras 15 perguntas
-    const pergsPartida = pergsFiltradas.slice(0, 15);
+    // Pega exatamente as primeiras 16 perguntas
+    const pergsPartida = pergsFiltradas.slice(0, 16);
 
     // Usa a pool de imagens gerenciada pelo professor (ou fallback se estiver vazia)
     const poolImagens = memoImagensPool.length > 0 ? memoImagensPool : IMAGENS_PADRAO_MEMORIA;
 
-    // 2. Criar cartas (15 perguntas e 15 respostas correspondentes)
+    // 2. Criar cartas (16 perguntas e 16 respostas correspondentes)
     const cartas = [];
     pergsPartida.forEach((perg, idx) => {
       const imgUrl = poolImagens[idx % poolImagens.length];
@@ -1739,9 +1740,10 @@ export default function App() {
       }
     };
 
-    // 3. Inserir as 2 cartas surpresas
+    // 3. Inserir as 3 cartas surpresas (16 pares [32 cartas] + 3 surpresas = 35 cartas)
     cartas.push(obterDefinicaoSurpresa(memoSurpresaEfeito1, 's1'));
     cartas.push(obterDefinicaoSurpresa(memoSurpresaEfeito2, 's2'));
+    cartas.push(obterDefinicaoSurpresa(memoSurpresaEfeito3, 's3'));
 
     // 4. Embaralhar as 30 cartas na mesa usando o algoritmo robusto de Fisher-Yates
     const cartasEmbaralhadas = [...cartas];
@@ -8859,164 +8861,200 @@ export default function App() {
       </div>
 
       {/* 16. TELA DE CONFIGURAÇÃO JOGO DA MEMÓRIA */}
-      <div id="tela-memo-nomes" className={`tela ${tela === 'memo-nomes' ? 'ativa' : ''}`} style={{ display: tela === 'memo-nomes' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center', minHeight: '100vh', padding: '20px', boxSizing: 'border-box' }}>
-        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'center', marginBottom: '14px' }}>← Voltar ao Menu</button>
-        <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(139, 92, 246, 0.45))', margin: '14px 0', width: '100%' }}>🧠</div>
-        <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%', fontFamily: 'Outfit' }}>Configurar Jogo da Memória</h2>
-        <p style={{ color: '#c4b5fd', fontSize: '1.05rem', textAlign: 'center', width: '100%', marginTop: '4px' }}>Duelo pedagógico em dupla tela com 30 cartas!</p>
-
-        <div className="dupla" style={{ margin: '24px auto 16px', width: '100%', maxWidth: '600px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
-          <div className="jcard j1" style={{ flex: 1, textAlign: 'center' }}>
-            <h3 style={{ textAlign: 'center', justifyContent: 'center' }}>🔵 Equipe 1</h3>
-            <input value={nomeJ1} onChange={(e) => setNomeJ1(e.target.value)} placeholder="Equipe Azul" style={{ textAlign: 'center' }} />
-          </div>
-          <div className="jcard j2" style={{ flex: 1, textAlign: 'center' }}>
-            <h3 style={{ textAlign: 'center', justifyContent: 'center' }}>🩷 Equipe 2</h3>
-            <input value={nomeJ2} onChange={(e) => setNomeJ2(e.target.value)} placeholder="Equipe Rosa" style={{ textAlign: 'center' }} />
-          </div>
+      <div id="tela-memo-nomes" className={`tela ${tela === 'memo-nomes' ? 'ativa' : ''}`} style={{ display: tela === 'memo-nomes' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center', minHeight: '100vh', padding: '14px', boxSizing: 'border-box', maxWidth: 'none' }}>
+        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'flex-start', marginBottom: '4px' }}>← Voltar ao Menu</button>
+        
+        {/* Título Compacto */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '2.5rem', filter: 'drop-shadow(0 0 15px rgba(139, 92, 246, 0.45))' }}>🧠</span>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: 900, margin: 0, fontFamily: 'Outfit' }}>Configurar Jogo da Memória</h2>
         </div>
+        <p style={{ color: '#c4b5fd', fontSize: '0.88rem', margin: '0 0 14px', textAlign: 'center' }}>Duelo pedagógico em dupla tela com 35 cartas!</p>
 
-        {/* Seletor de Matéria */}
-        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'center' }}>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#a78bfa', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>
-            📚 Matéria Pedagógica
-          </div>
-          <select 
-            value={memoMateria}
-            onChange={(e) => setMemoMateria(e.target.value)}
-            style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px', padding: '10px 16px', fontSize: '1rem', width: '100%', cursor: 'pointer', textAlign: 'center' }}
-          >
-            {materias.length === 0 ? (
-              <option value="">Nenhuma matéria cadastrada</option>
-            ) : (
-              materias.map((m, idx) => (
-                <option key={idx} value={m.nome}>{m.nome}</option>
-              ))
-            )}
-          </select>
-        </div>
+        {/* Layout Master de 2 Colunas */}
+        <div style={{ display: 'flex', gap: '20px', width: '100%', maxWidth: '1080px', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'stretch' }}>
+          
+          {/* COLUNA ESQUERDA */}
+          <div style={{ flex: '1 1 480px', display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '320px' }}>
+            
+            {/* Nomes das Equipes */}
+            <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#a78bfa', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #8b5cf6', paddingLeft: '8px' }}>
+                👥 Equipes Rivais
+              </div>
+              <div className="dupla" style={{ display: 'flex', gap: '12px', margin: 0, width: '100%' }}>
+                <div className="jcard j1" style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
+                  <h3 style={{ fontSize: '0.85rem', margin: '0 0 4px', textAlign: 'center', justifyContent: 'center' }}>🔵 Equipe 1</h3>
+                  <input value={nomeJ1} onChange={(e) => setNomeJ1(e.target.value)} placeholder="Equipe Azul" style={{ textAlign: 'center', padding: '6px', fontSize: '0.85rem' }} />
+                </div>
+                <div className="jcard j2" style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
+                  <h3 style={{ fontSize: '0.85rem', margin: '0 0 4px', textAlign: 'center', justifyContent: 'center' }}>🩷 Equipe 2</h3>
+                  <input value={nomeJ2} onChange={(e) => setNomeJ2(e.target.value)} placeholder="Equipe Rosa" style={{ textAlign: 'center', padding: '6px', fontSize: '0.85rem' }} />
+                </div>
+              </div>
+            </div>
 
-        {/* Escolha das Cartas Surpresas */}
-        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'center' }}>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f59e0b', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>
-            🎁 Escolha das Cartas Surpresas
-          </div>
-          <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.8rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 1</label>
+            {/* Matéria Pedagógica */}
+            <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#a78bfa', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #8b5cf6', paddingLeft: '8px' }}>
+                📚 Matéria Pedagógica
+              </div>
               <select 
-                value={memoSurpresaEfeito1}
-                onChange={(e) => setMemoSurpresaEfeito1(e.target.value)}
-                style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px', padding: '10px', fontSize: '0.9rem', cursor: 'pointer', textAlign: 'center' }}
+                value={memoMateria}
+                onChange={(e) => setMemoMateria(e.target.value)}
+                style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px', padding: '8px 12px', fontSize: '0.9rem', width: '100%', cursor: 'pointer', textAlign: 'center' }}
               >
-                <option value="embaralhar">Troca-Tudo 🌪️</option>
-                <option value="olho">Olho Mágico 👁️</option>
-                <option value="ganhar-aura">Explosão de Aura 🗿✨</option>
-                <option value="perder-aura">Dreno de Aura 📉💔</option>
-                <option value="vez-extra">Turno Extra 🔄⚡</option>
+                {materias.length === 0 ? (
+                  <option value="">Nenhuma matéria cadastrada</option>
+                ) : (
+                  materias.map((m, idx) => (
+                    <option key={idx} value={m.nome}>{m.nome}</option>
+                  ))
+                )}
               </select>
             </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.8rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 2</label>
-              <select 
-                value={memoSurpresaEfeito2}
-                onChange={(e) => setMemoSurpresaEfeito2(e.target.value)}
-                style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px', padding: '10px', fontSize: '0.9rem', cursor: 'pointer', textAlign: 'center' }}
-              >
-                <option value="embaralhar">Troca-Tudo 🌪️</option>
-                <option value="olho">Olho Mágico 👁️</option>
-                <option value="ganhar-aura">Explosão de Aura 🗿✨</option>
-                <option value="perder-aura">Dreno de Aura 📉💔</option>
-                <option value="vez-extra">Turno Extra 🔄⚡</option>
-              </select>
+
+            {/* Vez Inicial */}
+            <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#a78bfa', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #8b5cf6', paddingLeft: '8px' }}>
+                🚩 Vez Inicial (Quem Começa?)
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={() => setMemoEquipeIniciar(0)}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    borderRadius: '6px',
+                    border: '1.5px solid #3b82f6',
+                    background: memoEquipeIniciar === 0 ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                    color: memoEquipeIniciar === 0 ? '#60a5fa' : '#9ca3af',
+                    fontWeight: 'bold',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  🔵 {nomeJ1 || 'Equipe 1'}
+                </button>
+                <button 
+                  onClick={() => setMemoEquipeIniciar(1)}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    borderRadius: '6px',
+                    border: '1.5px solid #ec4899',
+                    background: memoEquipeIniciar === 1 ? 'rgba(236, 72, 246, 0.25)' : 'transparent',
+                    color: memoEquipeIniciar === 1 ? '#f472b6' : '#9ca3af',
+                    fontWeight: 'bold',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  🩷 {nomeJ2 || 'Equipe 2'}
+                </button>
+              </div>
             </div>
+
           </div>
+
+          {/* COLUNA DIREITA */}
+          <div style={{ flex: '1 1 480px', display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '320px' }}>
+            
+            {/* Escolha das Cartas Surpresas */}
+            <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f59e0b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #f59e0b', paddingLeft: '8px' }}>
+                🎁 Escolha das 3 Cartas Surpresas
+              </div>
+              <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <label style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 1</label>
+                  <select 
+                    value={memoSurpresaEfeito1}
+                    onChange={(e) => setMemoSurpresaEfeito1(e.target.value)}
+                    style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '0.78rem', cursor: 'pointer', textAlign: 'center' }}
+                  >
+                    <option value="embaralhar">Troca-Tudo 🌪️</option>
+                    <option value="olho">Olho Mágico 👁️</option>
+                    <option value="ganhar-aura">Explosão de Aura 🗿✨</option>
+                    <option value="perder-aura">Dreno de Aura 📉💔</option>
+                    <option value="vez-extra">Turno Extra 🔄⚡</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <label style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 2</label>
+                  <select 
+                    value={memoSurpresaEfeito2}
+                    onChange={(e) => setMemoSurpresaEfeito2(e.target.value)}
+                    style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '0.78rem', cursor: 'pointer', textAlign: 'center' }}
+                  >
+                    <option value="embaralhar">Troca-Tudo 🌪️</option>
+                    <option value="olho">Olho Mágico 👁️</option>
+                    <option value="ganhar-aura">Explosão de Aura 🗿✨</option>
+                    <option value="perder-aura">Dreno de Aura 📉💔</option>
+                    <option value="vez-extra">Turno Extra 🔄⚡</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <label style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 3</label>
+                  <select 
+                    value={memoSurpresaEfeito3}
+                    onChange={(e) => setMemoSurpresaEfeito3(e.target.value)}
+                    style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '0.78rem', cursor: 'pointer', textAlign: 'center' }}
+                  >
+                    <option value="embaralhar">Troca-Tudo 🌪️</option>
+                    <option value="olho">Olho Mágico 👁️</option>
+                    <option value="ganhar-aura">Explosão de Aura 🗿✨</option>
+                    <option value="perder-aura">Dreno de Aura 📉💔</option>
+                    <option value="vez-extra">Turno Extra 🔄⚡</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Ajuste de Escala */}
+            <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#3b82f6', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #3b82f6', paddingLeft: '8px' }}>
+                📐 Escala do Projetor (Epson 16:10)
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 'bold' }}>Menor (80%)</span>
+                <input 
+                  type="range" 
+                  min="80" 
+                  max="135" 
+                  value={memoCartaEscala}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setMemoCartaEscala(val);
+                    enviarMsgProjetor('MEMO_ATUALIZAR', { cartaEscala: val });
+                  }}
+                  style={{ flex: 1, accentColor: '#3b82f6', cursor: 'pointer', height: '4px' }}
+                />
+                <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 'bold' }}>({memoCartaEscala}%)</span>
+              </div>
+            </div>
+
+            {/* Ações e Botão de Projetor */}
+            <div style={{ display: 'flex', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
+              <button 
+                className="btn-menu btn-outline" 
+                style={{ flex: 1, borderColor: '#8b5cf6', color: '#a78bfa', background: 'rgba(139, 92, 246, 0.05)', fontSize: '0.82rem', padding: '8px 12px', alignSelf: 'center', whiteSpace: 'nowrap' }}
+                onClick={() => window.open(window.location.origin + window.location.pathname + '?projetor=true', '_blank', 'width=1200,height=800')}
+              >
+                📺 Abrir Segunda Tela
+              </button>
+              
+              <button className="btn-start" style={{ flex: 1.3, background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 6px 20px rgba(139, 92, 246, 0.35)', padding: '8px 16px', fontSize: '0.9rem', margin: 0 }} onClick={() => iniciarPartidaMemoria(memoMateria)}>
+                Começar Disputa! 🚀
+              </button>
+            </div>
+
+          </div>
+
         </div>
 
-        {/* Controle de Tamanho e Proporção das Cartas (Projetor 16:10 Epson) */}
-        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'center' }}>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#3b82f6', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-            📐 Escala do Projetor (Epson 16:10)
-          </div>
-          <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '14px', marginTop: 0 }}>
-            Ajuste o tamanho das cartas no projetor da sala para preencher perfeitamente a sua tela de projeção Epson.
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
-            <span style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 'bold' }}>Menor (80%)</span>
-            <input 
-              type="range" 
-              min="80" 
-              max="135" 
-              value={memoCartaEscala}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                setMemoCartaEscala(val);
-                enviarMsgProjetor('MEMO_ATUALIZAR', { cartaEscala: val });
-              }}
-              style={{ flex: 1, accentColor: '#3b82f6', cursor: 'pointer', height: '6px', borderRadius: '3px' }}
-            />
-            <span style={{ fontSize: '0.85rem', color: '#60a5fa', fontWeight: 'bold' }}>Grande ({memoCartaEscala}%)</span>
-          </div>
-        </div>
-
-        {/* Escolha de quem começa a partida */}
-        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'center' }}>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#a78bfa', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>
-            🚩 Vez Inicial (Quem Começa a Jogar?)
-          </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button 
-              onClick={() => setMemoEquipeIniciar(0)}
-              style={{
-                flex: 1,
-                padding: '10px',
-                borderRadius: '8px',
-                border: '1.5px solid #3b82f6',
-                background: memoEquipeIniciar === 0 ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
-                color: memoEquipeIniciar === 0 ? '#60a5fa' : '#9ca3af',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              🔵 {nomeJ1 || 'Equipe 1'}
-            </button>
-            <button 
-              onClick={() => setMemoEquipeIniciar(1)}
-              style={{
-                flex: 1,
-                padding: '10px',
-                borderRadius: '8px',
-                border: '1.5px solid #ec4899',
-                background: memoEquipeIniciar === 1 ? 'rgba(236, 72, 246, 0.25)' : 'transparent',
-                color: memoEquipeIniciar === 1 ? '#f472b6' : '#9ca3af',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              🩷 {nomeJ2 || 'Equipe 2'}
-            </button>
-          </div>
-        </div>
-
-        {/* Botão de segunda tela */}
-        <div style={{ margin: '20px 0 10px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <button 
-            className="btn-menu btn-outline" 
-            style={{ borderColor: '#8b5cf6', color: '#a78bfa', background: 'rgba(139, 92, 246, 0.05)', fontSize: '1rem', padding: '12px 30px', alignSelf: 'center' }}
-            onClick={() => window.open(window.location.origin + window.location.pathname + '?projetor=true', '_blank', 'width=1200,height=800')}
-          >
-            📺 Abrir Tela do Projetor (Segunda Tela)
-          </button>
-          <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: '6px', maxWidth: '400px', textAlign: 'center' }}>
-            Dica: Abra esta segunda tela e arraste-a para o projetor/quadro da sala de aula antes de clicar em começar.
-          </p>
-        </div>
-
-        <button className="btn-start" style={{ background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.45)', padding: '16px 64px', marginTop: '20px', alignSelf: 'center' }} onClick={() => iniciarPartidaMemoria(memoMateria)}>
-          Começar Disputa! 🚀
-        </button>
       </div>
 
       {/* 17. TELA DE CONTROLE/MODERAÇÃO DO JOGO DA MEMÓRIA */}
