@@ -626,6 +626,13 @@ export default function App() {
   const [sincronismoAutomatico, setSincronismoAutomatico] = useState(() => localStorage.getItem('sincronismoAutomatico') === 'true');
   const [statusSincronismo, setStatusSincronismo] = useState('Nuvem não ativa. Insira o Código de Acesso.');
 
+  const [memoCartaEscala, setMemoCartaEscala] = useState(() => Number(localStorage.getItem('memoCartaEscala')) || 100);
+  const [memoProjetorCartaEscala, setMemoProjetorCartaEscala] = useState(100);
+
+  useEffect(() => {
+    localStorage.setItem('memoCartaEscala', String(memoCartaEscala));
+  }, [memoCartaEscala]);
+
   useEffect(() => {
     localStorage.setItem('codigoSalaOnline', codigoSalaOnline);
   }, [codigoSalaOnline]);
@@ -1027,6 +1034,7 @@ export default function App() {
       if (s.memoCartasSelecionadas !== undefined) setMemoCartasSelecionadas(s.memoCartasSelecionadas);
       if (s.memoEfeitoAtivo !== undefined) setMemoEfeitoAtivo(s.memoEfeitoAtivo);
       if (s.memoMateria !== undefined) setMemoMateria(s.memoMateria);
+      if (s.memoCartaEscala !== undefined) setMemoProjetorCartaEscala(s.memoCartaEscala);
     }
 
     switch (type) {
@@ -1042,6 +1050,7 @@ export default function App() {
         setMemoMateria(data.materia);
         setNomeJ1(data.nomeJ1);
         setNomeJ2(data.nomeJ2);
+        if (data.cartaEscala !== undefined) setMemoProjetorCartaEscala(data.cartaEscala);
         break;
       case 'MEMO_ATUALIZAR':
         if (data.cartas !== undefined) setMemoCartas(data.cartas);
@@ -1050,6 +1059,7 @@ export default function App() {
         if (data.cartasSelecionadas !== undefined) setMemoCartasSelecionadas(data.cartasSelecionadas);
         if (data.efeitoAtivo !== undefined) setMemoEfeitoAtivo(data.efeitoAtivo);
         if (data.auraFeedback !== undefined) setMemoAuraFeedback(data.auraFeedback);
+        if (data.cartaEscala !== undefined) setMemoProjetorCartaEscala(data.cartaEscala);
         if (data.som) playSound(data.som);
         break;
       case 'MEMO_PEDIR_VIRAR':
@@ -1728,7 +1738,8 @@ export default function App() {
       pontuacao: [0, 0],
       equipeVez: 0,
       nomeJ1,
-      nomeJ2
+      nomeJ2,
+      cartaEscala: memoCartaEscala
     });
 
     // 7. Navegar para a tela de moderação do jogo
@@ -1782,22 +1793,32 @@ export default function App() {
 
       // Roda o redemoinho e troca posições
       setTimeout(() => {
-        // Todas as cartas fechadas mudam de posição aleatoriamente
-        const cartasFechadas = novasCartas.filter(c => !c.aberta && c.encontradaPor === null);
-        const indicesFechadas = [];
-        novasCartas.forEach((c, idx) => {
-          if (!c.aberta && c.encontradaPor === null) indicesFechadas.push(idx);
+        // 1. Primeiro, fechamos as cartas que estão abertas e sem o par descoberto (a primeira carta normal e a surpresa)
+        // para que fiquem com aberta: false e entrem na pool de cartas fechadas que serão embaralhadas!
+        const cartasComSuporte = novasCartas.map(c => {
+          if (c.encontradaPor === null) {
+            return { ...c, aberta: false }; // desvira todas as não encontradas
+          }
+          return c;
         });
 
-        // Re-embaralha as cartas fechadas
+        // 2. Filtramos todas as cartas fechadas / não descobertas (que agora inclui a normal e a surpresa)
+        const cartasFechadas = cartasComSuporte.filter(c => c.encontradaPor === null);
+        
+        const indicesFechadas = [];
+        cartasComSuporte.forEach((c, idx) => {
+          if (c.encontradaPor === null) indicesFechadas.push(idx);
+        });
+
+        // 3. Re-embaralhamos as cartas fechadas (todas mudam de posição!)
         const cartasFechadasEmbaralhadas = [...cartasFechadas].sort(() => Math.random() - 0.5);
         
-        const cartasFinais = [...novasCartas];
+        const cartasFinais = [...cartasComSuporte];
         indicesFechadas.forEach((originalIdx, i) => {
           cartasFinais[originalIdx] = cartasFechadasEmbaralhadas[i];
         });
 
-        // Passa a vez
+        // 4. Passa a vez para a outra equipe e libera cliques
         const proximaVez = memoEquipeVez === 0 ? 1 : 0;
         setMemoCartas(cartasFinais);
         setMemoEquipeVez(proximaVez);
@@ -1812,7 +1833,7 @@ export default function App() {
           efeitoAtivo: null,
           som: 'success'
         });
-      }, 2000);
+      }, 2500);
       return;
     }
 
@@ -8793,6 +8814,32 @@ export default function App() {
           </div>
         </div>
 
+        {/* Controle de Tamanho e Proporção das Cartas (Projetor 16:10 Epson) */}
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'center' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#3b82f6', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            📐 Escala do Projetor (Epson 16:10)
+          </div>
+          <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '14px', marginTop: 0 }}>
+            Ajuste o tamanho das cartas no projetor da sala para preencher perfeitamente a sua tela de projeção Epson.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
+            <span style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 'bold' }}>Menor (80%)</span>
+            <input 
+              type="range" 
+              min="80" 
+              max="135" 
+              value={memoCartaEscala}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setMemoCartaEscala(val);
+                enviarMsgProjetor('MEMO_ATUALIZAR', { cartaEscala: val });
+              }}
+              style={{ flex: 1, accentColor: '#3b82f6', cursor: 'pointer', height: '6px', borderRadius: '3px' }}
+            />
+            <span style={{ fontSize: '0.85rem', color: '#60a5fa', fontWeight: 'bold' }}>Grande ({memoCartaEscala}%)</span>
+          </div>
+        </div>
+
         {/* Botão de segunda tela */}
         <div style={{ margin: '20px 0 10px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <button 
@@ -8840,6 +8887,30 @@ export default function App() {
             </span>
             <span style={{ fontWeight: 800, color: '#f472b6', fontSize: '0.95rem' }}>🩷 {nomeJ2}</span>
             <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ec4899', boxShadow: '0 0 8px #ec4899' }} />
+          </div>
+        </div>
+
+        {/* Barra de Ferramentas de Moderação: Escala e Informações */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(30, 41, 59, 0.45)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '12px', padding: '8px 20px', marginBottom: '14px', flexShrink: 0, gap: '14px', flexWrap: 'wrap' }}>
+          <div style={{ fontSize: '0.88rem', color: '#cbd5e1' }}>
+            📚 Matéria Ativa: <strong style={{ color: '#a78bfa' }}>{memoMateria || 'Geral'}</strong>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '280px' }}>
+            <span style={{ fontSize: '0.8rem', color: '#cbd5e1', whiteSpace: 'nowrap', fontWeight: 'bold' }}>📐 Escala do Projetor:</span>
+            <input 
+              type="range" 
+              min="80" 
+              max="135" 
+              value={memoCartaEscala}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setMemoCartaEscala(val);
+                enviarMsgProjetor('MEMO_ATUALIZAR', { cartaEscala: val });
+              }}
+              style={{ flex: 1, accentColor: '#3b82f6', cursor: 'pointer', height: '5px' }}
+            />
+            <span style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 'bold', minWidth: '40px', textAlign: 'right' }}>{memoCartaEscala}%</span>
           </div>
         </div>
 
@@ -9160,8 +9231,15 @@ export default function App() {
             {/* Destaque das Cartas Viradas no Turno removido */}
 
             {/* Tabuleiro de Cartas 3D */}
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, margin: '20px 0' }}>
-              <div className="memo-grid">
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, margin: '10px 0', overflow: 'hidden', width: '100%' }}>
+              <div 
+                className="memo-grid"
+                style={{
+                  transform: `scale(${memoProjetorCartaEscala / 100})`,
+                  transformOrigin: 'center center',
+                  transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
+                }}
+              >
                 {memoCartas.map((carta, idx) => {
                   const virada = carta.aberta || carta.encontradaPor !== null;
                   const encontrada = carta.encontradaPor !== null;
