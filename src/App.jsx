@@ -507,22 +507,75 @@ const obterDesafioTexto = (num) => {
   }
 };
 
-const IMAGENS_PADRAO_MEMORIA = [
-  "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=250&auto=format&fit=crop", // Controle de videogame / Gaming
-  "https://images.unsplash.com/photo-1547447134-cd3f5c716030?q=80&w=250&auto=format&fit=crop", // Skate urbano / Cultura jovem
-  "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=250&auto=format&fit=crop", // Headphone moderno / Música
-  "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=250&auto=format&fit=crop", // Setup Gamer Neon / Tecnologia
-  "https://images.unsplash.com/photo-1561055657-b9e0bf0fa360?q=80&w=250&auto=format&fit=crop", // Graffiti colorido / Arte urbana
-  "https://images.unsplash.com/photo-1519766304817-4f37bda74a27?q=80&w=250&auto=format&fit=crop", // Basquete de rua / Esportes
-  "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=250&auto=format&fit=crop", // Tênis Sneaker estiloso / Moda jovem
-  "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?q=80&w=250&auto=format&fit=crop", // Óculos de Realidade Virtual (VR)
-  "https://images.unsplash.com/photo-1484755560695-a4c7477ab9ea?q=80&w=250&auto=format&fit=crop", // Guitarra elétrica neon / Rock
-  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=250&auto=format&fit=crop", // Astronauta Cyberpunk / Arte digital
-  "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=250&auto=format&fit=crop", // Grupo de amigos rindo / Social
-  "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=250&auto=format&fit=crop", // Cinema / Pipoca / Filmes
-  "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=250&auto=format&fit=crop", // Robótica / Tecnologia do futuro
-  "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=250&auto=format&fit=crop"  // Aventura / Acampamento ao ar livre
-];
+// Banco de imagens padrão catalogadas por temas para o Jogo da Memória
+const IMAGENS_TEMAS_MEMORIA = {
+  'Jovem & Cultura Pop': [
+    'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1547447134-cd3f5c716030?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=400&auto=format&fit=crop',
+  ],
+  'Tecnologia & Games': [
+    'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1593508512255-86ab42a8e620?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1555680202-c86f0e12f086?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=400&auto=format&fit=crop',
+  ],
+  'Esportes & Aventura': [
+    'https://images.unsplash.com/photo-1519766304817-4f37bda74a27?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1530549387789-4c1017266635?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=400&auto=format&fit=crop',
+  ],
+  'Arte & Música': [
+    'https://images.unsplash.com/photo-1484755560695-a4c7477ab9ea?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1561055657-b9e0bf0fa360?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?q=80&w=400&auto=format&fit=crop',
+  ],
+  'Ciência & Natureza': [
+    'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1529778873920-4da4926a72c2?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1534567153574-2b12153a87f0?q=80&w=400&auto=format&fit=crop',
+  ],
+  'Animais': [
+    'https://images.unsplash.com/photo-1474511320723-9a56873867b5?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1456926631375-92c8ce872def?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1437622368342-7a3d73a34c8f?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1425082661705-1834bfd09dca?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1564349683136-77e08dba1ef7?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1546182990-dffeafbe841d?q=80&w=400&auto=format&fit=crop',
+  ],
+  'Comida & Gastronomia': [
+    'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1550317138-10000687a72b?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?q=80&w=400&auto=format&fit=crop',
+  ],
+  'Viagens & Lugares': [
+    'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1539635278303-d4002c07eae3?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1528360983277-13d401cdc186?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?q=80&w=400&auto=format&fit=crop',
+  ],
+};
+
+const IMAGENS_PADRAO_MEMORIA = Object.values(IMAGENS_TEMAS_MEMORIA).flat().slice(0, 16);
 
 const obterTituloAura = (pares) => {
   if (pares === 0) return "Sem Aura 😐";
@@ -610,12 +663,13 @@ export default function App() {
   const [memoAuraFeedback, setMemoAuraFeedback] = useState(null);
   const [memoSurpresaEfeito1, setMemoSurpresaEfeito1] = useState('embaralhar');
   const [memoSurpresaEfeito2, setMemoSurpresaEfeito2] = useState('olho');
-  const [memoSurpresaEfeito3, setMemoSurpresaEfeito3] = useState('vez-extra');
+  const [memoSurpresaEfeito3, setMemoSurpresaEfeito3] = useState('perca-vez');
   const [memoImagensPool, setMemoImagensPool] = useState(() => {
     const saved = localStorage.getItem('dm_memo_imagens');
     return saved ? JSON.parse(saved) : IMAGENS_PADRAO_MEMORIA;
   });
   const [cadMemoImagemUrl, setCadMemoImagemUrl] = useState('');
+  const [cadMemoTemaSelecionado, setCadMemoTemaSelecionado] = useState(null);
 
   const [memoImgSurpresaEmbaralhar, setMemoImgSurpresaEmbaralhar] = useState(() => localStorage.getItem('memoImgSurpresaEmbaralhar') || "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop");
   const [memoImgSurpresaOlho, setMemoImgSurpresaOlho] = useState(() => localStorage.getItem('memoImgSurpresaOlho') || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop");
@@ -629,6 +683,8 @@ export default function App() {
 
   const [memoCartaEscala, setMemoCartaEscala] = useState(() => Number(localStorage.getItem('memoCartaEscala')) || 100);
   const [memoProjetorCartaEscala, setMemoProjetorCartaEscala] = useState(100);
+  const [memoModeradorEscala, setMemoModeradorEscala] = useState(() => Number(localStorage.getItem('memoModeradorEscala')) || 75);
+  const [memoProjetorAspecto, setMemoProjetorAspecto] = useState(() => localStorage.getItem('memoProjetorAspecto') || '16:9');
 
   const [pistasEquipeIniciar, setPistasEquipeIniciar] = useState(() => Number(localStorage.getItem('pistasEquipeIniciar')) || 0);
   const [imAcaoEquipeIniciar, setImAcaoEquipeIniciar] = useState(() => Number(localStorage.getItem('imAcaoEquipeIniciar')) || 0);
@@ -1697,33 +1753,13 @@ export default function App() {
             aberta: false,
             encontradaPor: null
           };
-        case 'ganhar-aura':
+        case 'perca-vez':
           return {
-            id: `s_ganhar_aura_${idSufixo}_${Date.now()}`,
+            id: `s_perca_vez_${idSufixo}_${Date.now()}`,
             parId: -3,
-            tipo: 'surpresa-ganhar-aura',
-            texto: 'Explosão de Aura! 🗿✨',
-            imagem: memoImgSurpresaGanharAura,
-            aberta: false,
-            encontradaPor: null
-          };
-        case 'perder-aura':
-          return {
-            id: `s_perder_aura_${idSufixo}_${Date.now()}`,
-            parId: -4,
-            tipo: 'surpresa-perder-aura',
-            texto: 'Dreno de Aura! 📉💔',
-            imagem: memoImgSurpresaPerderAura,
-            aberta: false,
-            encontradaPor: null
-          };
-        case 'vez-extra':
-          return {
-            id: `s_vez_extra_${idSufixo}_${Date.now()}`,
-            parId: -5,
-            tipo: 'surpresa-vez-extra',
-            texto: 'Turno Extra! 🔄⚡',
-            imagem: memoImgSurpresaVezExtra,
+            tipo: 'surpresa-perca-vez',
+            texto: 'Perca a Vez! 🚫',
+            imagem: memoImgSurpresaVezExtra, // Reutiliza a imagem premium da ampulheta
             aberta: false,
             encontradaPor: null
           };
@@ -1952,85 +1988,38 @@ export default function App() {
       return;
     }
 
-    // --- CASO 4: CARTA SURPRESA GANHAR AURA 🗿✨ ---
-    if (carta.tipo === 'surpresa-ganhar-aura') {
+    // --- CASO 3: CARTA SURPRESA PERCA A VEZ 🚫 ---
+    if (carta.tipo === 'surpresa-perca-vez') {
       setMemoBloqueioCliques(true);
-      setMemoEfeitoAtivo('ganhar-aura');
+      setMemoEfeitoAtivo('perca-vez');
       
       const novasSelecionadas = [...memoCartasSelecionadas, index];
       setMemoCartasSelecionadas(novasSelecionadas);
 
-      // +2000 pontos de aura equivalem a +2 no placar local
-      const novosPontos = [...memoPontuacao];
-      novosPontos[memoEquipeVez] += 2;
-      setMemoPontuacao(novosPontos);
-
       const feedback = {
         equipe: memoEquipeVez,
-        txt: `+2000 de AURA para a Equipe ${memoEquipeVez === 0 ? nomeJ1 : nomeJ2}! GigaChads! 🗿🔥`
+        txt: `🚫 Perca a Vez! A vez passa para a Equipe ${memoEquipeVez === 0 ? nomeJ2 : nomeJ1}!`
       };
       setMemoAuraFeedback(feedback);
 
       enviarMsgProjetor('MEMO_ATUALIZAR', {
         cartas: novasCartas,
         cartasSelecionadas: novasSelecionadas,
-        efeitoAtivo: 'ganhar-aura',
-        pontuacao: novosPontos,
-        auraFeedback: feedback,
-        som: 'success'
-      });
-
-      setTimeout(() => {
-        // Passa a vez
-        const proximaVez = memoEquipeVez === 0 ? 1 : 0;
-        setMemoEquipeVez(proximaVez);
-        setMemoCartasSelecionadas([]);
-        setMemoEfeitoAtivo(null);
-        setMemoAuraFeedback(null);
-        setMemoBloqueioCliques(false);
-
-        enviarMsgProjetor('MEMO_ATUALIZAR', {
-          cartas: novasCartas,
-          cartasSelecionadas: [],
-          equipeVez: proximaVez,
-          efeitoAtivo: null,
-          auraFeedback: null
-        });
-      }, 4000);
-      return;
-    }
-
-    // --- CASO 5: CARTA SURPRESA PERDER AURA 📉💔 ---
-    if (carta.tipo === 'surpresa-perder-aura') {
-      setMemoBloqueioCliques(true);
-      setMemoEfeitoAtivo('perder-aura');
-      
-      const novasSelecionadas = [...memoCartasSelecionadas, index];
-      setMemoCartasSelecionadas(novasSelecionadas);
-
-      // -1000 pontos de aura equivalem a -1 no placar local (não menor que 0)
-      const novosPontos = [...memoPontuacao];
-      novosPontos[memoEquipeVez] = Math.max(0, novosPontos[memoEquipeVez] - 1);
-      setMemoPontuacao(novosPontos);
-
-      const feedback = {
-        equipe: memoEquipeVez,
-        txt: `-1000 de AURA para a Equipe ${memoEquipeVez === 0 ? nomeJ1 : nomeJ2}! Que vacilo... 📉💔`
-      };
-      setMemoAuraFeedback(feedback);
-
-      enviarMsgProjetor('MEMO_ATUALIZAR', {
-        cartas: novasCartas,
-        cartasSelecionadas: novasSelecionadas,
-        efeitoAtivo: 'perder-aura',
-        pontuacao: novosPontos,
+        efeitoAtivo: 'perca-vez',
         auraFeedback: feedback,
         som: 'error'
       });
 
       setTimeout(() => {
-        // Passa a vez
+        // Desvira a carta surpresa (fecha ela de volta)
+        const cartasFinais = novasCartas.map((c, idx) => {
+          if (idx === index) return { ...c, aberta: false };
+          return c;
+        });
+
+        // Passa a vez para o oponente
         const proximaVez = memoEquipeVez === 0 ? 1 : 0;
+        setMemoCartas(cartasFinais);
         setMemoEquipeVez(proximaVez);
         setMemoCartasSelecionadas([]);
         setMemoEfeitoAtivo(null);
@@ -2038,42 +2027,11 @@ export default function App() {
         setMemoBloqueioCliques(false);
 
         enviarMsgProjetor('MEMO_ATUALIZAR', {
-          cartas: novasCartas,
+          cartas: cartasFinais,
           cartasSelecionadas: [],
           equipeVez: proximaVez,
           efeitoAtivo: null,
           auraFeedback: null
-        });
-      }, 4000);
-      return;
-    }
-
-    // --- CASO 6: CARTA SURPRESA VEZ EXTRA 🔄⚡ ---
-    if (carta.tipo === 'surpresa-vez-extra') {
-      setMemoBloqueioCliques(true);
-      setMemoEfeitoAtivo('vez-extra');
-      
-      const novasSelecionadas = [...memoCartasSelecionadas, index];
-      setMemoCartasSelecionadas(novasSelecionadas);
-
-      enviarMsgProjetor('MEMO_ATUALIZAR', {
-        cartas: novasCartas,
-        cartasSelecionadas: novasSelecionadas,
-        efeitoAtivo: 'vez-extra',
-        som: 'dice'
-      });
-
-      setTimeout(() => {
-        // NÃO passa a vez, apenas limpa a seleção para que a equipe ativa jogue de novo
-        setMemoCartasSelecionadas([]);
-        setMemoEfeitoAtivo(null);
-        setMemoBloqueioCliques(false);
-
-        enviarMsgProjetor('MEMO_ATUALIZAR', {
-          cartas: novasCartas,
-          cartasSelecionadas: [],
-          equipeVez: memoEquipeVez, // Mantém a mesma equipe
-          efeitoAtivo: null
         });
       }, 3000);
       return;
@@ -6567,22 +6525,98 @@ export default function App() {
             <div className="card">
               <div className="sec">🧠 Gerenciar Imagens do Jogo da Memória</div>
               
-              {/* Descrição orientando as especificações das imagens */}
-              <div style={{ background: 'rgba(245, 158, 11, 0.05)', border: '1.5px solid rgba(245, 158, 11, 0.25)', borderRadius: '12px', padding: '16px', marginBottom: '20px', color: '#fde047', fontSize: '0.88rem', lineHeight: 1.5 }}>
-                <div style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '8px', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  💡 Orientações Importantes para Customização de Imagens
+              {/* Catálogo de Temas */}
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ fontWeight: 'bold', color: '#fbbf24', fontSize: '0.95rem', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  🎨 Catálogo por Temas — Clique em um tema para visualizar ou carregar as imagens
                 </div>
-                <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <li><strong>Imagem Padrão:</strong> Por padrão, o jogo é carregado com as nossas 14 imagens temáticas focadas no público jovem e adolescente do Unsplash (games, skate, setup neon, fones, esportes).</li>
-                  <li><strong>Tamanho Recomendado:</strong> Prefira imagens de proporção perfeitamente quadradas <strong>1:1</strong> (tamanho ideal sugerido: <strong>250x250 pixels</strong>). Elas se ajustam e preenchem as cartas da mesa sem cortes artificiais.</li>
-                  <li><strong>Formatos Suportados:</strong> O sistema suporta links diretos de imagens da web que iniciem com <code>http://</code> ou <code>https://</code> e terminem nos formatos de arquivo: <code>.jpg</code>, <code>.jpeg</code>, <code>.png</code>, <code>.webp</code>, <code>.gif</code> ou URLs de plataformas de banco de imagens gratuitas confiáveis como o <em>Unsplash</em>.</li>
-                  <li><strong>Quantidade Ideal:</strong> Para completar o tabuleiro de 30 cartas estrito (28 normais + 2 surpresas), o ideal é que você cadastre **exatamente 14 imagens**. Se cadastrar menos, o sistema repetirá as imagens de forma inteligente para preencher a mesa. Se cadastrar mais, o jogo usará as 14 primeiras da lista.</li>
-                </ul>
+
+                {/* Grade de Temas */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '10px', marginBottom: '14px' }}>
+                  {Object.entries(IMAGENS_TEMAS_MEMORIA).map(([tema, imgs]) => (
+                    <div
+                      key={tema}
+                      onClick={() => setCadMemoTemaSelecionado(cadMemoTemaSelecionado === tema ? null : tema)}
+                      style={{
+                        background: cadMemoTemaSelecionado === tema ? 'rgba(245, 158, 11, 0.15)' : 'rgba(15, 23, 42, 0.55)',
+                        border: cadMemoTemaSelecionado === tema ? '1.5px solid #f59e0b' : '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '10px',
+                        padding: '10px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {/* 3 previews do tema */}
+                      <div style={{ display: 'flex', gap: '4px', marginBottom: '6px' }}>
+                        {imgs.slice(0, 3).map((url, i) => (
+                          <img key={i} src={url} alt="" style={{ width: '33%', aspectRatio: '1/1', objectFit: 'cover', borderRadius: '5px' }} onError={e => { e.target.style.opacity = '0.2'; }} />
+                        ))}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: cadMemoTemaSelecionado === tema ? '#fbbf24' : '#d1d5db', marginBottom: '4px' }}>{tema}</div>
+                      <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>{imgs.length} imagens</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Painel expandido do tema selecionado */}
+                {cadMemoTemaSelecionado && (
+                  <div style={{ background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '12px', padding: '16px', marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontWeight: 800, color: '#fbbf24', fontSize: '0.95rem' }}>🎨 {cadMemoTemaSelecionado}</span>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <button
+                          className="btn-ac btn-add"
+                          style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', boxShadow: '0 4px 12px rgba(245,158,11,0.3)', fontSize: '0.82rem', padding: '6px 14px' }}
+                          onClick={() => {
+                            const imgsTema = IMAGENS_TEMAS_MEMORIA[cadMemoTemaSelecionado];
+                            const novaPool = [...memoImagensPool];
+                            imgsTema.forEach(url => { if (!novaPool.includes(url)) novaPool.push(url); });
+                            setMemoImagensPool(novaPool);
+                          }}
+                        >
+                          ➕ Adicionar todas ao banco
+                        </button>
+                        <button
+                          className="btn-ac"
+                          style={{ background: 'linear-gradient(90deg, #7c3aed, #8b5cf6)', fontSize: '0.82rem', padding: '6px 14px' }}
+                          onClick={() => {
+                            const imgsTema = IMAGENS_TEMAS_MEMORIA[cadMemoTemaSelecionado];
+                            if (confirm(`Substituir o banco atual pelas ${imgsTema.length} imagens de "${cadMemoTemaSelecionado}"?`)) {
+                              setMemoImagensPool([...imgsTema]);
+                            }
+                          }}
+                        >
+                          🔄 Usar só este tema
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '8px' }}>
+                      {IMAGENS_TEMAS_MEMORIA[cadMemoTemaSelecionado].map((url, i) => (
+                        <div key={i} style={{ position: 'relative' }}>
+                          <img src={url} alt="" style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', borderRadius: '8px', display: 'block' }} />
+                          <button
+                            onClick={() => {
+                              if (!memoImagensPool.includes(url)) setMemoImagensPool(prev => [...prev, url]);
+                            }}
+                            style={{
+                              position: 'absolute', bottom: '4px', right: '4px',
+                              background: memoImagensPool.includes(url) ? 'rgba(16,185,129,0.9)' : 'rgba(245,158,11,0.9)',
+                              border: 'none', borderRadius: '4px', color: '#fff',
+                              fontSize: '0.65rem', fontWeight: 800, padding: '2px 6px', cursor: 'pointer'
+                            }}
+                          >
+                            {memoImagensPool.includes(url) ? '✓ Ok' : '+ Add'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Input de nova imagem */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-                <label style={{ fontWeight: 'bold' }}>Adicionar Imagem por URL</label>
+              {/* Input de nova imagem por URL */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
+                <label style={{ fontWeight: 'bold', fontSize: '0.88rem' }}>Adicionar Imagem Personalizada por URL</label>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <input 
                     placeholder="Cole a URL da imagem aqui... (Ex: https://images.unsplash.com/...)" 
@@ -8862,8 +8896,7 @@ export default function App() {
 
       {/* 16. TELA DE CONFIGURAÇÃO JOGO DA MEMÓRIA */}
       <div id="tela-memo-nomes" className={`tela ${tela === 'memo-nomes' ? 'ativa' : ''}`} style={{ display: tela === 'memo-nomes' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center', minHeight: '100vh', padding: '14px', boxSizing: 'border-box', maxWidth: 'none' }}>
-        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'flex-start', marginBottom: '4px' }}>← Voltar ao Menu</button>
-        
+
         {/* Título Compacto */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center', marginBottom: '8px' }}>
           <span style={{ fontSize: '2.5rem', filter: 'drop-shadow(0 0 15px rgba(139, 92, 246, 0.45))' }}>🧠</span>
@@ -8977,9 +9010,7 @@ export default function App() {
                   >
                     <option value="embaralhar">Troca-Tudo 🌪️</option>
                     <option value="olho">Olho Mágico 👁️</option>
-                    <option value="ganhar-aura">Explosão de Aura 🗿✨</option>
-                    <option value="perder-aura">Dreno de Aura 📉💔</option>
-                    <option value="vez-extra">Turno Extra 🔄⚡</option>
+                    <option value="perca-vez">Perca a Vez 🚫</option>
                   </select>
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -8991,9 +9022,7 @@ export default function App() {
                   >
                     <option value="embaralhar">Troca-Tudo 🌪️</option>
                     <option value="olho">Olho Mágico 👁️</option>
-                    <option value="ganhar-aura">Explosão de Aura 🗿✨</option>
-                    <option value="perder-aura">Dreno de Aura 📉💔</option>
-                    <option value="vez-extra">Turno Extra 🔄⚡</option>
+                    <option value="perca-vez">Perca a Vez 🚫</option>
                   </select>
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -9005,9 +9034,7 @@ export default function App() {
                   >
                     <option value="embaralhar">Troca-Tudo 🌪️</option>
                     <option value="olho">Olho Mágico 👁️</option>
-                    <option value="ganhar-aura">Explosão de Aura 🗿✨</option>
-                    <option value="perder-aura">Dreno de Aura 📉💔</option>
-                    <option value="vez-extra">Turno Extra 🔄⚡</option>
+                    <option value="perca-vez">Perca a Vez 🚫</option>
                   </select>
                 </div>
               </div>
@@ -9037,18 +9064,31 @@ export default function App() {
             </div>
 
             {/* Ações e Botão de Projetor */}
+            {/* Botões da Segunda Tela: 16:9 e 16:10 */}
             <div style={{ display: 'flex', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
               <button 
                 className="btn-menu btn-outline" 
-                style={{ flex: 1, borderColor: '#8b5cf6', color: '#a78bfa', background: 'rgba(139, 92, 246, 0.05)', fontSize: '0.82rem', padding: '8px 12px', alignSelf: 'center', whiteSpace: 'nowrap' }}
-                onClick={() => window.open(window.location.origin + window.location.pathname + '?projetor=true', '_blank', 'width=1200,height=800')}
+                style={{ flex: 1, borderColor: '#3b82f6', color: '#60a5fa', background: 'rgba(59, 130, 246, 0.08)', fontSize: '0.8rem', padding: '7px 10px', alignSelf: 'center', whiteSpace: 'nowrap' }}
+                onClick={() => { setMemoProjetorAspecto('16:9'); localStorage.setItem('memoProjetorAspecto', '16:9'); window.open(window.location.origin + window.location.pathname + '?projetor=true', '_blank', 'width=1280,height=720'); }}
               >
-                📺 Abrir Segunda Tela
+                📺 Segunda Tela 16:9
+              </button>
+              <button 
+                className="btn-menu btn-outline" 
+                style={{ flex: 1, borderColor: '#8b5cf6', color: '#a78bfa', background: 'rgba(139, 92, 246, 0.08)', fontSize: '0.8rem', padding: '7px 10px', alignSelf: 'center', whiteSpace: 'nowrap' }}
+                onClick={() => { setMemoProjetorAspecto('16:10'); localStorage.setItem('memoProjetorAspecto', '16:10'); window.open(window.location.origin + window.location.pathname + '?projetor=true', '_blank', 'width=1280,height=800'); }}
+              >
+                📺 Segunda Tela 16:10
               </button>
               
               <button className="btn-start" style={{ flex: 1.3, background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 6px 20px rgba(139, 92, 246, 0.35)', padding: '8px 16px', fontSize: '0.9rem', margin: 0 }} onClick={() => iniciarPartidaMemoria(memoMateria)}>
                 Começar Disputa! 🚀
               </button>
+            </div>
+
+            {/* Botão Voltar ao Menu — canto inferior esquerdo */}
+            <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '2px' }}>
+              <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ fontSize: '0.8rem', padding: '6px 14px' }}>← Voltar ao Menu</button>
             </div>
 
           </div>
@@ -9069,7 +9109,6 @@ export default function App() {
               {memoPontuacao[0]} pts
             </span>
           </div>
-          
           <div style={{ textAlign: 'center' }}>
             <span style={{ fontSize: '0.78rem', color: '#c4b5fd', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '1px' }}>
               🧠 Jogo da Memória Pedagógico
@@ -9078,7 +9117,6 @@ export default function App() {
               ▶ Vez de jogar: {memoEquipeVez === 0 ? nomeJ1 : nomeJ2}
             </div>
           </div>
-          
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ background: 'rgba(236,72,153,0.15)', border: '1px solid rgba(236,72,153,0.3)', color: '#f9a8d4', borderRadius: '8px', padding: '2px 10px', fontSize: '0.85rem', fontWeight: 700 }}>
               {memoPontuacao[1]} pts
@@ -9088,27 +9126,24 @@ export default function App() {
           </div>
         </div>
 
-        {/* Barra de Ferramentas de Moderação: Escala e Informações */}
+        {/* Barra de Ferramentas: Matéria + Escala 1ª e 2ª tela */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(30, 41, 59, 0.45)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '12px', padding: '8px 20px', marginBottom: '14px', flexShrink: 0, gap: '14px', flexWrap: 'wrap' }}>
           <div style={{ fontSize: '0.88rem', color: '#cbd5e1' }}>
             📚 Matéria Ativa: <strong style={{ color: '#a78bfa' }}>{memoMateria || 'Geral'}</strong>
           </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '280px' }}>
-            <span style={{ fontSize: '0.8rem', color: '#cbd5e1', whiteSpace: 'nowrap', fontWeight: 'bold' }}>📐 Escala do Projetor:</span>
-            <input 
-              type="range" 
-              min="80" 
-              max="135" 
-              value={memoCartaEscala}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                setMemoCartaEscala(val);
-                enviarMsgProjetor('MEMO_ATUALIZAR', { cartaEscala: val });
-              }}
-              style={{ flex: 1, accentColor: '#3b82f6', cursor: 'pointer', height: '5px' }}
-            />
-            <span style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 'bold', minWidth: '40px', textAlign: 'right' }}>{memoCartaEscala}%</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}>
+            <span style={{ fontSize: '0.75rem', color: '#10b981', whiteSpace: 'nowrap', fontWeight: 'bold' }}>📏 1ª Tela:</span>
+            <input type="range" min="30" max="100" value={memoModeradorEscala}
+              onChange={(e) => { const val = Number(e.target.value); setMemoModeradorEscala(val); localStorage.setItem('memoModeradorEscala', val); }}
+              style={{ flex: 1, accentColor: '#10b981', cursor: 'pointer', height: '4px' }} />
+            <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: 'bold', minWidth: '34px', textAlign: 'right' }}>{memoModeradorEscala}%</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}>
+            <span style={{ fontSize: '0.75rem', color: '#cbd5e1', whiteSpace: 'nowrap', fontWeight: 'bold' }}>📺 2ª Tela:</span>
+            <input type="range" min="50" max="130" value={memoCartaEscala}
+              onChange={(e) => { const val = Number(e.target.value); setMemoCartaEscala(val); enviarMsgProjetor('MEMO_ATUALIZAR', { cartaEscala: val }); }}
+              style={{ flex: 1, accentColor: '#3b82f6', cursor: 'pointer', height: '4px' }} />
+            <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 'bold', minWidth: '34px', textAlign: 'right' }}>{memoCartaEscala}%</span>
           </div>
         </div>
 
@@ -9119,16 +9154,23 @@ export default function App() {
           </div>
         )}
 
-        {/* Destaque das Cartas Viradas no Turno removido */}
-
         {/* Tabuleiro de Cartas (Painel do Professor - Semitransparentes) */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden', padding: '4px 0' }}>
+          {/* Wrapper com transform scale controlado pelo slider da 1ª tela */}
+          <div style={{ 
+            transform: `scale(${memoModeradorEscala / 100})`, 
+            transformOrigin: 'top center',
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center'
+          }}>
           <div className="memo-grid-moderacao">
             {memoCartas.map((carta, idx) => {
               const selecionada = memoCartasSelecionadas.includes(idx);
               const encontrada = carta.encontradaPor !== null;
               
-              // Define a cor de borda baseada no tipo da carta no painel do moderador
               let borderStyle = '1px solid rgba(255, 255, 255, 0.2)';
               let bgStyle = 'rgba(30, 41, 59, 0.4)';
               let textColor = '#cbd5e1';
@@ -9178,7 +9220,8 @@ export default function App() {
                     transition: 'all 0.2s',
                     opacity: encontrada ? 0.45 : 1,
                     position: 'relative',
-                    height: '80px',
+                    aspectRatio: '1 / 1',
+                    width: '100%',
                     boxSizing: 'border-box'
                   }}
                 >
@@ -9252,7 +9295,7 @@ export default function App() {
       </div>
 
       {/* 18. TELA DE PROJEÇÃO DO JOGO DA MEMÓRIA (TELA DOS ALUNOS) */}
-      <div id="tela-memo-projetor" className={`tela ${tela === 'memo-projetor' ? 'ativa' : ''}`} style={{ background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)', minHeight: '100vh', padding: 0, boxSizing: 'border-box', position: 'relative', display: tela === 'memo-projetor' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <div id="tela-memo-projetor" className={`tela ${tela === 'memo-projetor' ? 'ativa' : ''}`} style={{ background: '#3e3b5c', position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', padding: 0, margin: 0, boxSizing: 'border-box', zIndex: 9000, display: tela === 'memo-projetor' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         
         {/* POP-UP GIGACHAD DE AURA POINTS (Meme "Farmar Aura" 🗿🔥) */}
         {memoAuraFeedback && (
@@ -9288,18 +9331,24 @@ export default function App() {
         )}
 
         {memoCartas.length > 0 ? (
-          <div style={{ width: '100%', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '16px', boxSizing: 'border-box' }}>
-            {/* Tabuleiro de Cartas 3D */}
-            <div 
-              className="memo-grid"
-              style={{
-                transform: `scale(${memoProjetorCartaEscala / 100})`,
-                transformOrigin: 'center center',
-                transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                width: '100%',
-                height: '100%'
-              }}
-            >
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '20px', boxSizing: 'border-box' }}>
+            {/* Wrapper com aspecto dinâmico (16:9 ou 16:10) */}
+            <div style={{
+              width: `min(calc(100vw - 40px), calc((100vh - 40px) * ${memoProjetorAspecto === '16:10' ? '16 / 10' : '16 / 9'}))`,
+              height: `min(calc(100vh - 40px), calc((100vw - 40px) * ${memoProjetorAspecto === '16:10' ? '10 / 16' : '9 / 16'}))`,
+              flexShrink: 0
+            }}>
+              {/* Tabuleiro de Cartas 3D */}
+              <div 
+                className="memo-grid"
+                style={{
+                  transform: `scale(${memoProjetorCartaEscala / 100})`,
+                  transformOrigin: 'center center',
+                  transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                  width: '100%',
+                  height: '100%'
+                }}
+              >
               {memoCartas.map((carta, idx) => {
                 const virada = carta.aberta || carta.encontradaPor !== null;
                 const encontrada = carta.encontradaPor !== null;
@@ -9362,6 +9411,7 @@ export default function App() {
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
         ) : (

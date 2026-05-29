@@ -57,7 +57,20 @@ h1, h2, h3, h4, h5, h6 {
   box-sizing: border-box;
 }
 
-#tela-memo-projetor,
+#tela-memo-projetor {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  max-width: none !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  z-index: 9000 !important;
+}
+
 #tela-memo-jogo {
   max-width: none !important;
   width: 100vw !important;
@@ -2106,26 +2119,27 @@ input::placeholder, textarea::placeholder {
    ESTILOS EXCLUSIVOS DO JOGO DA MEMÓRIA 3D PREMIUM
    ========================================================================== */
 
-/* Grid principal 7x5 responsivo para 35 cartas, ocupando a largura total */
+/* Grid principal 7x5 — margens uniformes controladas pelo wrapper com padding */
 .memo-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   grid-template-rows: repeat(5, 1fr);
-  gap: 16px;
-  width: 98%;
-  height: 96%;
-  margin: 0 auto;
+  gap: 14px;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
 }
 
-/* Moderação: grade de 7x5 ligeiramente menor para os controles */
+/* Moderação: grade 7x5 compacta, sem altura fixa, gap mínimo */
 .memo-grid-moderacao {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   grid-template-rows: repeat(5, 1fr);
-  gap: 8px;
+  gap: 4px;
   width: 100%;
-  max-height: 520px;
+  height: 100%;
   box-sizing: border-box;
 }
 
@@ -2135,7 +2149,13 @@ input::placeholder, textarea::placeholder {
   perspective: 1000px;
   cursor: pointer;
   width: 100%;
-  aspect-ratio: 1.35 / 1;
+  aspect-ratio: 1 / 1; /* quadrado na tela do moderador */
+}
+
+/* No projetor: carta preenche a célula do grid sem forçar quadrado */
+#tela-memo-projetor .card-3d {
+  aspect-ratio: auto;
+  height: 100%;
 }
 
 .card-3d-inner {
@@ -2146,7 +2166,7 @@ input::placeholder, textarea::placeholder {
   transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   transform-style: preserve-3d;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
-  border-radius: 12px;
+  border-radius: 14px;
 }
 
 /* Quando a carta é virada, gira 180 graus no eixo Y */
@@ -2161,7 +2181,7 @@ input::placeholder, textarea::placeholder {
   height: 100%;
   -webkit-backface-visibility: hidden; /* Safari */
   backface-visibility: hidden;
-  border-radius: 12px;
+  border-radius: 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2169,7 +2189,7 @@ input::placeholder, textarea::placeholder {
   padding: 8px;
   box-sizing: border-box;
   overflow: hidden;
-  border: 2px solid rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.10);
 }
 
 /* Verso da Carta (Oculto) */
