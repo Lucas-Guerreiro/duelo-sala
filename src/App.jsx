@@ -629,6 +629,22 @@ export default function App() {
   const [memoCartaEscala, setMemoCartaEscala] = useState(() => Number(localStorage.getItem('memoCartaEscala')) || 100);
   const [memoProjetorCartaEscala, setMemoProjetorCartaEscala] = useState(100);
 
+  const [pistasEquipeIniciar, setPistasEquipeIniciar] = useState(() => Number(localStorage.getItem('pistasEquipeIniciar')) || 0);
+  const [imAcaoEquipeIniciar, setImAcaoEquipeIniciar] = useState(() => Number(localStorage.getItem('imAcaoEquipeIniciar')) || 0);
+  const [memoEquipeIniciar, setMemoEquipeIniciar] = useState(() => Number(localStorage.getItem('memoEquipeIniciar')) || 0);
+
+  useEffect(() => {
+    localStorage.setItem('pistasEquipeIniciar', String(pistasEquipeIniciar));
+  }, [pistasEquipeIniciar]);
+
+  useEffect(() => {
+    localStorage.setItem('imAcaoEquipeIniciar', String(imAcaoEquipeIniciar));
+  }, [imAcaoEquipeIniciar]);
+
+  useEffect(() => {
+    localStorage.setItem('memoEquipeIniciar', String(memoEquipeIniciar));
+  }, [memoEquipeIniciar]);
+
   useEffect(() => {
     localStorage.setItem('memoCartaEscala', String(memoCartaEscala));
   }, [memoCartaEscala]);
@@ -1337,16 +1353,24 @@ export default function App() {
   };
 
   const iniciarPartidaImAcao = (tempoConfig) => {
-    const filaEmbaralhada = [...cartasImAcao].sort(() => Math.random() - 0.5);
-    setImAcaoFila(filaEmbaralhada);
+    // 1. Embaralhar as cartas de forma robusta usando o algoritmo de Fisher-Yates
+    const cartasCopiadas = [...cartasImAcao];
+    for (let i = cartasCopiadas.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = cartasCopiadas[i];
+      cartasCopiadas[i] = cartasCopiadas[j];
+      cartasCopiadas[j] = temp;
+    }
+    
+    setImAcaoFila(cartasCopiadas);
     setImAcaoPontuacao([1, 1]);
     setImAcaoRodada(1);
-    setImAcaoCartaAtual(filaEmbaralhada[0]);
+    setImAcaoCartaAtual(cartasCopiadas[0]);
     setImAcaoTimer(tempoConfig);
     setImAcaoMaxTimer(tempoConfig);
     setImAcaoFluxo('preparacao');
     setImAcaoCartaRevelada(false);
-    setImAcaoEquipeVez(0);
+    setImAcaoEquipeVez(imAcaoEquipeIniciar); // Utiliza a equipe inicial configurada
     setModoJogo('imacao');
     setImAcaoOpcaoSelecionada(0);
     setImAcaoModoRepresentacao('Desenho');
@@ -1358,8 +1382,8 @@ export default function App() {
     enviarMsgProjetor('INICIAR_PARTIDA', {
       pontuacao: [1, 1],
       rodada: 1,
-      carta: filaEmbaralhada[0],
-      equipeVez: 0,
+      carta: cartasCopiadas[0],
+      equipeVez: imAcaoEquipeIniciar, // Sincroniza equipe inicial no projetor
       maxTimer: tempoConfig,
       nomeJ1,
       nomeJ2
@@ -1719,13 +1743,19 @@ export default function App() {
     cartas.push(obterDefinicaoSurpresa(memoSurpresaEfeito1, 's1'));
     cartas.push(obterDefinicaoSurpresa(memoSurpresaEfeito2, 's2'));
 
-    // 4. Embaralhar as 30 cartas na mesa
-    const cartasEmbaralhadas = cartas.sort(() => Math.random() - 0.5);
+    // 4. Embaralhar as 30 cartas na mesa usando o algoritmo robusto de Fisher-Yates
+    const cartasEmbaralhadas = [...cartas];
+    for (let i = cartasEmbaralhadas.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = cartasEmbaralhadas[i];
+      cartasEmbaralhadas[i] = cartasEmbaralhadas[j];
+      cartasEmbaralhadas[j] = temp;
+    }
 
     // 5. Atualizar os estados locais do moderador
     setMemoCartas(cartasEmbaralhadas);
     setMemoPontuacao([0, 0]);
-    setMemoEquipeVez(0);
+    setMemoEquipeVez(memoEquipeIniciar); // Equipe inicial configurada
     setMemoCartasSelecionadas([]);
     setMemoEfeitoAtivo(null);
     setMemoBloqueioCliques(false);
@@ -1736,7 +1766,7 @@ export default function App() {
       materia: materiaEscolhida,
       cartas: cartasEmbaralhadas,
       pontuacao: [0, 0],
-      equipeVez: 0,
+      equipeVez: memoEquipeIniciar, // Sincroniza equipe inicial no projetor
       nomeJ1,
       nomeJ2,
       cartaEscala: memoCartaEscala
@@ -4453,9 +4483,16 @@ export default function App() {
     if (pistasTimerIntRef.current) clearInterval(pistasTimerIntRef.current);
     setPistasTimerSeg(null);
 
-    // Embaralhar cartas e limitar à quantidade de rodadas escolhida
+    // Embaralhar cartas usando o algoritmo Fisher-Yates e limitar à quantidade de rodadas escolhida
+    const cartasCopiadas = [...cartasPistas];
+    for (let i = cartasCopiadas.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = cartasCopiadas[i];
+      cartasCopiadas[i] = cartasCopiadas[j];
+      cartasCopiadas[j] = temp;
+    }
     const totalRodadasDesejadas = Math.min(pistasQtdRodadas, cartasPistas.length);
-    const filaEmbaralhada = [...cartasPistas].sort(() => Math.random() - 0.5).slice(0, totalRodadasDesejadas);
+    const filaEmbaralhada = cartasCopiadas.slice(0, totalRodadasDesejadas);
     
     // Configurar pistas bônus dinamicamente nas rodadas pares de forma revezada
     let indexRevezado = 0;
@@ -4490,8 +4527,8 @@ export default function App() {
     setPistasFluxoPalpite(null);
     setPistasVezPassada(false);
     
-    // Sorteia ou define a vez inicial (Equipe 1 começa)
-    setPistasEquipeVez(0);
+    // Sorteia ou define a vez inicial (Equipe configurada começa)
+    setPistasEquipeVez(pistasEquipeIniciar);
     
     setModoJogo('pistas');
     irParaTela('pistas-jogo');
@@ -7914,6 +7951,47 @@ export default function App() {
           </div>
         </div>
 
+        {/* Escolha de quem começa a partida */}
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '0 auto 24px', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'left', border: '1px solid rgba(236, 72, 153, 0.15)' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f472b6', marginBottom: '10px', borderLeft: '3px solid #ec4899', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            🚩 Vez Inicial (Quem Começa a Jogar?)
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={() => setPistasEquipeIniciar(0)}
+              style={{
+                flex: 1,
+                padding: '10px',
+                borderRadius: '8px',
+                border: '1.5px solid #3b82f6',
+                background: pistasEquipeIniciar === 0 ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                color: pistasEquipeIniciar === 0 ? '#60a5fa' : '#9ca3af',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              🔵 {nomeJ1 || 'Equipe 1'}
+            </button>
+            <button 
+              onClick={() => setPistasEquipeIniciar(1)}
+              style={{
+                flex: 1,
+                padding: '10px',
+                borderRadius: '8px',
+                border: '1.5px solid #ec4899',
+                background: pistasEquipeIniciar === 1 ? 'rgba(236, 72, 246, 0.25)' : 'transparent',
+                color: pistasEquipeIniciar === 1 ? '#f472b6' : '#9ca3af',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              🩷 {nomeJ2 || 'Equipe 2'}
+            </button>
+          </div>
+        </div>
+
         <button className="btn-start" style={{ width: '100%', maxWidth: '300px', padding: '14px 28px', background: 'linear-gradient(90deg, #ec4899, #7c3aed)', boxShadow: '0 8px 30px rgba(236, 72, 153, 0.45)', margin: '10px auto' }} onClick={iniciarPartidaPistas}>
           Iniciar Partida 🚀
         </button>
@@ -8320,6 +8398,47 @@ export default function App() {
               onChange={(e) => setImAcaoMaxTimer(Number(e.target.value))}
               style={{ accentColor: '#10b981', height: '6px', background: 'rgba(255, 255, 255, 0.1)', border: 'none', width: '100%', cursor: 'pointer' }}
             />
+          </div>
+        </div>
+
+        {/* Escolha de quem começa a partida */}
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '0 auto 14px', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'center' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>
+            🚩 Vez Inicial (Quem Começa a Jogar?)
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={() => setImAcaoEquipeIniciar(0)}
+              style={{
+                flex: 1,
+                padding: '10px',
+                borderRadius: '8px',
+                border: '1.5px solid #3b82f6',
+                background: imAcaoEquipeIniciar === 0 ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                color: imAcaoEquipeIniciar === 0 ? '#60a5fa' : '#9ca3af',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              🔵 {nomeJ1 || 'Equipe 1'}
+            </button>
+            <button 
+              onClick={() => setImAcaoEquipeIniciar(1)}
+              style={{
+                flex: 1,
+                padding: '10px',
+                borderRadius: '8px',
+                border: '1.5px solid #ec4899',
+                background: imAcaoEquipeIniciar === 1 ? 'rgba(236, 72, 246, 0.25)' : 'transparent',
+                color: imAcaoEquipeIniciar === 1 ? '#f472b6' : '#9ca3af',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              🩷 {nomeJ2 || 'Equipe 2'}
+            </button>
           </div>
         </div>
 
@@ -8837,6 +8956,47 @@ export default function App() {
               style={{ flex: 1, accentColor: '#3b82f6', cursor: 'pointer', height: '6px', borderRadius: '3px' }}
             />
             <span style={{ fontSize: '0.85rem', color: '#60a5fa', fontWeight: 'bold' }}>Grande ({memoCartaEscala}%)</span>
+          </div>
+        </div>
+
+        {/* Escolha de quem começa a partida */}
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'center' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#a78bfa', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>
+            🚩 Vez Inicial (Quem Começa a Jogar?)
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={() => setMemoEquipeIniciar(0)}
+              style={{
+                flex: 1,
+                padding: '10px',
+                borderRadius: '8px',
+                border: '1.5px solid #3b82f6',
+                background: memoEquipeIniciar === 0 ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                color: memoEquipeIniciar === 0 ? '#60a5fa' : '#9ca3af',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              🔵 {nomeJ1 || 'Equipe 1'}
+            </button>
+            <button 
+              onClick={() => setMemoEquipeIniciar(1)}
+              style={{
+                flex: 1,
+                padding: '10px',
+                borderRadius: '8px',
+                border: '1.5px solid #ec4899',
+                background: memoEquipeIniciar === 1 ? 'rgba(236, 72, 246, 0.25)' : 'transparent',
+                color: memoEquipeIniciar === 1 ? '#f472b6' : '#9ca3af',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              🩷 {nomeJ2 || 'Equipe 2'}
+            </button>
           </div>
         </div>
 
