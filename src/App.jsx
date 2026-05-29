@@ -1629,27 +1629,27 @@ export default function App() {
     setMemoMateria(materiaEscolhida);
     setModoJogo('memoria');
 
-    // 1. Filtrar e completar perguntas para obter exatamente 14 pares
+    // 1. Filtrar e completar perguntas para obter exatamente 15 pares (30 cartas normais)
     let pergsFiltradas = perguntas.filter(p => p.mat === materiaEscolhida);
     
     // Se faltarem perguntas, completa com outras da pool geral
-    if (pergsFiltradas.length < 14) {
+    if (pergsFiltradas.length < 15) {
       const outras = perguntas.filter(p => p.mat !== materiaEscolhida);
       pergsFiltradas = [...pergsFiltradas, ...outras];
     }
     
     // Se ainda assim faltarem, completa com as perguntas padrão
-    if (pergsFiltradas.length < 14) {
+    if (pergsFiltradas.length < 15) {
       pergsFiltradas = [...pergsFiltradas, ...PERGUNTAS_PADRAO];
     }
 
-    // Pega exatamente as primeiras 14 perguntas
-    const pergsPartida = pergsFiltradas.slice(0, 14);
+    // Pega exatamente as primeiras 15 perguntas
+    const pergsPartida = pergsFiltradas.slice(0, 15);
 
     // Usa a pool de imagens gerenciada pelo professor (ou fallback se estiver vazia)
     const poolImagens = memoImagensPool.length > 0 ? memoImagensPool : IMAGENS_PADRAO_MEMORIA;
 
-    // 2. Criar cartas (14 perguntas e 14 respostas correspondentes)
+    // 2. Criar cartas (15 perguntas e 15 respostas correspondentes)
     const cartas = [];
     pergsPartida.forEach((perg, idx) => {
       const imgUrl = poolImagens[idx % poolImagens.length];
@@ -9214,7 +9214,7 @@ export default function App() {
       </div>
 
       {/* 18. TELA DE PROJEÇÃO DO JOGO DA MEMÓRIA (TELA DOS ALUNOS) */}
-      <div id="tela-memo-projetor" className={`tela ${tela === 'memo-projetor' ? 'ativa' : ''}`} style={{ background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)', minHeight: '100vh', padding: '24px', boxSizing: 'border-box', position: 'relative', display: tela === 'memo-projetor' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div id="tela-memo-projetor" className={`tela ${tela === 'memo-projetor' ? 'ativa' : ''}`} style={{ background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)', minHeight: '100vh', padding: 0, boxSizing: 'border-box', position: 'relative', display: tela === 'memo-projetor' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         
         {/* POP-UP GIGACHAD DE AURA POINTS (Meme "Farmar Aura" 🗿🔥) */}
         {memoAuraFeedback && (
@@ -9250,224 +9250,80 @@ export default function App() {
         )}
 
         {memoCartas.length > 0 ? (
-          <div className="projetor-screen" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            {/* Header Projetado */}
-            <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: '12px', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <span style={{ fontSize: '2.5rem', filter: 'drop-shadow(0 0 10px rgba(139, 92, 246, 0.5))' }}>🧠</span>
-                <div>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', margin: 0, fontFamily: 'Outfit' }}>Jogo da Memória Pedagógico</h1>
-                  <div style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.95rem', fontSize: '0.88rem', color: '#c4b5fd', fontWeight: 'bold' }}>
-                    <span>Matéria: {memoMateria}</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#a5f3fc' }}>
-                      <span>▶</span>
-                      <span style={{ fontWeight: 800 }}>Equipe Ativa:</span>
-                      <span style={{ color: memoEquipeVez === 0 ? '#60a5fa' : '#f472b6', textShadow: memoEquipeVez === 0 ? '0 0 10px rgba(59,130,246,0.5)' : '0 0 10px rgba(236,72,153,0.5)' }}>
-                        {memoEquipeVez === 0 ? nomeJ1 : nomeJ2}
-                      </span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                <div style={{ background: 'rgba(59,130,246,0.15)', border: `2.5px solid ${memoEquipeVez === 0 ? '#3b82f6' : 'rgba(59,130,246,0.2)'}`, borderRadius: '14px', padding: '6px 20px', textAlign: 'center', boxShadow: memoEquipeVez === 0 ? '0 0 15px rgba(59,130,246,0.4)' : 'none', transition: 'all 0.3s' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#93c5fd', fontWeight: 'bold' }}>🔵 {nomeJ1}</div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#60a5fa' }}>{memoPontuacao[0]} pares</div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', color: '#a78bfa', fontSize: '1.8rem', fontWeight: 900 }}>VS</div>
-                <div style={{ background: 'rgba(236,72,153,0.15)', border: `2.5px solid ${memoEquipeVez === 1 ? '#ec4899' : 'rgba(236,72,153,0.2)'}`, borderRadius: '14px', padding: '6px 20px', textAlign: 'center', boxShadow: memoEquipeVez === 1 ? '0 0 15px rgba(236,72,153,0.4)' : 'none', transition: 'all 0.3s' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#f9a8d4', fontWeight: 'bold' }}>🩷 {nomeJ2}</div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#f472b6' }}>{memoPontuacao[1]} pares</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Medidores de Aura Points (Meme "Farmar Aura" 🗿🔥) */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              width: '100%', 
-              gap: '24px', 
-              margin: '10px 0 16px', 
-              background: 'rgba(15, 23, 42, 0.65)', 
-              border: '1px solid rgba(255, 255, 255, 0.05)', 
-              borderRadius: '16px', 
-              padding: '12px 24px', 
-              boxSizing: 'border-box' 
-            }}>
-              {/* Aura Equipe Azul */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    🔵 {nomeJ1} — <strong style={{ color: '#fff' }}>{obterTituloAura(memoPontuacao[0])}</strong>
-                  </span>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#93c5fd', textShadow: '0 0 8px rgba(59, 130, 246, 0.6)' }}>
-                    +{memoPontuacao[0] * 1000} AURA POINTS
-                  </span>
-                </div>
-                {/* Barra de Progresso de Aura Azul */}
-                <div style={{ width: '100%', height: '14px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                  <div style={{ 
-                    width: `${Math.min((memoPontuacao[0] / 8) * 100, 100)}%`, 
-                    height: '100%', 
-                    background: 'linear-gradient(90deg, #1d4ed8, #3b82f6, #60a5fa)', 
-                    borderRadius: '20px', 
-                    boxShadow: '0 0 12px #3b82f6', 
-                    transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)' 
-                  }} />
-                </div>
-              </div>
-
-              {/* Divisor vertical */}
-              <div style={{ width: '1px', background: 'rgba(255, 255, 255, 0.1)', alignSelf: 'stretch' }} />
-
-              {/* Aura Equipe Rosa */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f472b6', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    🩷 {nomeJ2} — <strong style={{ color: '#fff' }}>{obterTituloAura(memoPontuacao[1])}</strong>
-                  </span>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#f9a8d4', textShadow: '0 0 8px rgba(236, 72, 153, 0.6)' }}>
-                    +{memoPontuacao[1] * 1000} AURA POINTS
-                  </span>
-                </div>
-                {/* Barra de Progresso de Aura Rosa */}
-                <div style={{ width: '100%', height: '14px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(236, 72, 153, 0.2)' }}>
-                  <div style={{ 
-                    width: `${Math.min((memoPontuacao[1] / 8) * 100, 100)}%`, 
-                    height: '100%', 
-                    background: 'linear-gradient(90deg, #be185d, #ec4899, #f472b6)', 
-                    borderRadius: '20px', 
-                    boxShadow: '0 0 12px #ec4899', 
-                    transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)' 
-                  }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Efeito Visual na Mesa */}
-            {memoEfeitoAtivo && (
-              <div style={{ 
-                background: memoEfeitoAtivo === 'embaralhar' ? 'rgba(245, 158, 11, 0.2)' : 
-                            memoEfeitoAtivo === 'revelar' ? 'rgba(139, 92, 246, 0.2)' : 
-                            memoEfeitoAtivo === 'ganhar-aura' ? 'rgba(16, 185, 129, 0.2)' :
-                            memoEfeitoAtivo === 'perder-aura' ? 'rgba(239, 68, 68, 0.2)' :
-                            'rgba(59, 130, 246, 0.2)', 
-                border: `2.5px solid ${
-                            memoEfeitoAtivo === 'embaralhar' ? '#f59e0b' : 
-                            memoEfeitoAtivo === 'revelar' ? '#8b5cf6' : 
-                            memoEfeitoAtivo === 'ganhar-aura' ? '#10b981' :
-                            memoEfeitoAtivo === 'perder-aura' ? '#ef4444' :
-                            '#3b82f6'
-                }`, 
-                borderRadius: '16px', 
-                padding: '14px 28px', 
-                color: '#fff', 
-                fontSize: '1.4rem', 
-                fontWeight: 900, 
-                textAlign: 'center', 
-                margin: '14px auto', 
-                maxWidth: '800px', 
-                width: '100%', 
-                animation: 'pulse 1s infinite alternate', 
-                boxShadow: `0 0 25px ${
-                            memoEfeitoAtivo === 'embaralhar' ? 'rgba(245, 158, 11, 0.3)' : 
-                            memoEfeitoAtivo === 'revelar' ? 'rgba(139, 92, 246, 0.3)' : 
-                            memoEfeitoAtivo === 'ganhar-aura' ? 'rgba(16, 185, 129, 0.3)' :
-                            memoEfeitoAtivo === 'perder-aura' ? 'rgba(239, 68, 68, 0.3)' :
-                            'rgba(59, 130, 246, 0.3)'
-                }`, 
-                boxSizing: 'border-box' 
-              }}>
-                {memoEfeitoAtivo === 'embaralhar' ? '🌪️ SURPRESA: Efeito Troca-Tudo! Embaralhando as cartas fechadas da mesa!' : 
-                 memoEfeitoAtivo === 'revelar' ? '👁️ SURPRESA: Efeito Olho Mágico! Revelando um par secreto para vocês memorizarem!' :
-                 memoEfeitoAtivo === 'ganhar-aura' ? '💥 SURPRESA: Explosão de Aura! Ganharam +2000 Aura Points! GigaChads! 🗿✨' :
-                 memoEfeitoAtivo === 'perder-aura' ? '📉 SURPRESA: Dreno de Aura! Perderam -1000 Aura Points! 💔' :
-                 '🔄 SURPRESA: Turno Extra! Joguem mais uma vez seguidamente! ⚡'}
-              </div>
-            )}
-
-            {/* Destaque das Cartas Viradas no Turno removido */}
-
+          <div style={{ width: '100%', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '16px', boxSizing: 'border-box' }}>
             {/* Tabuleiro de Cartas 3D */}
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, margin: '10px 0', overflow: 'hidden', width: '100%' }}>
-              <div 
-                className="memo-grid"
-                style={{
-                  transform: `scale(${memoProjetorCartaEscala / 100})`,
-                  transformOrigin: 'center center',
-                  transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
-                }}
-              >
-                {memoCartas.map((carta, idx) => {
-                  const virada = carta.aberta || carta.encontradaPor !== null;
-                  const encontrada = carta.encontradaPor !== null;
-                  
-                  // Classes dinâmicas para as cartas
-                  let cardTypeClass = '';
-                  if (encontrada) {
-                    cardTypeClass = carta.encontradaPor === 0 ? 'card-encontrada-azul' : 'card-encontrada-rosa';
-                  } else {
-                    if (carta.tipo === 'surpresa-embaralhar') cardTypeClass = 'card-surpresa-embaralhar';
-                    else if (carta.tipo === 'surpresa-olho') cardTypeClass = 'card-surpresa-olho';
-                    else if (carta.tipo === 'surpresa-ganhar-aura') cardTypeClass = 'card-surpresa-olho';
-                    else if (carta.tipo === 'surpresa-perder-aura') cardTypeClass = 'card-surpresa-embaralhar';
-                    else if (carta.tipo === 'surpresa-vez-extra') cardTypeClass = 'card-surpresa-olho';
-                    else if (carta.tipo === 'pergunta') cardTypeClass = 'card-pergunta';
-                    else if (carta.tipo === 'resposta') cardTypeClass = 'card-resposta';
-                  }
+            <div 
+              className="memo-grid"
+              style={{
+                transform: `scale(${memoProjetorCartaEscala / 100})`,
+                transformOrigin: 'center center',
+                transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                width: '100%',
+                height: '100%'
+              }}
+            >
+              {memoCartas.map((carta, idx) => {
+                const virada = carta.aberta || carta.encontradaPor !== null;
+                const encontrada = carta.encontradaPor !== null;
+                
+                // Classes dinâmicas para as cartas
+                let cardTypeClass = '';
+                if (encontrada) {
+                  cardTypeClass = carta.encontradaPor === 0 ? 'card-encontrada-azul' : 'card-encontrada-rosa';
+                } else {
+                  if (carta.tipo === 'surpresa-embaralhar') cardTypeClass = 'card-surpresa-embaralhar';
+                  else if (carta.tipo === 'surpresa-olho') cardTypeClass = 'card-surpresa-olho';
+                  else if (carta.tipo === 'surpresa-ganhar-aura') cardTypeClass = 'card-surpresa-olho';
+                  else if (carta.tipo === 'surpresa-perder-aura') cardTypeClass = 'card-surpresa-embaralhar';
+                  else if (carta.tipo === 'surpresa-vez-extra') cardTypeClass = 'card-surpresa-olho';
+                  else if (carta.tipo === 'pergunta') cardTypeClass = 'card-pergunta';
+                  else if (carta.tipo === 'resposta') cardTypeClass = 'card-resposta';
+                }
 
-                  // Efeito de redemoinho durante embaralhamento surpresa
-                  const rolandoEmbaralhar = memoEfeitoAtivo === 'embaralhar' && !encontrada;
+                // Efeito de redemoinho durante embaralhamento surpresa
+                const rolandoEmbaralhar = memoEfeitoAtivo === 'embaralhar' && !encontrada;
 
-                  return (
-                    <div 
-                      key={carta.id} 
-                      onClick={() => virarCartaMemoria(idx)}
-                      className={`card-3d ${virada ? 'virada' : ''} ${cardTypeClass} ${rolandoEmbaralhar ? 'efeito-redemoinho' : ''}`}
-                      style={{ pointerEvents: 'auto', cursor: 'pointer' }}
-                    >
-                      <div className="card-3d-inner" style={{ pointerEvents: 'none' }}>
-                        {/* Verso da carta (Oculta) */}
-                        <div className="card-3d-back" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <span style={{ fontSize: '1.6rem', opacity: 0.65 }}>🧠</span>
-                          <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                            {idx + 1}
-                          </span>
-                        </div>
+                return (
+                  <div 
+                    key={carta.id} 
+                    onClick={() => virarCartaMemoria(idx)}
+                    className={`card-3d ${virada ? 'virada' : ''} ${cardTypeClass} ${rolandoEmbaralhar ? 'efeito-redemoinho' : ''}`}
+                    style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                  >
+                    <div className="card-3d-inner" style={{ pointerEvents: 'none' }}>
+                      {/* Verso da carta (Oculta) */}
+                      <div className="card-3d-back" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={{ fontSize: '1.6rem', opacity: 0.65 }}>🧠</span>
+                        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                          {idx + 1}
+                        </span>
+                      </div>
+                      
+                      {/* Frente da carta (Aberta / Virada - Com imagem em vez de texto!) */}
+                      <div className="card-3d-front" style={{ display: 'flex', flexDirection: 'column', gap: '0', padding: '0', overflow: 'hidden', position: 'relative' }}>
+                        {/* Imagem do cartão */}
+                        {carta.imagem ? (
+                          <img 
+                            src={carta.imagem} 
+                            alt="Ilustração" 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          />
+                        ) : (
+                          /* Fallback se a imagem falhar */
+                          <div style={{ fontSize: '2rem' }}>{carta.tipo === 'surpresa-embaralhar' ? '🌪️' : '👁️'}</div>
+                        )}
                         
-                        {/* Frente da carta (Aberta / Virada - Com imagem em vez de texto!) */}
-                        <div className="card-3d-front" style={{ display: 'flex', flexDirection: 'column', gap: '0', padding: '0', overflow: 'hidden', position: 'relative' }}>
-                          {/* Imagem do cartão */}
-                          {carta.imagem ? (
-                            <img 
-                              src={carta.imagem} 
-                              alt="Ilustração" 
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                            />
-                          ) : (
-                            /* Fallback se a imagem falhar */
-                            <div style={{ fontSize: '2rem' }}>{carta.tipo === 'surpresa-embaralhar' ? '🌪️' : '👁️'}</div>
-                          )}
-                          
-                          {/* Emblema da Equipe se foi encontrada (overlay) */}
-                          {encontrada && (
-                            <span style={{ fontSize: '0.62rem', fontWeight: 900, background: carta.encontradaPor === 0 ? '#3b82f6' : '#ec4899', color: '#fff', borderRadius: '4px', padding: '2px 6px', position: 'absolute', top: '5px', left: '5px', boxShadow: '0 0 8px rgba(0,0,0,0.5)', zIndex: 2 }}>
-                              {carta.encontradaPor === 0 ? nomeJ1 : nomeJ2}
-                            </span>
-                          )}
-                        </div>
+                        {/* Emblema da Equipe se foi encontrada (overlay) */}
+                        {encontrada && (
+                          <span style={{ fontSize: '0.62rem', fontWeight: 900, background: carta.encontradaPor === 0 ? '#3b82f6' : '#ec4899', color: '#fff', borderRadius: '4px', padding: '2px 6px', position: 'absolute', top: '5px', left: '5px', boxShadow: '0 0 8px rgba(0,0,0,0.5)', zIndex: 2 }}>
+                            {carta.encontradaPor === 0 ? nomeJ1 : nomeJ2}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Rodapé Projetado */}
-            <div style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '10px', fontSize: '0.8rem', color: '#9ca3af', flexShrink: 0 }}>
-              <span>Duelo em Sala — Jogo da Memória Pedagógico © 2026</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : (
