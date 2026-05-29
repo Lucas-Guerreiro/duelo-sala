@@ -9171,14 +9171,14 @@ export default function App() {
                     border: borderStyle,
                     background: bgStyle,
                     borderRadius: '8px',
-                    padding: '6px',
+                    padding: '4px',
                     cursor: encontrada ? 'default' : 'pointer',
                     userSelect: 'none',
                     textAlign: 'center',
                     transition: 'all 0.2s',
                     opacity: encontrada ? 0.45 : 1,
                     position: 'relative',
-                    height: '80px',
+                    minHeight: 0,
                     boxSizing: 'border-box'
                   }}
                 >
@@ -9288,7 +9288,7 @@ export default function App() {
         )}
 
         {memoCartas.length > 0 ? (
-          <div style={{ width: '100%', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '16px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'stretch', justifyContent: 'center', overflow: 'hidden', padding: '12px', boxSizing: 'border-box' }}>
             {/* Tabuleiro de Cartas 3D */}
             <div 
               className="memo-grid"

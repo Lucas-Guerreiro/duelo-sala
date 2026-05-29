@@ -2106,14 +2106,14 @@ input::placeholder, textarea::placeholder {
    ESTILOS EXCLUSIVOS DO JOGO DA MEMÓRIA 3D PREMIUM
    ========================================================================== */
 
-/* Grid principal 7x5 responsivo para 35 cartas, ocupando a largura total */
+/* Grid principal 7x5 responsivo para 35 cartas, ocupando toda a viewport */
 .memo-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   grid-template-rows: repeat(5, 1fr);
-  gap: 16px;
-  width: 98%;
-  height: 96%;
+  gap: clamp(4px, 1vw, 14px);
+  width: 100%;
+  height: 100%;
   margin: 0 auto;
   box-sizing: border-box;
 }
@@ -2123,9 +2123,9 @@ input::placeholder, textarea::placeholder {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   grid-template-rows: repeat(5, 1fr);
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  max-height: 520px;
+  height: 100%;
   box-sizing: border-box;
 }
 
@@ -2135,7 +2135,8 @@ input::placeholder, textarea::placeholder {
   perspective: 1000px;
   cursor: pointer;
   width: 100%;
-  aspect-ratio: 1.35 / 1;
+  height: 100%;
+  min-height: 0;
 }
 
 .card-3d-inner {
