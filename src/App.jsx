@@ -561,6 +561,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : IMAGEM_ACAO_PADRAO;
   });
   const [imAcaoFila, setImAcaoFila] = useState([]);
+  const [imAcaoFilaIndex, setImAcaoFilaIndex] = useState(0); // posicao atual na fila embaralhada
   const [imAcaoPontuacao, setImAcaoPontuacao] = useState([1, 1]);
   const [imAcaoRodada, setImAcaoRodada] = useState(1);
   const [imAcaoCartaAtual, setImAcaoCartaAtual] = useState(null);
@@ -1296,9 +1297,11 @@ export default function App() {
       setImAcaoRodada(proximaRodada);
       setImAcaoEquipeVez(oponente);
 
-      // Sorteia a nova carta
-      const index = proximaRodada % imAcaoFila.length;
-      novaCarta = imAcaoFila[index];
+      // Sorteia a nova carta sem repetição imediata
+      const { fila: novaFila, index: novoIndex, carta: cartaSorteada } = proximaCartaDaFila(imAcaoFila, imAcaoFilaIndex, imAcaoCartaAtual);
+      novaCarta = cartaSorteada;
+      setImAcaoFila(novaFila);
+      setImAcaoFilaIndex(novoIndex);
       setImAcaoCartaAtual(novaCarta);
 
       // Oculta a carta na tela privada e pública
@@ -1353,25 +1356,32 @@ export default function App() {
     enviarMsgProjetor('SELECIONAR_OPCAO', { opcaoIdx: imAcaoOpcaoSelecionada, modo: modo });
   };
 
-  const iniciarPartidaImAcao = (tempoConfig) => {
-    // 1. Embaralhar as cartas de forma robusta usando o algoritmo de Fisher-Yates
-    const cartasCopiadas = [...cartasImAcao];
-    for (let i = cartasCopiadas.length - 1; i > 0; i--) {
+  // Embaralha array usando Fisher-Yates (util reutilizavel)
+  const fisherYates = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      const temp = cartasCopiadas[i];
-      cartasCopiadas[i] = cartasCopiadas[j];
-      cartasCopiadas[j] = temp;
+      [a[i], a[j]] = [a[j], a[i]];
     }
-    
-    setImAcaoFila(cartasCopiadas);
+    return a;
+  };
+
+  const iniciarPartidaImAcao = (tempoConfig) => {
+    if (cartasImAcao.length === 0) return;
+
+    // Embaralha toda a pool e salva o indice zerado
+    const embaralhadas = fisherYates(cartasImAcao);
+
+    setImAcaoFila(embaralhadas);
+    setImAcaoFilaIndex(0);
     setImAcaoPontuacao([1, 1]);
     setImAcaoRodada(1);
-    setImAcaoCartaAtual(cartasCopiadas[0]);
+    setImAcaoCartaAtual(embaralhadas[0]);
     setImAcaoTimer(tempoConfig);
     setImAcaoMaxTimer(tempoConfig);
     setImAcaoFluxo('preparacao');
     setImAcaoCartaRevelada(false);
-    setImAcaoEquipeVez(imAcaoEquipeIniciar); // Utiliza a equipe inicial configurada
+    setImAcaoEquipeVez(imAcaoEquipeIniciar);
     setModoJogo('imacao');
     setImAcaoOpcaoSelecionada(0);
     setImAcaoModoRepresentacao('Desenho');
@@ -1379,12 +1389,12 @@ export default function App() {
     setImAcaoDadoMovimentacao(2);
     setImAcaoDadosRolando(false);
     setImAcaoTelaBrancaAtiva(false);
-    
+
     enviarMsgProjetor('INICIAR_PARTIDA', {
       pontuacao: [1, 1],
       rodada: 1,
-      carta: cartasCopiadas[0],
-      equipeVez: imAcaoEquipeIniciar, // Sincroniza equipe inicial no projetor
+      carta: embaralhadas[0],
+      equipeVez: imAcaoEquipeIniciar,
       maxTimer: tempoConfig,
       nomeJ1,
       nomeJ2
@@ -1393,10 +1403,27 @@ export default function App() {
     irParaTela('ia-jogo');
   };
 
+  // Retorna a proxima carta da fila; quando a fila esgota, re-embaralha evitando repetir a ultima carta
+  const proximaCartaDaFila = (filaAtual, indexAtual, ultimaCarta) => {
+    const proximoIndex = indexAtual + 1;
+    if (proximoIndex < filaAtual.length) {
+      return { fila: filaAtual, index: proximoIndex, carta: filaAtual[proximoIndex] };
+    }
+    // Fila esgotada: re-embaralha garantindo que a 1a carta seja diferente da ultima
+    let novaFila = fisherYates(filaAtual);
+    if (novaFila.length > 1 && ultimaCarta && novaFila[0].id === ultimaCarta.id) {
+      // Troca a primeira com uma posicao aleatoria diferente de 0
+      const swap = Math.floor(Math.random() * (novaFila.length - 1)) + 1;
+      [novaFila[0], novaFila[swap]] = [novaFila[swap], novaFila[0]];
+    }
+    return { fila: novaFila, index: 0, carta: novaFila[0] };
+  };
+
   const sortearNovaCartaImAcao = () => {
-    const index = imAcaoRodada % imAcaoFila.length;
-    const novaCarta = imAcaoFila[index];
-    setImAcaoCartaAtual(novaCarta);
+    const { fila, index, carta } = proximaCartaDaFila(imAcaoFila, imAcaoFilaIndex, imAcaoCartaAtual);
+    setImAcaoFila(fila);
+    setImAcaoFilaIndex(index);
+    setImAcaoCartaAtual(carta);
     setImAcaoFluxo('preparacao');
     setImAcaoCartaRevelada(false);
     setImAcaoTimer(imAcaoMaxTimer);
@@ -1404,9 +1431,9 @@ export default function App() {
     setImAcaoDadoCategoria(1);
     setImAcaoDadoMovimentacao(2);
     setImAcaoTelaBrancaAtiva(false);
-    
+
     enviarMsgProjetor('SORTEAR_CARTA', {
-      carta: novaCarta,
+      carta,
       timer: imAcaoMaxTimer
     });
   };
