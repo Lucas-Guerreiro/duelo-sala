@@ -9252,7 +9252,7 @@ export default function App() {
       </div>
 
       {/* 18. TELA DE PROJEÇÃO DO JOGO DA MEMÓRIA (TELA DOS ALUNOS) */}
-      <div id="tela-memo-projetor" className={`tela ${tela === 'memo-projetor' ? 'ativa' : ''}`} style={{ background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)', minHeight: '100vh', padding: 0, boxSizing: 'border-box', position: 'relative', display: tela === 'memo-projetor' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <div id="tela-memo-projetor" className={`tela ${tela === 'memo-projetor' ? 'ativa' : ''}`} style={{ background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)', height: '100vh', width: '100vw', padding: 0, boxSizing: 'border-box', position: 'relative', display: tela === 'memo-projetor' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', overflow: 'hidden' }}>
         
         {/* POP-UP GIGACHAD DE AURA POINTS (Meme "Farmar Aura" 🗿🔥) */}
         {memoAuraFeedback && (
@@ -9288,17 +9288,11 @@ export default function App() {
         )}
 
         {memoCartas.length > 0 ? (
-          <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'stretch', justifyContent: 'center', overflow: 'hidden', padding: '12px', boxSizing: 'border-box' }}>
-            {/* Tabuleiro de Cartas 3D */}
+          <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', padding: '8px', boxSizing: 'border-box' }}>
+            {/* Tabuleiro de Cartas 3D — sem transform: o CSS grid 7x5 preenche o viewport naturalmente */}
             <div 
               className="memo-grid"
-              style={{
-                transform: `scale(${memoProjetorCartaEscala / 100})`,
-                transformOrigin: 'center center',
-                transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                width: '100%',
-                height: '100%'
-              }}
+              style={{ width: '100%', height: '100%' }}
             >
               {memoCartas.map((carta, idx) => {
                 const virada = carta.aberta || carta.encontradaPor !== null;
