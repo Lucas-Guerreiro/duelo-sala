@@ -5362,120 +5362,122 @@ export default function App() {
         </div>
 
         {/* Painel de Sincronização em Nuvem (Firebase) */}
-        <div className="card" style={{ 
-          background: 'linear-gradient(135deg, rgba(22, 33, 62, 0.75) 0%, rgba(13, 10, 35, 0.9) 100%)', 
-          border: '1.5px solid rgba(139, 92, 246, 0.4)', 
-          boxShadow: '0 0 25px rgba(139, 92, 246, 0.15)',
-          padding: '18px', 
-          borderRadius: '16px', 
-          marginBottom: '20px', 
-          width: '100%', 
-          boxSizing: 'border-box'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '280px' }}>
-              <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                ☁️ Sincronização Online em Nuvem (Firebase)
+        {cadGerenciadorAba !== 'memoria' && (
+          <div className="card" style={{ 
+            background: 'linear-gradient(135deg, rgba(22, 33, 62, 0.75) 0%, rgba(13, 10, 35, 0.9) 100%)', 
+            border: '1.5px solid rgba(139, 92, 246, 0.4)', 
+            boxShadow: '0 0 25px rgba(139, 92, 246, 0.15)',
+            padding: '18px', 
+            borderRadius: '16px', 
+            marginBottom: '20px', 
+            width: '100%', 
+            boxSizing: 'border-box'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '280px' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  ☁️ Sincronização Online em Nuvem (Firebase)
+                </div>
+                <p style={{ fontSize: '0.82rem', color: '#cbd5e1', margin: 0 }}>
+                  Sincronize todo o seu banco de perguntas, cartas e imagens de todos os jogos com a nuvem do Firebase!
+                </p>
               </div>
-              <p style={{ fontSize: '0.82rem', color: '#cbd5e1', margin: 0 }}>
-                Sincronize todo o seu banco de perguntas, cartas e imagens de todos os jogos com a nuvem do Firebase!
-              </p>
-            </div>
-            
-            {/* Input e Controles */}
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', flex: 1.5, minWidth: '280px', justifyContent: 'flex-end' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <label style={{ fontSize: '0.78rem', color: '#c4b5fd', fontWeight: 'bold' }}>Código de Acesso Online</label>
-                <input 
-                  value={codigoSalaOnline}
-                  onChange={(e) => setCodigoSalaOnline(e.target.value)}
-                  placeholder="Ex: LUCAS-GEOMETRIA"
-                  style={{
-                    background: '#0f172a',
-                    color: '#fff',
-                    border: '1.5px solid rgba(139, 92, 246, 0.4)',
-                    borderRadius: '8px',
-                    padding: '8px 14px',
-                    fontSize: '0.88rem',
-                    textTransform: 'uppercase',
-                    textAlign: 'center',
-                    letterSpacing: '0.5px',
-                    width: '180px'
-                  }}
-                />
-              </div>
+              
+              {/* Input e Controles */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', flex: 1.5, minWidth: '280px', justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#c4b5fd', fontWeight: 'bold' }}>Código de Acesso Online</label>
+                  <input 
+                    value={codigoSalaOnline}
+                    onChange={(e) => setCodigoSalaOnline(e.target.value)}
+                    placeholder="Ex: LUCAS-GEOMETRIA"
+                    style={{
+                      background: '#0f172a',
+                      color: '#fff',
+                      border: '1.5px solid rgba(139, 92, 246, 0.4)',
+                      borderRadius: '8px',
+                      padding: '8px 14px',
+                      fontSize: '0.88rem',
+                      textTransform: 'uppercase',
+                      textAlign: 'center',
+                      letterSpacing: '0.5px',
+                      width: '180px'
+                    }}
+                  />
+                </div>
 
-              <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
-                <button 
-                  onClick={handleEnviarParaNuvem}
-                  className="btn-start"
-                  style={{
-                    padding: '10px 18px',
-                    fontSize: '0.85rem',
-                    background: 'linear-gradient(90deg, #3b82f6, #60a5fa)',
-                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)'
-                  }}
-                >
-                  ☁️ Enviar para Nuvem
-                </button>
-                <button 
-                  onClick={handleBaixarDaNuvem}
-                  className="btn-start"
-                  style={{
-                    padding: '10px 18px',
-                    fontSize: '0.85rem',
-                    background: 'linear-gradient(90deg, #10b981, #34d399)',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
-                  }}
-                >
-                  ☁️ Baixar da Nuvem
-                </button>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                  <button 
+                    onClick={handleEnviarParaNuvem}
+                    className="btn-start"
+                    style={{
+                      padding: '10px 18px',
+                      fontSize: '0.85rem',
+                      background: 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)'
+                    }}
+                  >
+                    ☁️ Enviar para Nuvem
+                  </button>
+                  <button 
+                    onClick={handleBaixarDaNuvem}
+                    className="btn-start"
+                    style={{
+                      padding: '10px 18px',
+                      fontSize: '0.85rem',
+                      background: 'linear-gradient(90deg, #10b981, #34d399)',
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+                    }}
+                  >
+                    ☁️ Baixar da Nuvem
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap', gap: '10px' }}>
-            {/* Status do Sincronismo */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: '#9ca3af' }}>
-              <span>Status:</span>
-              <strong style={{ 
-                color: statusSincronismo.startsWith('✅') ? '#34d399' :
-                       statusSincronismo.startsWith('❌') ? '#f87171' :
-                       statusSincronismo.startsWith('⏳') ? '#fbbf24' : '#a78bfa',
-                textShadow: '0 0 10px rgba(255,255,255,0.05)'
-              }}>
-                {statusSincronismo}
-              </strong>
             </div>
 
-            {/* Switch de Auto-Sincronismo */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => setSincronismoAutomatico(!sincronismoAutomatico)}>
-              <div style={{
-                width: '40px',
-                height: '22px',
-                borderRadius: '11px',
-                background: sincronismoAutomatico ? '#3b82f6' : '#334155',
-                position: 'relative',
-                transition: 'background 0.2s',
-                boxShadow: sincronismoAutomatico ? '0 0 10px rgba(59, 130, 246, 0.5)' : 'none'
-              }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap', gap: '10px' }}>
+              {/* Status do Sincronismo */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: '#9ca3af' }}>
+                <span>Status:</span>
+                <strong style={{ 
+                  color: statusSincronismo.startsWith('✅') ? '#34d399' :
+                         statusSincronismo.startsWith('❌') ? '#f87171' :
+                         statusSincronismo.startsWith('⏳') ? '#fbbf24' : '#a78bfa',
+                  textShadow: '0 0 10px rgba(255,255,255,0.05)'
+                }}>
+                  {statusSincronismo}
+                </strong>
+              </div>
+
+              {/* Switch de Auto-Sincronismo */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => setSincronismoAutomatico(!sincronismoAutomatico)}>
                 <div style={{
-                  width: '16px',
-                  height: '16px',
-                  borderRadius: '50%',
-                  background: '#fff',
-                  position: 'absolute',
-                  top: '3px',
-                  left: sincronismoAutomatico ? '21px' : '3px',
-                  transition: 'left 0.2s'
-                }} />
+                  width: '40px',
+                  height: '22px',
+                  borderRadius: '11px',
+                  background: sincronismoAutomatico ? '#3b82f6' : '#334155',
+                  position: 'relative',
+                  transition: 'background 0.2s',
+                  boxShadow: sincronismoAutomatico ? '0 0 10px rgba(59, 130, 246, 0.5)' : 'none'
+                }}>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    background: '#fff',
+                    position: 'absolute',
+                    top: '3px',
+                    left: sincronismoAutomatico ? '21px' : '3px',
+                    transition: 'left 0.2s'
+                  }} />
+                </div>
+                <span style={{ fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 'bold' }}>
+                  🔄 Sincronização Automática ao Editar
+                </span>
               </div>
-              <span style={{ fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 'bold' }}>
-                🔄 Sincronização Automática ao Editar
-              </span>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Abas superiores do gerenciador geral */}
         {!origemConfig && (
@@ -6573,12 +6575,73 @@ export default function App() {
 
         {/* GERENCIADOR DAS IMAGENS DO JOGO DA MEMÓRIA */}
         {cadGerenciadorAba === 'memoria' && (
-          <div className="tab-panel ativa">
-            <div className="card">
-              <div className="sec">🧠 Gerenciar Imagens do Jogo da Memória</div>
+          <div className="tab-panel ativa" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* BLOCO 1: SINCRONIZAÇÃO EM NUVEM & BACKUP (MINIMALISTA) */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', border: '1.5px solid rgba(139, 92, 246, 0.35)', borderRadius: '14px', margin: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '8px' }}>
+                <span style={{ fontSize: '1.1rem' }}>☁️</span>
+                <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#c4b5fd' }}>Sincronização em Nuvem & Backup</span>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                {/* Lado Esquerdo: Firebase */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', flex: '1 1 350px' }}>
+                  <input 
+                    value={codigoSalaOnline}
+                    onChange={(e) => setCodigoSalaOnline(e.target.value)}
+                    placeholder="Código de Acesso (Ex: SALA10)"
+                    style={{ background: '#0f172a', color: '#fff', border: '1.5px solid rgba(139, 92, 246, 0.4)', borderRadius: '6px', padding: '6px 12px', fontSize: '0.8rem', textTransform: 'uppercase', width: '160px', textAlign: 'center' }}
+                  />
+                  <button 
+                    onClick={handleEnviarParaNuvem}
+                    className="btn-start"
+                    style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'linear-gradient(90deg, #3b82f6, #60a5fa)', margin: 0, width: 'auto', boxShadow: 'none', height: '32px', lineHeight: '18px' }}
+                  >
+                    Enviar 📤
+                  </button>
+                  <button 
+                    onClick={handleBaixarDaNuvem}
+                    className="btn-menu btn-play"
+                    style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'linear-gradient(90deg, #10b981, #34d399)', margin: 0, width: 'auto', boxShadow: 'none', height: '32px', lineHeight: '18px' }}
+                  >
+                    Baixar 📥
+                  </button>
+                </div>
+
+                {/* Lado Direito: Backup JSON */}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: '1 1 250px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <button 
+                    onClick={exportarMemoriaBackup}
+                    className="btn-menu btn-play"
+                    style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'linear-gradient(90deg, #374151, #4b5563)', margin: 0, width: 'auto', height: '32px', lineHeight: '18px', boxShadow: 'none', borderColor: 'rgba(255,255,255,0.1)' }}
+                  >
+                    Exportar JSON 📤
+                  </button>
+                  <div style={{ position: 'relative' }}>
+                    <input 
+                      type="file" 
+                      accept=".json" 
+                      onChange={importarMemoriaBackup}
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                    />
+                    <button 
+                      className="btn-start" 
+                      style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', margin: 0, width: 'auto', height: '32px', lineHeight: '18px', boxShadow: 'none' }}
+                    >
+                      Importar JSON 📥
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* BLOCO 2: GERENCIAR IMAGENS DO JOGO DA MEMÓRIA */}
+            <div className="card" style={{ margin: 0 }}>
+              <div className="sec" style={{ marginBottom: '14px' }}>🧠 Gerenciar Imagens do Jogo da Memória</div>
               
               {/* Input de nova imagem */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
                 <label style={{ fontWeight: 'bold' }}>Adicionar Imagem por URL</label>
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <input 
@@ -6640,279 +6703,186 @@ export default function App() {
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Customização de Imagens das Cartas Surpresas */}
-            <div className="card" style={{ marginTop: '20px' }}>
-              <div className="sec" style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '8px' }}>🎁 Imagens das Cartas Surpresas</div>
-              <p style={{ color: '#c4b5fd', fontSize: '0.85rem', marginBottom: '16px' }}>
-                Altere as URLs abaixo para customizar as imagens exibidas no verso de cada tipo de Carta Surpresa:
-              </p>
+              {/* Linha Divisória interna sutil */}
+              <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.08)', margin: '20px 0' }}></div>
 
-              {/* Seletor de Categoria para Surpresas */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#a78bfa' }}>Selecione a Categoria para Customizar as Surpresas:</label>
-                <select
-                  value={materiaCustomizarSurpresas}
-                  onChange={(e) => setMateriaCustomizarSurpresas(e.target.value)}
-                  style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px', padding: '8px 12px', fontSize: '0.85rem', cursor: 'pointer', maxWidth: '300px' }}
-                >
-                  <option value="">🌍 Geral / Todas</option>
-                  {materias.map((m, i) => (
-                    <option key={i} value={m}>{m}</option>
-                  ))}
-                </select>
-                <p style={{ color: '#9ca3af', fontSize: '0.75rem', margin: 0 }}>
-                  {materiaCustomizarSurpresas 
-                    ? `As surpresas abaixo serão salvas especificamente para a categoria "${materiaCustomizarSurpresas}".` 
-                    : "As surpresas abaixo serão salvas para o Jogo Geral."}
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Surpresa: Embaralhar */}
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <img 
-                    src={materiaCustomizarSurpresas ? (memoSurpresasPorMateria[materiaCustomizarSurpresas]?.embaralhar || memoImgSurpresaEmbaralhar) : memoImgSurpresaEmbaralhar} 
-                    alt="Preview Troca-Tudo"
-                    style={{ width: '55px', height: '55px', borderRadius: '8px', border: '1.5px solid rgba(245, 158, 11, 0.4)', objectFit: 'cover', background: '#0f172a' }}
-                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop"; }}
-                  />
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#f59e0b' }}>Troca-Tudo 🌪️ (Embaralhar)</label>
-                    <input 
-                      value={materiaCustomizarSurpresas ? (memoSurpresasPorMateria[materiaCustomizarSurpresas]?.embaralhar || '') : memoImgSurpresaEmbaralhar} 
-                      onChange={(e) => atualizarImagemSurpresa('embaralhar', e.target.value)}
-                      placeholder={materiaCustomizarSurpresas ? "Usar padrão Geral" : "URL da imagem para Troca-Tudo..."}
-                      style={{ fontSize: '0.82rem', padding: '6px 12px' }}
-                    />
-                  </div>
-                </div>
-
-                {/* Surpresa: Olho */}
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <img 
-                    src={materiaCustomizarSurpresas ? (memoSurpresasPorMateria[materiaCustomizarSurpresas]?.olho || memoImgSurpresaOlho) : memoImgSurpresaOlho} 
-                    alt="Preview Olho Mágico"
-                    style={{ width: '55px', height: '55px', borderRadius: '8px', border: '1.5px solid rgba(139, 92, 246, 0.4)', objectFit: 'cover', background: '#0f172a' }}
-                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop"; }}
-                  />
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#8b5cf6' }}>Olho Mágico 👁️ (Revelar Par)</label>
-                    <input 
-                      value={materiaCustomizarSurpresas ? (memoSurpresasPorMateria[materiaCustomizarSurpresas]?.olho || '') : memoImgSurpresaOlho} 
-                      onChange={(e) => atualizarImagemSurpresa('olho', e.target.value)}
-                      placeholder={materiaCustomizarSurpresas ? "Usar padrão Geral" : "URL da imagem para Olho Mágico..."}
-                      style={{ fontSize: '0.82rem', padding: '6px 12px' }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Backup e Restauração do Jogo da Memória */}
-            <div className="card" style={{ marginTop: '20px' }}>
-              <div className="sec" style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '8px' }}>💾 Backup e Restauração da Memória</div>
-              <p style={{ color: '#c4b5fd', fontSize: '0.85rem', marginBottom: '16px' }}>
-                Exporte todo o seu banco de imagens e configurações das cartas surpresas para salvaguardar o seu trabalho ou sincronizar em outros computadores.
-              </p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                {/* Bloco Exportar */}
-                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
-                  <h3 style={{ fontSize: '1.2rem', color: '#60a5fa', margin: '0 0 10px 0' }}>📤 Exportar Backup</h3>
-                  <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginBottom: '16px' }}>
-                    Gera um arquivo JSON contendo suas {memoImagensPool.length} imagens e as 5 imagens de cartas surpresas.
-                  </p>
-                  <button 
-                    className="btn-start" 
-                    onClick={exportarMemoriaBackup}
-                    style={{ padding: '10px 24px', fontSize: '0.9rem', width: '100%', background: 'linear-gradient(90deg, #3b82f6, #60a5fa)' }}
-                  >
-                    Exportar JSON
-                  </button>
-                </div>
-
-                {/* Bloco Importar */}
-                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
-                  <h3 style={{ fontSize: '1.2rem', color: '#34d399', margin: '0 0 10px 0' }}>📥 Importar Backup</h3>
-                  <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginBottom: '16px' }}>
-                    Selecione um arquivo de backup (.json) gerado anteriormente para restaurar imagens e surpresas.
-                  </p>
-                  <div style={{ position: 'relative', width: '100%' }}>
-                    <input 
-                      type="file" 
-                      accept=".json" 
-                      onChange={importarMemoriaBackup}
-                      style={{
-                        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer'
-                      }}
-                    />
-                    <button 
-                      className="btn-start" 
-                      style={{ padding: '10px 24px', fontSize: '0.9rem', width: '100%', background: 'linear-gradient(90deg, #10b981, #34d399)' }}
-                    >
-                      Selecionar Arquivo JSON
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Listagem e Preview em Grade */}
-            <div className="card">
+              {/* Cabeçalho Imagens no Banco integrado filtrado por Categoria */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                <div className="sec" style={{ margin: 0 }}>Imagens no Banco ({memoImagensPool.length})</div>
+                <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#a78bfa' }}>
+                  🖼️ Imagens Cadastradas ({cadMemoImagemMateria ? `Filtradas por: ${cadMemoImagemMateria}` : 'Geral'}) 
+                  <span style={{ fontSize: '0.8rem', color: '#9ca3af', marginLeft: '6px', fontWeight: 'normal' }}>
+                    (Total no banco: {memoImagensPool.length})
+                  </span>
+                </div>
                 <button 
                   className="btn-del" 
-                  style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', color: '#cbd5e1', boxShadow: 'none' }}
+                  style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', color: '#cbd5e1', boxShadow: 'none', padding: '6px 14px', fontSize: '0.78rem' }}
                   onClick={restaurarMemoImagensPadrao}
                 >
                   🔄 Restaurar Padrão de Fábrica
                 </button>
               </div>
 
-              {memoImagensPool.length === 0 ? (
-                <div className="lista-vazia">Nenhuma imagem cadastrada. Adicione links de imagens acima ou clique em "Restaurar Padrão".</div>
-              ) : (
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', 
-                  gap: '12px', 
-                  maxHeight: '450px', 
-                  overflowY: 'auto', 
-                  paddingRight: '6px' 
-                }}>
-                  {memoImagensPool.map((item, idx) => {
-                    const url = typeof item === 'object' ? item.url : item;
-                    const mat = typeof item === 'object' ? item.mat : '';
-                    return (
-                      <div 
-                        key={idx} 
-                        style={{ 
-                          background: 'rgba(15, 23, 42, 0.6)', 
-                          border: '1px solid rgba(255, 255, 255, 0.08)', 
-                          borderRadius: '10px', 
-                          padding: '6px', 
-                          position: 'relative', 
-                          display: 'flex', 
-                          flexDirection: 'column', 
-                          alignItems: 'center', 
-                          boxSizing: 'border-box' 
-                        }}
-                      >
-                        <div style={{ 
-                          width: '100%', 
-                          aspectRatio: '1/1', 
-                          borderRadius: '6px', 
-                          overflow: 'hidden', 
-                          background: '#020108',
-                          position: 'relative'
-                        }}>
-                          <img 
-                            src={url} 
-                            alt={`Preview ${idx + 1}`} 
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={(e) => {
-                              e.currentTarget.src = "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop"; // fallback de erro
-                            }}
-                          />
-                          <span style={{ 
-                            position: 'absolute', 
-                            top: '4px', 
-                            left: '4px', 
-                            background: 'rgba(15, 23, 42, 0.85)', 
-                            color: '#f59e0b', 
-                            fontSize: '0.62rem', 
-                            fontWeight: 'bold', 
-                            padding: '2px 6px', 
-                            borderRadius: '4px',
-                            border: '1px solid rgba(245, 158, 11, 0.2)'
+              {/* Grid de Imagens Filtradas por Categoria */}
+              {(() => {
+                const imagensFiltradas = memoImagensPool.filter(item => {
+                  const itemMat = typeof item === 'object' ? item.mat : '';
+                  return itemMat === cadMemoImagemMateria;
+                });
+
+                if (imagensFiltradas.length === 0) {
+                  return (
+                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: '8px', padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '0.82rem', fontStyle: 'italic' }}>
+                      Nenhuma imagem cadastrada na categoria "{cadMemoImagemMateria ? cadMemoImagemMateria : 'Geral'}". Cole links acima para adicionar imagens.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', 
+                    gap: '12px', 
+                    maxHeight: '400px', 
+                    overflowY: 'auto', 
+                    paddingRight: '6px' 
+                  }}>
+                    {imagensFiltradas.map((item, idx) => {
+                      const url = typeof item === 'object' ? item.url : item;
+                      const mat = typeof item === 'object' ? item.mat : '';
+                      // Encontrar o index global no pool para as funções deletar e duplicar funcionarem corretamente
+                      const globalIdx = memoImagensPool.findIndex(x => x === item);
+
+                      return (
+                        <div 
+                          key={idx} 
+                          style={{ 
+                            background: 'rgba(15, 23, 42, 0.6)', 
+                            border: '1px solid rgba(255, 255, 255, 0.08)', 
+                            borderRadius: '10px', 
+                            padding: '6px', 
+                            position: 'relative', 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            alignItems: 'center', 
+                            boxSizing: 'border-box' 
+                          }}
+                        >
+                          <div style={{ 
+                            width: '100%', 
+                            aspectRatio: '1/1', 
+                            borderRadius: '6px', 
+                            overflow: 'hidden', 
+                            background: '#020108',
+                            position: 'relative'
                           }}>
-                            {idx + 1}
-                          </span>
-                        </div>
-                        
-                        {/* Indicador de Matéria */}
-                        <div style={{
-                          marginTop: '5px',
-                          fontSize: '0.65rem',
-                          fontWeight: 'bold',
-                          color: mat ? '#c084fc' : '#9ca3af',
-                          background: mat ? 'rgba(139, 92, 246, 0.12)' : 'rgba(255, 255, 255, 0.03)',
-                          border: mat ? '1px solid rgba(139, 92, 246, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
-                          borderRadius: '4px',
-                          padding: '1px 5px',
-                          textAlign: 'center',
-                          width: '100%',
-                          boxSizing: 'border-box',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }} title={mat ? `Matéria: ${mat}` : 'Geral (Disponível em todas as matérias)'}>
-                          {mat ? `📚 ${mat}` : '🌍 Geral'}
-                        </div>
+                            <img 
+                              src={url} 
+                              alt={`Preview ${idx + 1}`} 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e) => {
+                                e.currentTarget.src = "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop"; // fallback de erro
+                              }}
+                            />
+                            <span style={{ 
+                              position: 'absolute', 
+                              top: '4px', 
+                              left: '4px', 
+                              background: 'rgba(15, 23, 42, 0.85)', 
+                              color: '#f59e0b', 
+                              fontSize: '0.62rem', 
+                              fontWeight: 'bold', 
+                              padding: '2px 6px', 
+                              borderRadius: '4px',
+                              border: '1px solid rgba(245, 158, 11, 0.2)'
+                            }}>
+                              {idx + 1}
+                            </span>
+                          </div>
+                          
+                          {/* Indicador de Categoria */}
+                          <div style={{
+                            marginTop: '5px',
+                            fontSize: '0.65rem',
+                            fontWeight: 'bold',
+                            color: mat ? '#c084fc' : '#9ca3af',
+                            background: mat ? 'rgba(139, 92, 246, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                            border: mat ? '1px solid rgba(139, 92, 246, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
+                            borderRadius: '4px',
+                            padding: '1px 5px',
+                            textAlign: 'center',
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }} title={mat ? `Matéria: ${mat}` : 'Geral (Disponível em todas as matérias)'}>
+                            {mat ? `📚 ${mat}` : '🌍 Geral'}
+                          </div>
 
-                        {/* Seletor compacto para editar categoria */}
-                        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '6px', textAlign: 'left' }}>
-                          <span style={{ fontSize: '0.62rem', color: '#9ca3af', fontWeight: 'bold' }}>Mover para:</span>
-                          <select
-                            value={mat}
-                            onChange={(e) => editarMemoImagemMateria(idx, e.target.value)}
-                            style={{ width: '100%', background: '#111827', color: '#fff', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', padding: '2px 4px', fontSize: '0.7rem', cursor: 'pointer', height: '22px' }}
-                          >
-                            <option value="">🌍 Geral / Todas</option>
-                            {materias.map((m, i) => (
-                              <option key={i} value={m}>{m}</option>
-                            ))}
-                          </select>
-                        </div>
+                          {/* Seletor compacto para editar categoria */}
+                          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '6px', textAlign: 'left' }}>
+                            <span style={{ fontSize: '0.62rem', color: '#9ca3af', fontWeight: 'bold' }}>Mover para:</span>
+                            <select
+                              value={mat}
+                              onChange={(e) => editarMemoImagemMateria(globalIdx, e.target.value)}
+                              style={{ width: '100%', background: '#111827', color: '#fff', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', padding: '2px 4px', fontSize: '0.7rem', cursor: 'pointer', height: '22px' }}
+                            >
+                              <option value="">🌍 Geral / Todas</option>
+                              {materias.map((m, i) => (
+                                <option key={i} value={m}>{m}</option>
+                              ))}
+                            </select>
+                          </div>
 
-                        {/* Botões Duplicar e Remover */}
-                        <div style={{ display: 'flex', gap: '6px', width: '100%', marginTop: '6px' }}>
-                          <button 
-                            className="btn-menu btn-play" 
-                            style={{ 
-                              flex: 1, 
-                              padding: '4px', 
-                              fontSize: '0.7rem', 
-                              borderRadius: '6px',
-                              justifyContent: 'center',
-                              display: 'flex',
-                              background: 'linear-gradient(90deg, #3b82f6, #60a5fa)',
-                              margin: 0,
-                              height: '24px',
-                              lineHeight: '16px',
-                              boxShadow: 'none'
-                            }} 
-                            onClick={() => duplicarMemoImagem(idx)}
-                          >
-                            Duplicar
-                          </button>
-                          <button 
-                            className="btn-del" 
-                            style={{ 
-                              flex: 1, 
-                              padding: '4px', 
-                              fontSize: '0.7rem', 
-                              borderRadius: '6px',
-                              justifyContent: 'center',
-                              display: 'flex',
-                              margin: 0,
-                              height: '24px',
-                              lineHeight: '16px'
-                            }} 
-                            onClick={() => deletarMemoImagem(idx)}
-                          >
-                            Remover ✕
-                          </button>
+                          {/* Botões Duplicar e Remover */}
+                          <div style={{ display: 'flex', gap: '6px', width: '100%', marginTop: '6px' }}>
+                            <button 
+                              className="btn-menu btn-play" 
+                              style={{ 
+                                flex: 1, 
+                                padding: '4px', 
+                                fontSize: '0.7rem', 
+                                borderRadius: '6px',
+                                justifyContent: 'center',
+                                display: 'flex',
+                                background: 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                                margin: 0,
+                                height: '24px',
+                                lineHeight: '16px',
+                                boxShadow: 'none'
+                              }} 
+                              onClick={() => duplicarMemoImagem(globalIdx)}
+                            >
+                              Duplicar
+                            </button>
+                            <button 
+                              className="btn-del" 
+                              style={{ 
+                                flex: 1, 
+                                padding: '4px', 
+                                fontSize: '0.7rem', 
+                                borderRadius: '6px',
+                                justifyContent: 'center',
+                                display: 'flex',
+                                margin: 0,
+                                height: '24px',
+                                lineHeight: '16px'
+                              }} 
+                              onClick={() => deletarMemoImagem(globalIdx)}
+                            >
+                              Remover ✕
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
+
           </div>
         )}
       </div>
@@ -9093,6 +9063,71 @@ export default function App() {
                     <option value="embaralhar">Troca-Tudo 🌪️</option>
                     <option value="olho">Olho Mágico 👁️</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Inputs de URLs de Surpresa Integrados por Categoria no Lobby! */}
+              <div style={{ marginTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#c4b5fd', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-start' }}>
+                  🖼️ Imagens das Surpresas ({memoMateria || 'Geral'})
+                </div>
+                
+                {/* Surpresa: Troca-Tudo */}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <img 
+                    src={memoMateria ? (memoSurpresasPorMateria[memoMateria]?.embaralhar || memoImgSurpresaEmbaralhar) : memoImgSurpresaEmbaralhar} 
+                    alt="Preview Troca-Tudo"
+                    style={{ width: '32px', height: '32px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.4)', objectFit: 'cover' }}
+                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop"; }}
+                  />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#f59e0b' }}>Troca-Tudo 🌪️ (Link URL)</span>
+                    <input 
+                      value={memoMateria ? (memoSurpresasPorMateria[memoMateria]?.embaralhar || '') : memoImgSurpresaEmbaralhar} 
+                      onChange={(e) => {
+                        const url = e.target.value;
+                        if (!memoMateria) {
+                          setMemoImgSurpresaEmbaralhar(url);
+                        } else {
+                          setMemoSurpresasPorMateria(prev => {
+                            const mat = prev[memoMateria] || {};
+                            return { ...prev, [memoMateria]: { ...mat, embaralhar: url } };
+                          });
+                        }
+                      }}
+                      placeholder={memoMateria ? "Usar padrão Geral" : "Link da imagem..."}
+                      style={{ fontSize: '0.72rem', padding: '4px 8px', background: '#0c0e1a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', color: '#fff', width: '100%', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Surpresa: Olho Mágico */}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <img 
+                    src={memoMateria ? (memoSurpresasPorMateria[memoMateria]?.olho || memoImgSurpresaOlho) : memoImgSurpresaOlho} 
+                    alt="Preview Olho"
+                    style={{ width: '32px', height: '32px', borderRadius: '4px', border: '1px solid rgba(139, 92, 246, 0.4)', objectFit: 'cover' }}
+                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop"; }}
+                  />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#8b5cf6' }}>Olho Mágico 👁️ (Link URL)</span>
+                    <input 
+                      value={memoMateria ? (memoSurpresasPorMateria[memoMateria]?.olho || '') : memoImgSurpresaOlho} 
+                      onChange={(e) => {
+                        const url = e.target.value;
+                        if (!memoMateria) {
+                          setMemoImgSurpresaOlho(url);
+                        } else {
+                          setMemoSurpresasPorMateria(prev => {
+                            const mat = prev[memoMateria] || {};
+                            return { ...prev, [memoMateria]: { ...mat, olho: url } };
+                          });
+                        }
+                      }}
+                      placeholder={memoMateria ? "Usar padrão Geral" : "Link da imagem..."}
+                      style={{ fontSize: '0.72rem', padding: '4px 8px', background: '#0c0e1a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', color: '#fff', width: '100%', boxSizing: 'border-box' }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
