@@ -714,6 +714,32 @@ export default function App() {
     localStorage.setItem('dm_memo_surpresas_mat', JSON.stringify(memoSurpresasPorMateria));
   }, [memoSurpresasPorMateria]);
 
+  // Pré-carregamento (Preloading) de Imagens do Jogo da Memória em Cache local do navegador
+  useEffect(() => {
+    if (!memoImagensPool || memoImagensPool.length === 0) return;
+    
+    // Filtra as imagens da categoria selecionada ou Gerais para cachear
+    let imagensParaCachear = memoImagensPool
+      .filter(img => typeof img === 'object' ? (img.mat === memoMateria || !img.mat) : true)
+      .map(img => typeof img === 'object' ? img.url : img);
+
+    // Adiciona imagens padrão de fábrica ao cache para garantir carregamento instantâneo
+    const padroes = [
+      ...IMAGENS_PADRAO_MEMORIA,
+      memoImgSurpresaEmbaralhar,
+      memoImgSurpresaOlho
+    ];
+    
+    const unicasUrls = Array.from(new Set([...imagensParaCachear, ...padroes]));
+
+    // Dispara o preloading silencioso instanciando Image objects
+    unicasUrls.forEach(url => {
+      if (!url) return;
+      const img = new Image();
+      img.src = url;
+    });
+  }, [memoMateria, memoImagensPool, memoImgSurpresaEmbaralhar, memoImgSurpresaOlho]);
+
   useEffect(() => {
     localStorage.setItem('dm_memo_imagens', JSON.stringify(memoImagensPool));
   }, [memoImagensPool]);
@@ -1800,20 +1826,25 @@ export default function App() {
       pergsPartida.push(poolBase[i % poolBase.length]);
     }
 
-    // Filtra prioritariamente as imagens associadas à matéria ativa
+    const surpresaEmbaralharUrl = materiaEscolhida ? (memoSurpresasPorMateria[materiaEscolhida]?.embaralhar || memoImgSurpresaEmbaralhar) : memoImgSurpresaEmbaralhar;
+    const surpresaOlhoUrl = materiaEscolhida ? (memoSurpresasPorMateria[materiaEscolhida]?.olho || memoImgSurpresaOlho) : memoImgSurpresaOlho;
+
+    // Filtra prioritariamente as imagens associadas à matéria ativa (excluindo as usadas nas cartas surpresa)
     let poolImagensMat = memoImagensPool
       .filter(img => typeof img === 'object' ? img.mat === materiaEscolhida : false)
-      .map(img => img.url);
+      .map(img => img.url)
+      .filter(url => url !== surpresaEmbaralharUrl && url !== surpresaOlhoUrl);
 
-    // Se não houver imagens específicas para a matéria, busca imagens Gerais (sem matéria associada)
+    // Se não houver imagens específicas para a matéria, busca imagens Gerais (sem matéria associada, excluindo surpresas)
     if (poolImagensMat.length === 0) {
       poolImagensMat = memoImagensPool
         .filter(img => typeof img === 'object' ? !img.mat : true)
-        .map(img => typeof img === 'object' ? img.url : img);
+        .map(img => typeof img === 'object' ? img.url : img)
+        .filter(url => url !== surpresaEmbaralharUrl && url !== surpresaOlhoUrl);
     }
 
     // Fallback de segurança para o padrão de fábrica caso a pool resultante esteja vazia
-    const poolImagens = poolImagensMat.length > 0 ? poolImagensMat : IMAGENS_PADRAO_MEMORIA;
+    const poolImagens = poolImagensMat.length > 0 ? poolImagensMat : IMAGENS_PADRAO_MEMORIA.filter(url => url !== surpresaEmbaralharUrl && url !== surpresaOlhoUrl);
 
     // 2. Criar cartas (16 perguntas e 16 respostas correspondentes)
     const cartas = [];
@@ -1848,7 +1879,7 @@ export default function App() {
             parId: -1,
             tipo: 'surpresa-embaralhar',
             texto: 'Troca-Tudo! 🌪️',
-            imagem: memoImgSurpresaEmbaralhar,
+            imagem: surpresaEmbaralharUrl,
             aberta: false,
             encontradaPor: null
           };
@@ -1858,7 +1889,7 @@ export default function App() {
             parId: -2,
             tipo: 'surpresa-olho',
             texto: 'Olho Mágico! 👁️',
-            imagem: memoImgSurpresaOlho,
+            imagem: surpresaOlhoUrl,
             aberta: false,
             encontradaPor: null
           };
@@ -1898,7 +1929,7 @@ export default function App() {
             parId: -1,
             tipo: 'surpresa-embaralhar',
             texto: 'Troca-Tudo! 🌪️',
-            imagem: memoImgSurpresaEmbaralhar,
+            imagem: surpresaEmbaralharUrl,
             aberta: false,
             encontradaPor: null
           };
@@ -1906,9 +1937,10 @@ export default function App() {
     };
 
     // 3. Inserir as 3 cartas surpresas (16 pares [32 cartas] + 3 surpresas = 35 cartas)
-    cartas.push(obterDefinicaoSurpresa(memoSurpresaEfeito1, 's1'));
-    cartas.push(obterDefinicaoSurpresa(memoSurpresaEfeito2, 's2'));
-    cartas.push(obterDefinicaoSurpresa(memoSurpresaEfeito3, 's3'));
+    // Composta estritamente por Troca-Tudo e Olho Mágico
+    cartas.push(obterDefinicaoSurpresa('embaralhar', 's1'));
+    cartas.push(obterDefinicaoSurpresa('olho', 's2'));
+    cartas.push(obterDefinicaoSurpresa('embaralhar', 's3'));
 
     // 4. Embaralhar as 30 cartas na mesa usando o algoritmo robusto de Fisher-Yates
     const cartasEmbaralhadas = [...cartas];
@@ -9145,55 +9177,96 @@ export default function App() {
             </select>
           </div>
 
-          {/* Escolha das Cartas Surpresas */}
+          {/* Escolha das Imagens das Cartas Surpresas (Troca-Tudo e Olho Mágico apenas) */}
           <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
             <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f59e0b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #f59e0b', paddingLeft: '8px' }}>
-              🎁 Escolha das 3 Cartas Surpresas
+              🖼️ Selecionar Imagens das Surpresas ({memoMateria || 'Geral'})
             </div>
-            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <label style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 1</label>
-                <select 
-                  value={memoSurpresaEfeito1}
-                  onChange={(e) => setMemoSurpresaEfeito1(e.target.value)}
-                  style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '0.78rem', cursor: 'pointer', textAlign: 'center' }}
-                >
-                  <option value="embaralhar">Troca-Tudo 🌪️</option>
-                  <option value="olho">Olho Mágico 👁️</option>
-                  <option value="ganhar-aura">Aura Positiva 🗿✨</option>
-                  <option value="perder-aura">Aura Negativa 📉💔</option>
-                  <option value="vez-extra">Turno Extra 🔄⚡</option>
-                </select>
-              </div>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <label style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 2</label>
-                <select 
-                  value={memoSurpresaEfeito2}
-                  onChange={(e) => setMemoSurpresaEfeito2(e.target.value)}
-                  style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '0.78rem', cursor: 'pointer', textAlign: 'center' }}
-                >
-                  <option value="embaralhar">Troca-Tudo 🌪️</option>
-                  <option value="olho">Olho Mágico 👁️</option>
-                  <option value="ganhar-aura">Aura Positiva 🗿✨</option>
-                  <option value="perder-aura">Aura Negativa 📉💔</option>
-                  <option value="vez-extra">Turno Extra 🔄⚡</option>
-                </select>
-              </div>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <label style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 3</label>
-                <select 
-                  value={memoSurpresaEfeito3}
-                  onChange={(e) => setMemoSurpresaEfeito3(e.target.value)}
-                  style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '0.78rem', cursor: 'pointer', textAlign: 'center' }}
-                >
-                  <option value="embaralhar">Troca-Tudo 🌪️</option>
-                  <option value="olho">Olho Mágico 👁️</option>
-                  <option value="ganhar-aura">Aura Positiva 🗿✨</option>
-                  <option value="perder-aura">Aura Negativa 📉💔</option>
-                  <option value="vez-extra">Turno Extra 🔄⚡</option>
-                </select>
-              </div>
-            </div>
+            
+            {(() => {
+              // Obter as imagens cadastradas na categoria ativa ou Geral
+              let imagensDisponiveis = memoImagensPool.filter(img => typeof img === 'object' ? img.mat === memoMateria : false);
+              if (imagensDisponiveis.length === 0) {
+                imagensDisponiveis = memoImagensPool.filter(img => typeof img === 'object' ? !img.mat : true);
+              }
+              const poolUrls = imagensDisponiveis.map(img => typeof img === 'object' ? img.url : img);
+              const poolUrlsFinal = poolUrls.length > 0 ? poolUrls : IMAGENS_PADRAO_MEMORIA;
+
+              const atualEmbaralhar = memoMateria ? (memoSurpresasPorMateria[memoMateria]?.embaralhar || memoImgSurpresaEmbaralhar) : memoImgSurpresaEmbaralhar;
+              const atualOlho = memoMateria ? (memoSurpresasPorMateria[memoMateria]?.olho || memoImgSurpresaOlho) : memoImgSurpresaOlho;
+
+              // Garantir que as URLs ativas estejam no pool (se não estiverem, insere no início)
+              const poolEmbaralhar = poolUrlsFinal.includes(atualEmbaralhar) ? poolUrlsFinal : [atualEmbaralhar, ...poolUrlsFinal];
+              const poolOlho = poolUrlsFinal.includes(atualOlho) ? poolUrlsFinal : [atualOlho, ...poolUrlsFinal];
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                  {/* Surpresa 1: Troca-Tudo */}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <img 
+                      src={atualEmbaralhar} 
+                      alt="Preview Troca-Tudo"
+                      style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.4)', objectFit: 'cover' }}
+                      onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop"; }}
+                    />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#f59e0b' }}>Troca-Tudo 🌪️ (2 Cartas na Mesa)</span>
+                      <select 
+                        value={atualEmbaralhar} 
+                        onChange={(e) => {
+                          const url = e.target.value;
+                          if (!memoMateria) {
+                            setMemoImgSurpresaEmbaralhar(url);
+                          } else {
+                            setMemoSurpresasPorMateria(prev => {
+                              const mat = prev[memoMateria] || {};
+                              return { ...prev, [memoMateria]: { ...mat, embaralhar: url } };
+                            });
+                          }
+                        }}
+                        style={{ fontSize: '0.75rem', padding: '4px 8px', background: '#0c0e1a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', color: '#fff', width: '100%', boxSizing: 'border-box', cursor: 'pointer' }}
+                      >
+                        {poolEmbaralhar.map((url, idx) => (
+                          <option key={idx} value={url}>Imagem {idx + 1} ({url.substring(0, 35)}...)</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Surpresa 2: Olho Mágico */}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <img 
+                      src={atualOlho} 
+                      alt="Preview Olho"
+                      style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid rgba(139, 92, 246, 0.4)', objectFit: 'cover' }}
+                      onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop"; }}
+                    />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#8b5cf6' }}>Olho Mágico 👁️ (1 Carta na Mesa)</span>
+                      <select 
+                        value={atualOlho} 
+                        onChange={(e) => {
+                          const url = e.target.value;
+                          if (!memoMateria) {
+                            setMemoImgSurpresaOlho(url);
+                          } else {
+                            setMemoSurpresasPorMateria(prev => {
+                              const mat = prev[memoMateria] || {};
+                              return { ...prev, [memoMateria]: { ...mat, olho: url } };
+                            });
+                          }
+                        }}
+                        style={{ fontSize: '0.75rem', padding: '4px 8px', background: '#0c0e1a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', color: '#fff', width: '100%', boxSizing: 'border-box', cursor: 'pointer' }}
+                      >
+                        {poolOlho.map((url, idx) => (
+                          <option key={idx} value={url}>Imagem {idx + 1} ({url.substring(0, 35)}...)</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Ajuste de Escala */}
