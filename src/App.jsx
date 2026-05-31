@@ -8920,12 +8920,7 @@ export default function App() {
 
       {/* 16. TELA DE CONFIGURAÇÃO JOGO DA MEMÓRIA */}
       <div id="tela-memo-nomes" className={`tela ${tela === 'memo-nomes' ? 'ativa' : ''}`} style={{ display: tela === 'memo-nomes' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center', minHeight: '100vh', padding: '14px', boxSizing: 'border-box', maxWidth: 'none' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '1080px', alignItems: 'center', marginBottom: '14px' }}>
-          <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ margin: 0 }}>← Voltar ao Menu</button>
-          <button className="btn-menu btn-outline" style={{ fontSize: '0.85rem', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, width: 'auto' }} onClick={() => { setCadGerenciadorAba('memoria'); setCadTab('manual'); setOrigemConfig('memo-nomes'); irParaTela('cadastro'); }}>
-            ⚙️ Gerenciar Imagens
-          </button>
-        </div>
+
         
         {/* Título Compacto */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center', marginBottom: '8px' }}>
@@ -9093,6 +9088,24 @@ export default function App() {
             
             <button className="btn-start" style={{ flex: 1.3, background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 6px 20px rgba(139, 92, 246, 0.35)', padding: '8px 16px', fontSize: '0.9rem', margin: 0 }} onClick={() => iniciarPartidaMemoria(memoMateria)}>
               Começar Disputa! 🚀
+            </button>
+          </div>
+
+          {/* Botões Secundários de Navegação e Configuração (Movidos para baixo!) */}
+          <div style={{ display: 'flex', gap: '10px', marginTop: '8px', width: '100%' }}>
+            <button 
+              className="btn-volta" 
+              onClick={() => irParaTela('menu')} 
+              style={{ flex: 1, margin: 0, padding: '8px 12px', fontSize: '0.82rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}
+            >
+              ← Voltar ao Menu
+            </button>
+            <button 
+              className="btn-menu btn-outline" 
+              style={{ flex: 1, fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', margin: 0 }} 
+              onClick={() => { setCadGerenciadorAba('memoria'); setCadTab('manual'); setOrigemConfig('memo-nomes'); irParaTela('cadastro'); }}
+            >
+              ⚙️ Gerenciar Imagens
             </button>
           </div>
 
