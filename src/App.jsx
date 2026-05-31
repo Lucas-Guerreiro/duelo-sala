@@ -650,6 +650,15 @@ export default function App() {
   const [memoImgSurpresaPerderAura, setMemoImgSurpresaPerderAura] = useState(() => localStorage.getItem('memoImgSurpresaPerderAura') || "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop");
   const [memoImgSurpresaVezExtra, setMemoImgSurpresaVezExtra] = useState(() => localStorage.getItem('memoImgSurpresaVezExtra') || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=250&auto=format&fit=crop");
 
+  // --- NOVOS ESTADOS DA CUSTOMIZAÇÃO DO JOGO DA MEMÓRIA ---
+  const [mostrarCriarCategoriaMemo, setMostrarCriarCategoriaMemo] = useState(false);
+  const [novaCategoriaMemoInput, setNovaCategoriaMemoInput] = useState('');
+  const [materiaCustomizarSurpresas, setMateriaCustomizarSurpresas] = useState('');
+  const [memoSurpresasPorMateria, setMemoSurpresasPorMateria] = useState(() => {
+    const saved = localStorage.getItem('dm_memo_surpresas_mat');
+    return saved ? JSON.parse(saved) : {};
+  });
+
   const [codigoSalaOnline, setCodigoSalaOnline] = useState(() => localStorage.getItem('codigoSalaOnline') || '');
   const [sincronismoAutomatico, setSincronismoAutomatico] = useState(() => localStorage.getItem('sincronismoAutomatico') === 'true');
   const [statusSincronismo, setStatusSincronismo] = useState('Nuvem não ativa. Insira o Código de Acesso.');
@@ -700,6 +709,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('memoImgSurpresaVezExtra', memoImgSurpresaVezExtra);
   }, [memoImgSurpresaVezExtra]);
+
+  useEffect(() => {
+    localStorage.setItem('dm_memo_surpresas_mat', JSON.stringify(memoSurpresasPorMateria));
+  }, [memoSurpresasPorMateria]);
 
   useEffect(() => {
     localStorage.setItem('dm_memo_imagens', JSON.stringify(memoImagensPool));
@@ -1649,6 +1662,66 @@ export default function App() {
     }
   };
 
+  const salvarNovaCategoriaMemo = () => {
+    const nome = novaCategoriaMemoInput.trim();
+    if (!nome) return;
+    if (materias.includes(nome)) {
+      alert('Esta categoria já existe!');
+      return;
+    }
+    const novasMaterias = [...materias, nome];
+    setMaterias(novasMaterias);
+    localStorage.setItem('dm_mat', JSON.stringify(novasMaterias));
+    setCadMemoImagemMateria(nome);
+    setNovaCategoriaMemoInput('');
+    setMostrarCriarCategoriaMemo(false);
+  };
+
+  const editarMemoImagemMateria = (idx, novaMat) => {
+    const novasImagens = [...memoImagensPool];
+    if (typeof novasImagens[idx] === 'object') {
+      novasImagens[idx] = { ...novasImagens[idx], mat: novaMat };
+    } else {
+      novasImagens[idx] = { url: novasImagens[idx], mat: novaMat };
+    }
+    setMemoImagensPool(novasImagens);
+    localStorage.setItem('dm_memo_imgs', JSON.stringify(novasImagens));
+  };
+
+  const duplicarMemoImagem = (idx) => {
+    const item = memoImagensPool[idx];
+    const url = typeof item === 'object' ? item.url : item;
+    const mat = typeof item === 'object' ? item.mat : '';
+    const novoItem = { url, mat };
+    const novasImagens = [...memoImagensPool, novoItem];
+    setMemoImagensPool(novasImagens);
+    localStorage.setItem('dm_memo_imgs', JSON.stringify(novasImagens));
+  };
+
+  const obterSurpresaAtiva = (tipo) => {
+    const daMateria = memoSurpresasPorMateria[memoMateria]?.[tipo];
+    if (daMateria) return daMateria;
+    return tipo === 'embaralhar' ? memoImgSurpresaEmbaralhar : memoImgSurpresaOlho;
+  };
+
+  const atualizarImagemSurpresa = (tipo, url) => {
+    if (!materiaCustomizarSurpresas) {
+      if (tipo === 'embaralhar') setMemoImgSurpresaEmbaralhar(url);
+      if (tipo === 'olho') setMemoImgSurpresaOlho(url);
+    } else {
+      setMemoSurpresasPorMateria(prev => {
+        const mat = prev[materiaCustomizarSurpresas] || {};
+        return {
+          ...prev,
+          [materiaCustomizarSurpresas]: {
+            ...mat,
+            [tipo]: url
+          }
+        };
+      });
+    }
+  };
+
   const adicionarCartaImAcaoManual = () => {
     if (!cadImAcaoNome.trim()) {
       alert('Por favor, digite o nome/tema da carta!');
@@ -1775,7 +1848,7 @@ export default function App() {
             parId: -1,
             tipo: 'surpresa-embaralhar',
             texto: 'Troca-Tudo! 🌪️',
-            imagem: memoImgSurpresaEmbaralhar,
+            imagem: obterSurpresaAtiva('embaralhar'),
             aberta: false,
             encontradaPor: null
           };
@@ -1785,7 +1858,7 @@ export default function App() {
             parId: -2,
             tipo: 'surpresa-olho',
             texto: 'Olho Mágico! 👁️',
-            imagem: memoImgSurpresaOlho,
+            imagem: obterSurpresaAtiva('olho'),
             aberta: false,
             encontradaPor: null
           };
@@ -1825,7 +1898,7 @@ export default function App() {
             parId: -1,
             tipo: 'surpresa-embaralhar',
             texto: 'Troca-Tudo! 🌪️',
-            imagem: memoImgSurpresaEmbaralhar,
+            imagem: obterSurpresaAtiva('embaralhar'),
             aberta: false,
             encontradaPor: null
           };
@@ -5153,7 +5226,7 @@ export default function App() {
                 Disputa pedagógica em dupla tela com 30 cartas! Associe perguntas e respostas e ative cartas surpresas de embaralhamento 🌪️ e revelação rápida 👁️.
               </p>
             </div>
-            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); setMemoMateria(materias.length > 0 ? materias[0].nome : ''); irParaTela('memo-nomes'); }}>
+            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); setMemoMateria(materias.length > 0 ? materias[0] : ''); irParaTela('memo-nomes'); }}>
               ▶ Jogar Memória
             </button>
           </div>
@@ -6504,19 +6577,6 @@ export default function App() {
             <div className="card">
               <div className="sec">🧠 Gerenciar Imagens do Jogo da Memória</div>
               
-              {/* Descrição orientando as especificações das imagens */}
-              <div style={{ background: 'rgba(245, 158, 11, 0.05)', border: '1.5px solid rgba(245, 158, 11, 0.25)', borderRadius: '12px', padding: '16px', marginBottom: '20px', color: '#fde047', fontSize: '0.88rem', lineHeight: 1.5 }}>
-                <div style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '8px', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  💡 Orientações Importantes para Customização de Imagens
-                </div>
-                <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <li><strong>Imagem Padrão:</strong> Por padrão, o jogo é carregado com as nossas 14 imagens temáticas focadas no público jovem e adolescente do Unsplash (games, skate, setup neon, fones, esportes).</li>
-                  <li><strong>Tamanho Recomendado:</strong> Prefira imagens de proporção perfeitamente quadradas <strong>1:1</strong> (tamanho ideal sugerido: <strong>250x250 pixels</strong>). Elas se ajustam e preenchem as cartas da mesa sem cortes artificiais.</li>
-                  <li><strong>Formatos Suportados:</strong> O sistema suporta links diretos de imagens da web que iniciem com <code>http://</code> ou <code>https://</code> e terminem nos formatos de arquivo: <code>.jpg</code>, <code>.jpeg</code>, <code>.png</code>, <code>.webp</code>, <code>.gif</code> ou URLs de plataformas de banco de imagens gratuitas confiáveis como o <em>Unsplash</em>.</li>
-                  <li><strong>Quantidade Ideal:</strong> Para completar o tabuleiro de 30 cartas estrito (28 normais + 2 surpresas), o ideal é que você cadastre **exatamente 14 imagens**. Se cadastrar menos, o sistema repetirá as imagens de forma inteligente para preencher a mesa. Se cadastrar mais, o jogo usará as 14 primeiras da lista.</li>
-                </ul>
-              </div>
-
               {/* Input de nova imagem */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
                 <label style={{ fontWeight: 'bold' }}>Adicionar Imagem por URL</label>
@@ -6529,13 +6589,22 @@ export default function App() {
                   />
                   <select
                     value={cadMemoImagemMateria}
-                    onChange={(e) => setCadMemoImagemMateria(e.target.value)}
+                    onChange={(e) => {
+                      if (e.target.value === 'NEW_CATEGORY') {
+                        setMostrarCriarCategoriaMemo(true);
+                        setNovaCategoriaMemoInput('');
+                      } else {
+                        setCadMemoImagemMateria(e.target.value);
+                        setMostrarCriarCategoriaMemo(false);
+                      }
+                    }}
                     style={{ flex: 1, minWidth: '150px', background: '#1a1f38', color: '#fff', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.85rem', cursor: 'pointer', boxSizing: 'border-box', height: '42px' }}
                   >
                     <option value="">🌍 Geral / Todas</option>
                     {materias.map((m, i) => (
                       <option key={i} value={m}>{m}</option>
                     ))}
+                    <option value="NEW_CATEGORY">➕ Criar nova categoria...</option>
                   </select>
                   <button 
                     className="btn-ac btn-add" 
@@ -6545,6 +6614,31 @@ export default function App() {
                     Adicionar
                   </button>
                 </div>
+
+                {mostrarCriarCategoriaMemo && (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '10px', width: '100%', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '12px', borderRadius: '8px', alignItems: 'center' }}>
+                    <input 
+                      placeholder="Nome da nova categoria..." 
+                      value={novaCategoriaMemoInput} 
+                      onChange={(e) => setNovaCategoriaMemoInput(e.target.value)} 
+                      style={{ flex: 1, background: '#0b0f19', color: '#fff', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '6px', padding: '8px 12px' }} 
+                    />
+                    <button 
+                      className="btn-ac btn-add" 
+                      style={{ padding: '8px 16px', background: 'linear-gradient(90deg, #10b981, #059669)', margin: 0, height: '38px', boxShadow: 'none' }}
+                      onClick={salvarNovaCategoriaMemo}
+                    >
+                      Salvar
+                    </button>
+                    <button 
+                      className="btn-del" 
+                      style={{ padding: '8px 16px', margin: 0, height: '38px', background: '#374151' }}
+                      onClick={() => { setMostrarCriarCategoriaMemo(false); setNovaCategoriaMemoInput(''); setCadMemoImagemMateria(''); }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -6555,11 +6649,31 @@ export default function App() {
                 Altere as URLs abaixo para customizar as imagens exibidas no verso de cada tipo de Carta Surpresa:
               </p>
 
+              {/* Seletor de Categoria para Surpresas */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#a78bfa' }}>Selecione a Categoria para Customizar as Surpresas:</label>
+                <select
+                  value={materiaCustomizarSurpresas}
+                  onChange={(e) => setMateriaCustomizarSurpresas(e.target.value)}
+                  style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px', padding: '8px 12px', fontSize: '0.85rem', cursor: 'pointer', maxWidth: '300px' }}
+                >
+                  <option value="">🌍 Geral / Todas</option>
+                  {materias.map((m, i) => (
+                    <option key={i} value={m}>{m}</option>
+                  ))}
+                </select>
+                <p style={{ color: '#9ca3af', fontSize: '0.75rem', margin: 0 }}>
+                  {materiaCustomizarSurpresas 
+                    ? `As surpresas abaixo serão salvas especificamente para a categoria "${materiaCustomizarSurpresas}".` 
+                    : "As surpresas abaixo serão salvas para o Jogo Geral."}
+                </p>
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {/* Surpresa: Embaralhar */}
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                   <img 
-                    src={memoImgSurpresaEmbaralhar} 
+                    src={materiaCustomizarSurpresas ? (memoSurpresasPorMateria[materiaCustomizarSurpresas]?.embaralhar || memoImgSurpresaEmbaralhar) : memoImgSurpresaEmbaralhar} 
                     alt="Preview Troca-Tudo"
                     style={{ width: '55px', height: '55px', borderRadius: '8px', border: '1.5px solid rgba(245, 158, 11, 0.4)', objectFit: 'cover', background: '#0f172a' }}
                     onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop"; }}
@@ -6567,9 +6681,9 @@ export default function App() {
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#f59e0b' }}>Troca-Tudo 🌪️ (Embaralhar)</label>
                     <input 
-                      value={memoImgSurpresaEmbaralhar} 
-                      onChange={(e) => setMemoImgSurpresaEmbaralhar(e.target.value)}
-                      placeholder="URL da imagem para Troca-Tudo..."
+                      value={materiaCustomizarSurpresas ? (memoSurpresasPorMateria[materiaCustomizarSurpresas]?.embaralhar || '') : memoImgSurpresaEmbaralhar} 
+                      onChange={(e) => atualizarImagemSurpresa('embaralhar', e.target.value)}
+                      placeholder={materiaCustomizarSurpresas ? "Usar padrão Geral" : "URL da imagem para Troca-Tudo..."}
                       style={{ fontSize: '0.82rem', padding: '6px 12px' }}
                     />
                   </div>
@@ -6578,7 +6692,7 @@ export default function App() {
                 {/* Surpresa: Olho */}
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                   <img 
-                    src={memoImgSurpresaOlho} 
+                    src={materiaCustomizarSurpresas ? (memoSurpresasPorMateria[materiaCustomizarSurpresas]?.olho || memoImgSurpresaOlho) : memoImgSurpresaOlho} 
                     alt="Preview Olho Mágico"
                     style={{ width: '55px', height: '55px', borderRadius: '8px', border: '1.5px solid rgba(139, 92, 246, 0.4)', objectFit: 'cover', background: '#0f172a' }}
                     onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop"; }}
@@ -6586,9 +6700,9 @@ export default function App() {
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#8b5cf6' }}>Olho Mágico 👁️ (Revelar Par)</label>
                     <input 
-                      value={memoImgSurpresaOlho} 
-                      onChange={(e) => setMemoImgSurpresaOlho(e.target.value)}
-                      placeholder="URL da imagem para Olho Mágico..."
+                      value={materiaCustomizarSurpresas ? (memoSurpresasPorMateria[materiaCustomizarSurpresas]?.olho || '') : memoImgSurpresaOlho} 
+                      onChange={(e) => atualizarImagemSurpresa('olho', e.target.value)}
+                      placeholder={materiaCustomizarSurpresas ? "Usar padrão Geral" : "URL da imagem para Olho Mágico..."}
                       style={{ fontSize: '0.82rem', padding: '6px 12px' }}
                     />
                   </div>
@@ -6739,21 +6853,60 @@ export default function App() {
                           {mat ? `📚 ${mat}` : '🌍 Geral'}
                         </div>
 
-                        <button 
-                          className="btn-del" 
-                          style={{ 
-                            marginTop: '6px', 
-                            width: '100%', 
-                            padding: '4px', 
-                            fontSize: '0.75rem', 
-                            borderRadius: '6px',
-                            justifyContent: 'center',
-                            display: 'flex'
-                          }} 
-                          onClick={() => deletarMemoImagem(idx)}
-                        >
-                          Remover ✕
-                        </button>
+                        {/* Seletor compacto para editar categoria */}
+                        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '6px', textAlign: 'left' }}>
+                          <span style={{ fontSize: '0.62rem', color: '#9ca3af', fontWeight: 'bold' }}>Mover para:</span>
+                          <select
+                            value={mat}
+                            onChange={(e) => editarMemoImagemMateria(idx, e.target.value)}
+                            style={{ width: '100%', background: '#111827', color: '#fff', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', padding: '2px 4px', fontSize: '0.7rem', cursor: 'pointer', height: '22px' }}
+                          >
+                            <option value="">🌍 Geral / Todas</option>
+                            {materias.map((m, i) => (
+                              <option key={i} value={m}>{m}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Botões Duplicar e Remover */}
+                        <div style={{ display: 'flex', gap: '6px', width: '100%', marginTop: '6px' }}>
+                          <button 
+                            className="btn-menu btn-play" 
+                            style={{ 
+                              flex: 1, 
+                              padding: '4px', 
+                              fontSize: '0.7rem', 
+                              borderRadius: '6px',
+                              justifyContent: 'center',
+                              display: 'flex',
+                              background: 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                              margin: 0,
+                              height: '24px',
+                              lineHeight: '16px',
+                              boxShadow: 'none'
+                            }} 
+                            onClick={() => duplicarMemoImagem(idx)}
+                          >
+                            👯 Duplicar
+                          </button>
+                          <button 
+                            className="btn-del" 
+                            style={{ 
+                              flex: 1, 
+                              padding: '4px', 
+                              fontSize: '0.7rem', 
+                              borderRadius: '6px',
+                              justifyContent: 'center',
+                              display: 'flex',
+                              margin: 0,
+                              height: '24px',
+                              lineHeight: '16px'
+                            }} 
+                            onClick={() => deletarMemoImagem(idx)}
+                          >
+                            Remover ✕
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
