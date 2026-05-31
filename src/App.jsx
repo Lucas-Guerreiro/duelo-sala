@@ -580,6 +580,30 @@ export default function App() {
     }
   });
 
+  // --- ESTADOS DE NAVEGAÇÃO ---
+  const [tela, setTela] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('projetor') === 'true') return 'ia-projetor';
+      const last = localStorage.getItem('dm_last_tela');
+      if (last === 'ia-projetor' || last === 'ia-projetor-fim') return 'menu';
+      return last || 'menu';
+    } catch (e) {
+      return 'menu';
+    }
+  }); // 'menu' | 'ia' | 'controles' | 'cadastro' | 'selecao' | 'nomes' | 'jogo' | 'fim'
+
+  const irParaTela = (dest) => {
+    playSound('click');
+    setTela(dest);
+  };
+
+  // Persistir tela atual para reinício seguro (apenas se não for modo projetor)
+  useEffect(() => {
+    if (isProjetorMode) return;
+    try { localStorage.setItem('dm_last_tela', tela); } catch (e) { /* noop */ }
+  }, [tela, isProjetorMode]);
+
   // Estados dos Dados e Seleção de Opção/Modo
   const [imAcaoOpcaoSelecionada, setImAcaoOpcaoSelecionada] = useState(0); // 0 a 4
   const [imAcaoModoRepresentacao, setImAcaoModoRepresentacao] = useState('Desenho'); // 'Mímica' | 'Desenho'
@@ -682,61 +706,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('dm_imacao', JSON.stringify(cartasImAcao));
   }, [cartasImAcao]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    let projetor = false;
-    if (params.get('projetor') === 'true') {
-      setIsProjetorMode(true);
-      setTela('ia-projetor');
-      projetor = true;
-    }
-
-    const channel = new BroadcastChannel('imagem_acao_channel');
-    imAcaoChannelRef.current = channel;
-
-    channel.onmessage = (event) => {
-      const { type, data } = event.data;
-      tratarMensagemProjetor(type, data);
-    };
-
-    // Se for o projetor, solicita sincronização imediatamente após abrir o canal para obter o estado atual
-    if (projetor) {
-      setTimeout(() => {
-        try {
-          if (channel && channel.name) {
-            channel.postMessage({ type: 'SOLICITAR_SINCRONIZACAO', data: {} });
-          }
-        } catch (e) {
-          // canal pode ter sido fechado pelo HMR — ignorar
-        }
-      }, 400);
-    }
-
-    return () => {
-      try { channel.close(); } catch (e) { /* já fechado */ }
-      imAcaoChannelRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    // Reconecta o BroadcastChannel se ele foi fechado (ex: HMR do Vite)
-    const ensureChannel = () => {
-      if (!imAcaoChannelRef.current) {
-        try {
-          const ch = new BroadcastChannel('imagem_acao_channel');
-          ch.onmessage = (event) => {
-            const { type, data } = event.data;
-            tratarMensagemProjetor(type, data);
-          };
-          imAcaoChannelRef.current = ch;
-        } catch (e) { /* BroadcastChannel não suportado */ }
-      }
-    };
-    const intervalId = setInterval(ensureChannel, 2000);
-    return () => clearInterval(intervalId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     initFirebase();
@@ -1231,6 +1200,61 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    let projetor = false;
+    if (params.get('projetor') === 'true') {
+      setIsProjetorMode(true);
+      setTela('ia-projetor');
+      projetor = true;
+    }
+
+    const channel = new BroadcastChannel('imagem_acao_channel');
+    imAcaoChannelRef.current = channel;
+
+    channel.onmessage = (event) => {
+      const { type, data } = event.data;
+      tratarMensagemProjetor(type, data);
+    };
+
+    // Se for o projetor, solicita sincronização imediatamente após abrir o canal para obter o estado atual
+    if (projetor) {
+      setTimeout(() => {
+        try {
+          if (channel && channel.name) {
+            channel.postMessage({ type: 'SOLICITAR_SINCRONIZACAO', data: {} });
+          }
+        } catch (e) {
+          // canal pode ter sido fechado pelo HMR — ignorar
+        }
+      }, 400);
+    }
+
+    return () => {
+      try { channel.close(); } catch (e) { /* já fechado */ }
+      imAcaoChannelRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Reconecta o BroadcastChannel se ele foi fechado (ex: HMR do Vite)
+    const ensureChannel = () => {
+      if (!imAcaoChannelRef.current) {
+        try {
+          const ch = new BroadcastChannel('imagem_acao_channel');
+          ch.onmessage = (event) => {
+            const { type, data } = event.data;
+            tratarMensagemProjetor(type, data);
+          };
+          imAcaoChannelRef.current = ch;
+        } catch (e) { /* BroadcastChannel não suportado */ }
+      }
+    };
+    const intervalId = setInterval(ensureChannel, 2000);
+    return () => clearInterval(intervalId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const iniciarTimerImAcaoLocal = (tempoInicial) => {
     if (imAcaoTimerIntRef.current) clearInterval(imAcaoTimerIntRef.current);
     let tempo = tempoInicial;
@@ -1671,8 +1695,13 @@ export default function App() {
       pergsFiltradas = [...pergsFiltradas, ...PERGUNTAS_PADRAO];
     }
 
-    // Pega exatamente as primeiras 16 perguntas
-    const pergsPartida = pergsFiltradas.slice(0, 16);
+    // Garantia final: se o pool disponível for menor que 16, repete as perguntas
+    // em ciclo até completar os 16 pares necessários para o tabuleiro 7x5 (35 cartas)
+    const poolBase = pergsFiltradas.length > 0 ? pergsFiltradas : PERGUNTAS_PADRAO;
+    const pergsPartida = [];
+    for (let i = 0; i < 16; i++) {
+      pergsPartida.push(poolBase[i % poolBase.length]);
+    }
 
     // Usa a pool de imagens gerenciada pelo professor (ou fallback se estiver vazia)
     const poolImagens = memoImagensPool.length > 0 ? memoImagensPool : IMAGENS_PADRAO_MEMORIA;
@@ -2272,30 +2301,6 @@ export default function App() {
     });
   };
 
-  // --- ESTADOS DE NAVEGAÇÃO ---
-  const [tela, setTela] = useState(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('projetor') === 'true') return 'ia-projetor';
-      const last = localStorage.getItem('dm_last_tela');
-      if (last === 'ia-projetor' || last === 'ia-projetor-fim') return 'menu';
-      return last || 'menu';
-    } catch (e) {
-      return 'menu';
-    }
-  }); // 'menu' | 'ia' | 'controles' | 'cadastro' | 'selecao' | 'nomes' | 'jogo' | 'fim'
-
-  const irParaTela = (dest) => {
-    playSound('click');
-    setTela(dest);
-  };
-
-  // Persistir tela atual para reinício seguro (apenas se não for modo projetor)
-  useEffect(() => {
-    if (isProjetorMode) return;
-    try { localStorage.setItem('dm_last_tela', tela); } catch (e) { /* noop */ }
-  }, [tela, isProjetorMode]);
-
   // --- ESTADOS DO GAMEPAD E DETECÇÃO ---
   const [gamepadsConectados, setGamepadsConectados] = useState([]);
   const [detectMode, setDetectMode] = useState(null); // null | { jogador: 0|1, fase: 'detect'|'map', slot: 0|1|2|3 }
@@ -2344,35 +2349,6 @@ export default function App() {
     const t2 = setTimeout(checkActiveTela, 350);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
-
-  const handleGamepadButtonPressRef = useRef(null);
-  useEffect(() => {
-    handleGamepadButtonPressRef.current = handleGamepadButtonPress;
-  });
-
-  // Loop de escuta de Gamepad em React usando requestAnimationFrame
-  useEffect(() => {
-    const pollGamepad = () => {
-      const gps = Array.from(navigator.getGamepads()).filter(Boolean);
-      gps.forEach(gp => {
-        const prev = prevBtnsRef.current[gp.index] || gp.buttons.map(() => false);
-        gp.buttons.forEach((btn, bi) => {
-          if (btn.pressed && !prev[bi]) {
-            handleGamepadButtonPressRef.current(gp.index, bi, gp.id);
-          }
-        });
-        prevBtnsRef.current[gp.index] = gp.buttons.map(b => b.pressed);
-      });
-      animationFrameRef.current = requestAnimationFrame(pollGamepad);
-    };
-
-    animationFrameRef.current = requestAnimationFrame(pollGamepad);
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [detectMode, tela, ctrl]);
 
   const handleGamepadButtonPress = (gpIdx, btnIdx, gpId) => {
     // 1. Modo de Detecção de Controles
@@ -2470,6 +2446,35 @@ export default function App() {
       }
     }
   };
+
+  const handleGamepadButtonPressRef = useRef(null);
+  useEffect(() => {
+    handleGamepadButtonPressRef.current = handleGamepadButtonPress;
+  });
+
+  // Loop de escuta de Gamepad em React usando requestAnimationFrame
+  useEffect(() => {
+    const pollGamepad = () => {
+      const gps = Array.from(navigator.getGamepads()).filter(Boolean);
+      gps.forEach(gp => {
+        const prev = prevBtnsRef.current[gp.index] || gp.buttons.map(() => false);
+        gp.buttons.forEach((btn, bi) => {
+          if (btn.pressed && !prev[bi]) {
+            handleGamepadButtonPressRef.current(gp.index, bi, gp.id);
+          }
+        });
+        prevBtnsRef.current[gp.index] = gp.buttons.map(b => b.pressed);
+      });
+      animationFrameRef.current = requestAnimationFrame(pollGamepad);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(pollGamepad);
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [detectMode, tela, ctrl]);
 
   // --- ESTADOS DO IA DE GERAÇÃO ---
   const [iaFileData, setIaFileData] = useState(null);
@@ -8935,7 +8940,7 @@ export default function App() {
                   <option value="">Nenhuma matéria cadastrada</option>
                 ) : (
                   materias.map((m, idx) => (
-                    <option key={idx} value={m.nome}>{m.nome}</option>
+                    <option key={idx} value={m}>{m}</option>
                   ))
                 )}
               </select>
