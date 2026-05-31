@@ -5547,49 +5547,6 @@ export default function App() {
           </div>
           
         </div>
-        
-        {/* Rodapé de Ações (Base) */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '980px', margin: '0 auto', boxSizing: 'border-box' }}>
-          <button 
-            className="btn-volta-link" 
-            onClick={() => alert("Você já está na Arena de Jogos! Escolha um dos 4 jogos acima para se divertir com seus alunos!")}
-            style={{ 
-              background: 'rgba(255, 255, 255, 0.03)', 
-              border: '1px solid rgba(255, 255, 255, 0.12)', 
-              borderRadius: '10px', 
-              color: '#cbd5e1', 
-              fontSize: '0.82rem', 
-              fontWeight: 700, 
-              padding: '10px 18px', 
-              cursor: 'pointer' 
-            }}
-          >
-            ← Voltar ao Menu
-          </button>
-          
-          <button 
-            className="btn-menu btn-play" 
-            style={{ 
-              background: 'rgba(255, 255, 255, 0.03)', 
-              border: '1px solid rgba(255, 255, 255, 0.12)', 
-              borderRadius: '10px', 
-              color: '#cbd5e1', 
-              fontSize: '0.82rem', 
-              fontWeight: 700, 
-              padding: '10px 18px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px', 
-              margin: 0,
-              width: 'auto',
-              cursor: 'pointer'
-            }} 
-            onClick={() => { setCadGerenciadorAba('memoria'); setCadTab('manual'); setOrigemConfig(null); irParaTela('cadastro'); }}
-          >
-            ⚙️ Gerenciar Conteúdo
-          </button>
-        </div>
-
       </div>
 
       {/* 2. TELA GERADOR IA */}
