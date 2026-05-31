@@ -5334,68 +5334,260 @@ export default function App() {
           </div>
         </div>
       )}
-      {/* 1. TELA MENU */}
-      <div id="tela-menu" className={`tela ${tela === 'menu' ? 'ativa' : ''}`}>
-        <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(124, 58, 237, 0.45))' }}>🏆</div>
-        <h1 style={{ textAlign: 'center' }}>Arena de Jogos</h1>
-        <p style={{ textAlign: 'center', marginBottom: '30px' }}>Selecione a modalidade que deseja jogar na sala de aula</p>
+      {/* 1. TELA MENU (ARENA DE JOGOS PREMIUM) */}
+      <div id="tela-menu" className={`tela ${tela === 'menu' ? 'ativa' : ''}`} style={{ display: tela === 'menu' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '30px', boxSizing: 'border-box', background: 'radial-gradient(circle at 50% 50%, #0d0722 0%, #03020a 100%)' }}>
         
-        <div className="jogos-selecao-grid" style={{ width: '100%', maxWidth: '850px', margin: '0 auto 30px' }}>
-          {/* Card Duelo */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(79, 70, 229, 0.25)', boxShadow: '0 8px 32px rgba(79, 70, 229, 0.15)' }}>
-            <div>
-              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>⚔️</div>
-              <h3 style={{ fontSize: '1.4rem', color: '#60a5fa', marginBottom: '10px', fontFamily: 'Outfit' }}>Duelo na Sala</h3>
-              <p style={{ fontSize: '0.85rem', color: '#c4b5fd', lineHeight: '1.5' }}>
-                Responda rápido, ganhe pontos e use poderes (Bloqueio, 50/50, Pontos Duplos) usando o Gamepad ou controles na tela!
-              </p>
+        {/* Header do Topo */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginBottom: '28px' }}>
+          <div style={{ fontSize: '3.5rem', filter: 'drop-shadow(0 0 20px rgba(245, 158, 11, 0.35))' }}>🏆</div>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#fff', margin: 0, fontFamily: 'Outfit', letterSpacing: '0.5px' }}>Arena de Jogos</h1>
+          <p style={{ color: '#94a3b8', fontSize: '0.92rem', margin: 0, fontFamily: 'Outfit' }}>Selecione a modalidade que deseja jogar na sala de aula</p>
+        </div>
+        
+        {/* Layout Master em Grade de Cards */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', maxWidth: '980px', margin: '0 auto 28px', boxSizing: 'border-box' }}>
+          
+          {/* Linha 1: 3 cards lado a lado */}
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', width: '100%' }}>
+            
+            {/* Card Duelo na Sala */}
+            <div className="card" style={{ 
+              flex: 1, 
+              minWidth: '280px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              textAlign: 'center', 
+              padding: '24px 20px', 
+              justifyContent: 'space-between', 
+              background: 'rgba(15, 23, 42, 0.45)',
+              border: '1.5px solid rgba(124, 58, 237, 0.3)', 
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(124, 58, 237, 0.12)',
+              margin: 0
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                <div style={{ fontSize: '2.6rem', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(124, 58, 237, 0.3))' }}>⚔️</div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#fff', marginBottom: '10px', fontFamily: 'Outfit' }}>Duelo na Sala</h3>
+                <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 16px', minHeight: '66px' }}>
+                  Responda rápido, ganhe pontos e use poderes (Bloqueio, 50/50, Pontos Duplos) usando o Gamepad ou controles na tela!
+                </p>
+              </div>
+              <button 
+                className="btn-menu btn-play" 
+                style={{ 
+                  background: '#5b21b6', 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: '10px', 
+                  padding: '10px 24px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 'bold', 
+                  cursor: 'pointer', 
+                  width: '100%', 
+                  height: '42px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  margin: 0
+                }} 
+                onClick={() => { setMateriasSelecionadas([]); irParaTela('selecao'); }}
+              >
+                ▶ Jogar Duelo
+              </button>
             </div>
-            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%' }} onClick={() => { setMateriasSelecionadas([]); irParaTela('selecao'); }}>
-              ▶ Jogar Duelo
-            </button>
-          </div>
 
-          {/* Card Três Pistas */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(139, 92, 246, 0.25)', boxShadow: '0 8px 32px rgba(139, 92, 246, 0.15)' }}>
-            <div>
-              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>🗺️</div>
-              <h3 style={{ fontSize: '1.4rem', color: '#ec4899', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo das Três Pistas</h3>
-              <p style={{ fontSize: '0.85rem', color: '#f472b6', lineHeight: '1.5' }}>
-                Jogo clássico de tabuleiro estilo Perfil. Revele até 5 pistas, movimente seus peões de 1 a 30 e tome cuidado com bônus e penalidades!
-              </p>
+            {/* Card Três Pistas */}
+            <div className="card" style={{ 
+              flex: 1, 
+              minWidth: '280px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              textAlign: 'center', 
+              padding: '24px 20px', 
+              justifyContent: 'space-between', 
+              background: 'rgba(15, 23, 42, 0.45)',
+              border: '1.5px solid rgba(219, 39, 119, 0.3)', 
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(219, 39, 119, 0.12)',
+              margin: 0
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                <div style={{ fontSize: '2.6rem', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(219, 39, 119, 0.3))' }}>🗺️</div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#db2777', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo das Três Pistas</h3>
+                <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 16px', minHeight: '66px' }}>
+                  Jogo clássico de tabuleiro estilo Perfil. Revele até 5 pistas, movimente seus peões 30 e tome cuidado com bônus e penalidades!
+                </p>
+              </div>
+              <button 
+                className="btn-menu btn-play" 
+                style={{ 
+                  background: '#db2777', 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: '10px', 
+                  padding: '10px 24px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 'bold', 
+                  cursor: 'pointer', 
+                  width: '100%', 
+                  height: '42px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  margin: 0
+                }} 
+                onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('pistas-nomes'); }}
+              >
+                ▶ Jogar Três Pistas
+              </button>
             </div>
-            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #ec4899, #7c3aed)', boxShadow: '0 8px 30px rgba(236, 72, 153, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('pistas-nomes'); }}>
-              ▶ Jogar Três Pistas
-            </button>
-          </div>
 
-          {/* Card Imagem e Ação */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(16, 185, 129, 0.25)', boxShadow: '0 8px 32px rgba(16, 185, 129, 0.15)' }}>
-            <div>
-              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>🎨</div>
-              <h3 style={{ fontSize: '1.4rem', color: '#10b981', marginBottom: '10px', fontFamily: 'Outfit' }}>Imagem e Ação</h3>
-              <p style={{ fontSize: '0.85rem', color: '#6ee7b7', lineHeight: '1.5' }}>
-                Jogo de desenho e mímica tática em tela dupla. Exiba o tabuleiro e as cartas ocultas para os alunos, e controle tudo em sigilo!
-              </p>
+            {/* Card Imagem e Ação */}
+            <div className="card" style={{ 
+              flex: 1, 
+              minWidth: '280px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              textAlign: 'center', 
+              padding: '24px 20px', 
+              justifyContent: 'space-between', 
+              background: 'rgba(15, 23, 42, 0.45)',
+              border: '1.5px solid rgba(16, 185, 129, 0.3)', 
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(16, 185, 129, 0.12)',
+              margin: 0
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                <div style={{ fontSize: '2.6rem', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.3))' }}>🎨</div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#10b981', marginBottom: '10px', fontFamily: 'Outfit' }}>Imagem e Ação</h3>
+                <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 16px', minHeight: '66px' }}>
+                  Jogo de desenho e mímica tática em tela dupla. Exiba o tabuleiro e as cartas ocultas para os alunos, e controle tudo em sigilo!
+                </p>
+              </div>
+              <button 
+                className="btn-menu btn-play" 
+                style={{ 
+                  background: '#059669', 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: '10px', 
+                  padding: '10px 24px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 'bold', 
+                  cursor: 'pointer', 
+                  width: '100%', 
+                  height: '42px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  margin: 0
+                }} 
+                onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('ia-nomes'); }}
+              >
+                ▶ Jogar Imagem e Ação
+              </button>
             </div>
-            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #10b981, #3b82f6)', boxShadow: '0 8px 30px rgba(16, 185, 129, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('ia-nomes'); }}>
-              ▶ Jogar Imagem e Ação
-            </button>
+            
           </div>
-
-          {/* Card Jogo da Memória */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(139, 92, 246, 0.25)', boxShadow: '0 8px 32px rgba(139, 92, 246, 0.15)' }}>
-            <div>
-              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>🧠</div>
-              <h3 style={{ fontSize: '1.4rem', color: '#a78bfa', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo da Memória</h3>
-              <p style={{ fontSize: '0.85rem', color: '#c4b5fd', lineHeight: '1.5' }}>
-                Disputa pedagógica em dupla tela com 30 cartas! Associe perguntas e respostas e ative cartas surpresas de embaralhamento 🌪️ e revelação rápida 👁️.
-              </p>
+          
+          {/* Linha 2: Card Jogo da Memória centralizado abaixo */}
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+            <div className="card" style={{ 
+              width: '100%',
+              maxWidth: '340px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              textAlign: 'center', 
+              padding: '24px 20px', 
+              justifyContent: 'space-between', 
+              background: 'rgba(15, 23, 42, 0.45)',
+              border: '1.5px solid rgba(37, 99, 235, 0.3)', 
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(37, 99, 235, 0.12)',
+              margin: 0
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                <div style={{ fontSize: '2.6rem', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(37, 99, 235, 0.3))' }}>🧠</div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#2563eb', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo da Memória</h3>
+                <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 16px', minHeight: '66px' }}>
+                  Disputa pedagógica em dupla tela com 30 cartas! Associe perguntas e respostas e ative cartas surpresas de embaralhamento 🔀 e revelação rápida.
+                </p>
+              </div>
+              <button 
+                className="btn-menu btn-play" 
+                style={{ 
+                  background: '#2563eb', 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: '10px', 
+                  padding: '10px 24px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 'bold', 
+                  cursor: 'pointer', 
+                  width: '100%', 
+                  height: '42px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  margin: 0
+                }} 
+                onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); setMemoMateria(materias.length > 0 ? materias[0] : ''); irParaTela('memo-nomes'); }}
+              >
+                ▶ Jogar Memória
+              </button>
             </div>
-            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); setMemoMateria(materias.length > 0 ? materias[0] : ''); irParaTela('memo-nomes'); }}>
-              ▶ Jogar Memória
-            </button>
           </div>
+          
+        </div>
+        
+        {/* Rodapé de Ações (Base) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '980px', margin: '0 auto', boxSizing: 'border-box' }}>
+          <button 
+            className="btn-volta-link" 
+            onClick={() => alert("Você já está na Arena de Jogos! Escolha um dos 4 jogos acima para se divertir com seus alunos!")}
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.03)', 
+              border: '1px solid rgba(255, 255, 255, 0.12)', 
+              borderRadius: '10px', 
+              color: '#cbd5e1', 
+              fontSize: '0.82rem', 
+              fontWeight: 700, 
+              padding: '10px 18px', 
+              cursor: 'pointer' 
+            }}
+          >
+            ← Voltar ao Menu
+          </button>
+          
+          <button 
+            className="btn-menu btn-play" 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.03)', 
+              border: '1px solid rgba(255, 255, 255, 0.12)', 
+              borderRadius: '10px', 
+              color: '#cbd5e1', 
+              fontSize: '0.82rem', 
+              fontWeight: 700, 
+              padding: '10px 18px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px', 
+              margin: 0,
+              width: 'auto',
+              cursor: 'pointer'
+            }} 
+            onClick={() => { setCadGerenciadorAba('memoria'); setCadTab('manual'); setOrigemConfig(null); irParaTela('cadastro'); }}
+          >
+            ⚙️ Gerenciar Conteúdo
+          </button>
         </div>
 
       </div>
