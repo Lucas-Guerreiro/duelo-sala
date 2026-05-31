@@ -8939,268 +8939,258 @@ export default function App() {
         </div>
         <p style={{ color: '#c4b5fd', fontSize: '0.88rem', margin: '0 0 14px', textAlign: 'center' }}>Duelo pedagógico em dupla tela com 35 cartas!</p>
 
-        {/* Layout Master de 2 Colunas */}
-        <div style={{ display: 'flex', gap: '20px', width: '100%', maxWidth: '1080px', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'stretch' }}>
+        {/* Layout Master Centralizado Unificado */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%', maxWidth: '580px', margin: '0 auto' }}>
           
-          {/* COLUNA ESQUERDA */}
-          <div style={{ flex: '1 1 480px', display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '320px' }}>
-            
-            {/* Nomes das Equipes Rivais e Vez Inicial (Fundido) */}
-            <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#a78bfa', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #8b5cf6', paddingLeft: '8px' }}>
-                👥 Equipes Rivais & Vez Inicial
-              </div>
-              <div className="dupla" style={{ display: 'flex', gap: '12px', margin: 0, width: '100%' }}>
-                <div 
-                  className="jcard j1" 
-                  style={{ 
-                    flex: 1, 
-                    textAlign: 'center', 
-                    padding: '8px',
-                    border: memoEquipeIniciar === 0 ? '1.5px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '8px',
-                    background: memoEquipeIniciar === 0 ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onClick={() => setMemoEquipeIniciar(0)}
-                >
-                  <h3 style={{ fontSize: '0.85rem', margin: '0 0 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: memoEquipeIniciar === 0 ? '#60a5fa' : '#fff' }}>
-                    🔵 Equipe 1 {memoEquipeIniciar === 0 && <span style={{ fontSize: '0.75rem' }}>🚩 (Começa)</span>}
-                  </h3>
-                  <input 
-                    value={nomeJ1} 
-                    onChange={(e) => setNomeJ1(e.target.value)} 
-                    onClick={(e) => e.stopPropagation()} // impede o click de mudar a vez ao digitar
-                    placeholder="Equipe Azul" 
-                    style={{ textAlign: 'center', padding: '6px', fontSize: '0.85rem', width: '100%', boxSizing: 'border-box' }} 
-                  />
-                </div>
-                <div 
-                  className="jcard j2" 
-                  style={{ 
-                    flex: 1, 
-                    textAlign: 'center', 
-                    padding: '8px',
-                    border: memoEquipeIniciar === 1 ? '1.5px solid #ec4899' : '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '8px',
-                    background: memoEquipeIniciar === 1 ? 'rgba(236, 72, 246, 0.1)' : 'transparent',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onClick={() => setMemoEquipeIniciar(1)}
-                >
-                  <h3 style={{ fontSize: '0.85rem', margin: '0 0 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: memoEquipeIniciar === 1 ? '#f472b6' : '#fff' }}>
-                    🩷 Equipe 2 {memoEquipeIniciar === 1 && <span style={{ fontSize: '0.75rem' }}>🚩 (Começa)</span>}
-                  </h3>
-                  <input 
-                    value={nomeJ2} 
-                    onChange={(e) => setNomeJ2(e.target.value)} 
-                    onClick={(e) => e.stopPropagation()} // impede o click de mudar a vez ao digitar
-                    placeholder="Equipe Rosa" 
-                    style={{ textAlign: 'center', padding: '6px', fontSize: '0.85rem', width: '100%', boxSizing: 'border-box' }} 
-                  />
-                </div>
-              </div>
+          {/* Nomes das Equipes Rivais e Vez Inicial (Fundido) */}
+          <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
+            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#a78bfa', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #8b5cf6', paddingLeft: '8px' }}>
+              👥 Equipes Rivais & Vez Inicial
             </div>
-
-            {/* Matéria Pedagógica */}
-            <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#a78bfa', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #8b5cf6', paddingLeft: '8px' }}>
-                📚 Matéria Pedagógica
-              </div>
-              <select 
-                value={memoMateria}
-                onChange={(e) => setMemoMateria(e.target.value)}
-                style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px', padding: '8px 12px', fontSize: '0.9rem', width: '100%', cursor: 'pointer', textAlign: 'center' }}
+            <div className="dupla" style={{ display: 'flex', gap: '12px', margin: 0, width: '100%' }}>
+              <div 
+                className="jcard j1" 
+                style={{ 
+                  flex: 1, 
+                  textAlign: 'center', 
+                  padding: '8px',
+                  border: memoEquipeIniciar === 0 ? '1.5px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '8px',
+                  background: memoEquipeIniciar === 0 ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onClick={() => setMemoEquipeIniciar(0)}
               >
-                {materias.length === 0 ? (
-                  <option value="">Nenhuma matéria cadastrada</option>
-                ) : (
-                  materias.map((m, idx) => (
-                    <option key={idx} value={m}>{m}</option>
-                  ))
-                )}
-              </select>
+                <h3 style={{ fontSize: '0.85rem', margin: '0 0 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: memoEquipeIniciar === 0 ? '#60a5fa' : '#fff' }}>
+                  🔵 Equipe 1 {memoEquipeIniciar === 0 && <span style={{ fontSize: '0.75rem' }}>🚩 (Começa)</span>}
+                </h3>
+                <input 
+                  value={nomeJ1} 
+                  onChange={(e) => setNomeJ1(e.target.value)} 
+                  onClick={(e) => e.stopPropagation()} // impede o click de mudar a vez ao digitar
+                  placeholder="Equipe Azul" 
+                  style={{ textAlign: 'center', padding: '6px', fontSize: '0.85rem', width: '100%', boxSizing: 'border-box' }} 
+                />
+              </div>
+              <div 
+                className="jcard j2" 
+                style={{ 
+                  flex: 1, 
+                  textAlign: 'center', 
+                  padding: '8px',
+                  border: memoEquipeIniciar === 1 ? '1.5px solid #ec4899' : '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '8px',
+                  background: memoEquipeIniciar === 1 ? 'rgba(236, 72, 246, 0.1)' : 'transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onClick={() => setMemoEquipeIniciar(1)}
+              >
+                <h3 style={{ fontSize: '0.85rem', margin: '0 0 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: memoEquipeIniciar === 1 ? '#f472b6' : '#fff' }}>
+                  🩷 Equipe 2 {memoEquipeIniciar === 1 && <span style={{ fontSize: '0.75rem' }}>🚩 (Começa)</span>}
+                </h3>
+                <input 
+                  value={nomeJ2} 
+                  onChange={(e) => setNomeJ2(e.target.value)} 
+                  onClick={(e) => e.stopPropagation()} // impede o click de mudar a vez ao digitar
+                  placeholder="Equipe Rosa" 
+                  style={{ textAlign: 'center', padding: '6px', fontSize: '0.85rem', width: '100%', boxSizing: 'border-box' }} 
+                />
+              </div>
             </div>
-
           </div>
 
-          {/* COLUNA DIREITA */}
-          <div style={{ flex: '1 1 480px', display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '320px' }}>
-            
-            {/* Escolha das Cartas Surpresas */}
-            <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f59e0b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #f59e0b', paddingLeft: '8px' }}>
-                🎁 Escolha das 3 Cartas Surpresas
+          {/* Matéria Pedagógica */}
+          <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
+            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#a78bfa', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #8b5cf6', paddingLeft: '8px' }}>
+              📚 Matéria Pedagógica
+            </div>
+            <select 
+              value={memoMateria}
+              onChange={(e) => setMemoMateria(e.target.value)}
+              style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px', padding: '8px 12px', fontSize: '0.9rem', width: '100%', cursor: 'pointer', textAlign: 'center' }}
+            >
+              {materias.length === 0 ? (
+                <option value="">Nenhuma matéria cadastrada</option>
+              ) : (
+                materias.map((m, idx) => (
+                  <option key={idx} value={m}>{m}</option>
+                ))
+              )}
+            </select>
+          </div>
+
+          {/* Escolha das Cartas Surpresas */}
+          <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
+            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f59e0b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #f59e0b', paddingLeft: '8px' }}>
+              🎁 Escolha das 3 Cartas Surpresas
+            </div>
+            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <label style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 1</label>
+                <select 
+                  value={memoSurpresaEfeito1}
+                  onChange={(e) => setMemoSurpresaEfeito1(e.target.value)}
+                  style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '0.78rem', cursor: 'pointer', textAlign: 'center' }}
+                >
+                  <option value="embaralhar">Troca-Tudo 🌪️</option>
+                  <option value="olho">Olho Mágico 👁️</option>
+                </select>
               </div>
-              <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <label style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 1</label>
-                  <select 
-                    value={memoSurpresaEfeito1}
-                    onChange={(e) => setMemoSurpresaEfeito1(e.target.value)}
-                    style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '0.78rem', cursor: 'pointer', textAlign: 'center' }}
-                  >
-                    <option value="embaralhar">Troca-Tudo 🌪️</option>
-                    <option value="olho">Olho Mágico 👁️</option>
-                  </select>
-                </div>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <label style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 2</label>
-                  <select 
-                    value={memoSurpresaEfeito2}
-                    onChange={(e) => setMemoSurpresaEfeito2(e.target.value)}
-                    style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '0.78rem', cursor: 'pointer', textAlign: 'center' }}
-                  >
-                    <option value="embaralhar">Troca-Tudo 🌪️</option>
-                    <option value="olho">Olho Mágico 👁️</option>
-                  </select>
-                </div>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <label style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 3</label>
-                  <select 
-                    value={memoSurpresaEfeito3}
-                    onChange={(e) => setMemoSurpresaEfeito3(e.target.value)}
-                    style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '0.78rem', cursor: 'pointer', textAlign: 'center' }}
-                  >
-                    <option value="embaralhar">Troca-Tudo 🌪️</option>
-                    <option value="olho">Olho Mágico 👁️</option>
-                  </select>
-                </div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <label style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 2</label>
+                <select 
+                  value={memoSurpresaEfeito2}
+                  onChange={(e) => setMemoSurpresaEfeito2(e.target.value)}
+                  style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '0.78rem', cursor: 'pointer', textAlign: 'center' }}
+                >
+                  <option value="embaralhar">Troca-Tudo 🌪️</option>
+                  <option value="olho">Olho Mágico 👁️</option>
+                </select>
               </div>
-
-              {/* Inputs de URLs de Surpresa Integrados por Categoria no Lobby! */}
-              <div style={{ marginTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#c4b5fd', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-start' }}>
-                  🖼️ Selecionar Imagens das Surpresas ({memoMateria || 'Geral'})
-                </div>
-                
-                {(() => {
-                  // Obter as imagens cadastradas na categoria ativa ou Geral
-                  let imagensDisponiveis = memoImagensPool.filter(img => typeof img === 'object' ? img.mat === memoMateria : false);
-                  if (imagensDisponiveis.length === 0) {
-                    imagensDisponiveis = memoImagensPool.filter(img => typeof img === 'object' ? !img.mat : true);
-                  }
-                  const poolUrls = imagensDisponiveis.map(img => typeof img === 'object' ? img.url : img);
-                  const poolUrlsFinal = poolUrls.length > 0 ? poolUrls : IMAGENS_PADRAO_MEMORIA;
-
-                  const atualEmbaralhar = memoMateria ? (memoSurpresasPorMateria[memoMateria]?.embaralhar || memoImgSurpresaEmbaralhar) : memoImgSurpresaEmbaralhar;
-                  const atualOlho = memoMateria ? (memoSurpresasPorMateria[memoMateria]?.olho || memoImgSurpresaOlho) : memoImgSurpresaOlho;
-
-                  // Garantir que as URLs ativas estejam no pool (se não estiverem, insere no início)
-                  const poolEmbaralhar = poolUrlsFinal.includes(atualEmbaralhar) ? poolUrlsFinal : [atualEmbaralhar, ...poolUrlsFinal];
-                  const poolOlho = poolUrlsFinal.includes(atualOlho) ? poolUrlsFinal : [atualOlho, ...poolUrlsFinal];
-
-                  return (
-                    <>
-                      {/* Surpresa: Troca-Tudo */}
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <img 
-                          src={atualEmbaralhar} 
-                          alt="Preview Troca-Tudo"
-                          style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.4)', objectFit: 'cover' }}
-                          onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop"; }}
-                        />
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
-                          <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#f59e0b' }}>Troca-Tudo 🌪️</span>
-                          <select 
-                            value={atualEmbaralhar} 
-                            onChange={(e) => {
-                              const url = e.target.value;
-                              if (!memoMateria) {
-                                setMemoImgSurpresaEmbaralhar(url);
-                              } else {
-                                setMemoSurpresasPorMateria(prev => {
-                                  const mat = prev[memoMateria] || {};
-                                  return { ...prev, [memoMateria]: { ...mat, embaralhar: url } };
-                                });
-                              }
-                            }}
-                            style={{ fontSize: '0.75rem', padding: '4px 8px', background: '#0c0e1a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', color: '#fff', width: '100%', boxSizing: 'border-box' }}
-                          >
-                            {poolEmbaralhar.map((url, idx) => (
-                              <option key={idx} value={url}>Imagem {idx + 1} ({url.substring(0, 35)}...)</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Surpresa: Olho Mágico */}
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <img 
-                          src={atualOlho} 
-                          alt="Preview Olho"
-                          style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid rgba(139, 92, 246, 0.4)', objectFit: 'cover' }}
-                          onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop"; }}
-                        />
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
-                          <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#8b5cf6' }}>Olho Mágico 👁️</span>
-                          <select 
-                            value={atualOlho} 
-                            onChange={(e) => {
-                              const url = e.target.value;
-                              if (!memoMateria) {
-                                setMemoImgSurpresaOlho(url);
-                              } else {
-                                setMemoSurpresasPorMateria(prev => {
-                                  const mat = prev[memoMateria] || {};
-                                  return { ...prev, [memoMateria]: { ...mat, olho: url } };
-                                });
-                              }
-                            }}
-                            style={{ fontSize: '0.75rem', padding: '4px 8px', background: '#0c0e1a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', color: '#fff', width: '100%', boxSizing: 'border-box' }}
-                          >
-                            {poolOlho.map((url, idx) => (
-                              <option key={idx} value={url}>Imagem {idx + 1} ({url.substring(0, 35)}...)</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <label style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 700 }}>Surpresa 3</label>
+                <select 
+                  value={memoSurpresaEfeito3}
+                  onChange={(e) => setMemoSurpresaEfeito3(e.target.value)}
+                  style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '0.78rem', cursor: 'pointer', textAlign: 'center' }}
+                >
+                  <option value="embaralhar">Troca-Tudo 🌪️</option>
+                  <option value="olho">Olho Mágico 👁️</option>
+                </select>
               </div>
             </div>
 
-            {/* Ajuste de Escala */}
-            <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#3b82f6', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #3b82f6', paddingLeft: '8px' }}>
-                📐 Escala do Projetor (Epson 16:10)
+            {/* Inputs de URLs de Surpresa Integrados por Categoria no Lobby! */}
+            <div style={{ marginTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#c4b5fd', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-start' }}>
+                🖼️ Selecionar Imagens das Surpresas ({memoMateria || 'Geral'})
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 'bold' }}>Menor (80%)</span>
-                <input 
-                  type="range" 
-                  min="80" 
-                  max="135" 
-                  value={memoCartaEscala}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    setMemoCartaEscala(val);
-                    enviarMsgProjetor('MEMO_ATUALIZAR', { cartaEscala: val });
-                  }}
-                  style={{ flex: 1, accentColor: '#3b82f6', cursor: 'pointer', height: '4px' }}
-                />
-                <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 'bold' }}>({memoCartaEscala}%)</span>
-              </div>
-            </div>
-
-            {/* Ações e Botão de Projetor */}
-            <div style={{ display: 'flex', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
-              <button 
-                className="btn-menu btn-outline" 
-                style={{ flex: 1, borderColor: '#8b5cf6', color: '#a78bfa', background: 'rgba(139, 92, 246, 0.05)', fontSize: '0.82rem', padding: '8px 12px', alignSelf: 'center', whiteSpace: 'nowrap' }}
-                onClick={() => window.open(window.location.origin + window.location.pathname + '?projetor=true', '_blank', 'width=1200,height=800')}
-              >
-                📺 Abrir Segunda Tela
-              </button>
               
-              <button className="btn-start" style={{ flex: 1.3, background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 6px 20px rgba(139, 92, 246, 0.35)', padding: '8px 16px', fontSize: '0.9rem', margin: 0 }} onClick={() => iniciarPartidaMemoria(memoMateria)}>
-                Começar Disputa! 🚀
-              </button>
-            </div>
+              {(() => {
+                // Obter as imagens cadastradas na categoria ativa ou Geral
+                let imagensDisponiveis = memoImagensPool.filter(img => typeof img === 'object' ? img.mat === memoMateria : false);
+                if (imagensDisponiveis.length === 0) {
+                  imagensDisponiveis = memoImagensPool.filter(img => typeof img === 'object' ? !img.mat : true);
+                }
+                const poolUrls = imagensDisponiveis.map(img => typeof img === 'object' ? img.url : img);
+                const poolUrlsFinal = poolUrls.length > 0 ? poolUrls : IMAGENS_PADRAO_MEMORIA;
 
+                const atualEmbaralhar = memoMateria ? (memoSurpresasPorMateria[memoMateria]?.embaralhar || memoImgSurpresaEmbaralhar) : memoImgSurpresaEmbaralhar;
+                const atualOlho = memoMateria ? (memoSurpresasPorMateria[memoMateria]?.olho || memoImgSurpresaOlho) : memoImgSurpresaOlho;
+
+                // Garantir que as URLs ativas estejam no pool (se não estiverem, insere no início)
+                const poolEmbaralhar = poolUrlsFinal.includes(atualEmbaralhar) ? poolUrlsFinal : [atualEmbaralhar, ...poolUrlsFinal];
+                const poolOlho = poolUrlsFinal.includes(atualOlho) ? poolUrlsFinal : [atualOlho, ...poolUrlsFinal];
+
+                return (
+                  <>
+                    {/* Surpresa: Troca-Tudo */}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <img 
+                        src={atualEmbaralhar} 
+                        alt="Preview Troca-Tudo"
+                        style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.4)', objectFit: 'cover' }}
+                        onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop"; }}
+                      />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#f59e0b' }}>Troca-Tudo 🌪️</span>
+                        <select 
+                          value={atualEmbaralhar} 
+                          onChange={(e) => {
+                            const url = e.target.value;
+                            if (!memoMateria) {
+                              setMemoImgSurpresaEmbaralhar(url);
+                            } else {
+                              setMemoSurpresasPorMateria(prev => {
+                                const mat = prev[memoMateria] || {};
+                                return { ...prev, [memoMateria]: { ...mat, embaralhar: url } };
+                              });
+                            }
+                          }}
+                          style={{ fontSize: '0.75rem', padding: '4px 8px', background: '#0c0e1a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', color: '#fff', width: '100%', boxSizing: 'border-box' }}
+                        >
+                          {poolEmbaralhar.map((url, idx) => (
+                            <option key={idx} value={url}>Imagem {idx + 1} ({url.substring(0, 35)}...)</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Surpresa: Olho Mágico */}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <img 
+                        src={atualOlho} 
+                        alt="Preview Olho"
+                        style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid rgba(139, 92, 246, 0.4)', objectFit: 'cover' }}
+                        onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop"; }}
+                      />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#8b5cf6' }}>Olho Mágico 👁️</span>
+                        <select 
+                          value={atualOlho} 
+                          onChange={(e) => {
+                            const url = e.target.value;
+                            if (!memoMateria) {
+                              setMemoImgSurpresaOlho(url);
+                            } else {
+                              setMemoSurpresasPorMateria(prev => {
+                                const mat = prev[memoMateria] || {};
+                                return { ...prev, [memoMateria]: { ...mat, olho: url } };
+                              });
+                            }
+                          }}
+                          style={{ fontSize: '0.75rem', padding: '4px 8px', background: '#0c0e1a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', color: '#fff', width: '100%', boxSizing: 'border-box' }}
+                        >
+                          {poolOlho.map((url, idx) => (
+                            <option key={idx} value={url}>Imagem {idx + 1} ({url.substring(0, 35)}...)</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Ajuste de Escala */}
+          <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
+            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#3b82f6', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #3b82f6', paddingLeft: '8px' }}>
+              📐 Escala do Projetor (Epson 16:10)
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 'bold' }}>Menor (80%)</span>
+              <input 
+                type="range" 
+                min="80" 
+                max="135" 
+                value={memoCartaEscala}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setMemoCartaEscala(val);
+                  enviarMsgProjetor('MEMO_ATUALIZAR', { cartaEscala: val });
+                }}
+                style={{ flex: 1, accentColor: '#3b82f6', cursor: 'pointer', height: '4px' }}
+              />
+              <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 'bold' }}>({memoCartaEscala}%)</span>
+            </div>
+          </div>
+
+          {/* Ações e Botão de Projetor */}
+          <div style={{ display: 'flex', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
+            <button 
+              className="btn-menu btn-outline" 
+              style={{ flex: 1, borderColor: '#8b5cf6', color: '#a78bfa', background: 'rgba(139, 92, 246, 0.05)', fontSize: '0.82rem', padding: '8px 12px', alignSelf: 'center', whiteSpace: 'nowrap' }}
+              onClick={() => window.open(window.location.origin + window.location.pathname + '?projetor=true', '_blank', 'width=1200,height=800')}
+            >
+              📺 Abrir Segunda Tela
+            </button>
+            
+            <button className="btn-start" style={{ flex: 1.3, background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 6px 20px rgba(139, 92, 246, 0.35)', padding: '8px 16px', fontSize: '0.9rem', margin: 0 }} onClick={() => iniciarPartidaMemoria(memoMateria)}>
+              Começar Disputa! 🚀
+            </button>
           </div>
 
         </div>
@@ -9239,26 +9229,9 @@ export default function App() {
         </div>
 
         {/* Barra de Ferramentas de Moderação: Escala e Informações */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(30, 41, 59, 0.45)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '12px', padding: '8px 20px', marginBottom: '14px', flexShrink: 0, gap: '14px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(30, 41, 59, 0.45)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '12px', padding: '8px 20px', marginBottom: '14px', flexShrink: 0 }}>
           <div style={{ fontSize: '0.88rem', color: '#cbd5e1' }}>
             📚 Matéria Ativa: <strong style={{ color: '#a78bfa' }}>{memoMateria || 'Geral'}</strong>
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '280px' }}>
-            <span style={{ fontSize: '0.8rem', color: '#cbd5e1', whiteSpace: 'nowrap', fontWeight: 'bold' }}>📐 Escala do Projetor:</span>
-            <input 
-              type="range" 
-              min="80" 
-              max="135" 
-              value={memoCartaEscala}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                setMemoCartaEscala(val);
-                enviarMsgProjetor('MEMO_ATUALIZAR', { cartaEscala: val });
-              }}
-              style={{ flex: 1, accentColor: '#3b82f6', cursor: 'pointer', height: '5px' }}
-            />
-            <span style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 'bold', minWidth: '40px', textAlign: 'right' }}>{memoCartaEscala}%</span>
           </div>
         </div>
 
@@ -9439,10 +9412,16 @@ export default function App() {
 
         {memoCartas.length > 0 ? (
           <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', padding: '8px', boxSizing: 'border-box' }}>
-            {/* Tabuleiro de Cartas 3D — sem transform: o CSS grid 7x5 preenche o viewport naturalmente */}
+            {/* Tabuleiro de Cartas 3D — com escala dinâmica do projetor */}
             <div 
               className="memo-grid"
-              style={{ width: '100%', height: '100%' }}
+              style={{ 
+                width: '100%', 
+                height: '100%',
+                transform: `scale(${memoProjetorCartaEscala / 100})`,
+                transformOrigin: 'center center',
+                transition: 'transform 0.3s ease-out'
+              }}
             >
               {memoCartas.map((carta, idx) => {
                 const virada = carta.aberta || carta.encontradaPor !== null;
