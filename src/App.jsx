@@ -6887,7 +6887,7 @@ export default function App() {
                             }} 
                             onClick={() => duplicarMemoImagem(idx)}
                           >
-                            👯 Duplicar
+                            Duplicar
                           </button>
                           <button 
                             className="btn-del" 
