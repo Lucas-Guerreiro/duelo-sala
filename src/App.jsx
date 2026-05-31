@@ -641,6 +641,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : IMAGENS_PADRAO_MEMORIA;
   });
   const [cadMemoImagemUrl, setCadMemoImagemUrl] = useState('');
+  const [cadMemoImagemMateria, setCadMemoImagemMateria] = useState('');
 
   const [memoImgSurpresaEmbaralhar, setMemoImgSurpresaEmbaralhar] = useState(() => localStorage.getItem('memoImgSurpresaEmbaralhar') || "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop");
   const [memoImgSurpresaOlho, setMemoImgSurpresaOlho] = useState(() => localStorage.getItem('memoImgSurpresaOlho') || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop");
@@ -1628,9 +1629,10 @@ export default function App() {
       alert('A URL da imagem deve começar com http:// ou https://');
       return;
     }
-    const novaPool = [...memoImagensPool, cadMemoImagemUrl.trim()];
+    const novaPool = [...memoImagensPool, { url: cadMemoImagemUrl.trim(), mat: cadMemoImagemMateria || "" }];
     setMemoImagensPool(novaPool);
     setCadMemoImagemUrl('');
+    setCadMemoImagemMateria('');
   };
 
   const deletarMemoImagem = (idx) => {
@@ -1724,8 +1726,20 @@ export default function App() {
       pergsPartida.push(poolBase[i % poolBase.length]);
     }
 
-    // Usa a pool de imagens gerenciada pelo professor (ou fallback se estiver vazia)
-    const poolImagens = memoImagensPool.length > 0 ? memoImagensPool : IMAGENS_PADRAO_MEMORIA;
+    // Filtra prioritariamente as imagens associadas à matéria ativa
+    let poolImagensMat = memoImagensPool
+      .filter(img => typeof img === 'object' ? img.mat === materiaEscolhida : false)
+      .map(img => img.url);
+
+    // Se não houver imagens específicas para a matéria, busca imagens Gerais (sem matéria associada)
+    if (poolImagensMat.length === 0) {
+      poolImagensMat = memoImagensPool
+        .filter(img => typeof img === 'object' ? !img.mat : true)
+        .map(img => typeof img === 'object' ? img.url : img);
+    }
+
+    // Fallback de segurança para o padrão de fábrica caso a pool resultante esteja vazia
+    const poolImagens = poolImagensMat.length > 0 ? poolImagensMat : IMAGENS_PADRAO_MEMORIA;
 
     // 2. Criar cartas (16 perguntas e 16 respostas correspondentes)
     const cartas = [];
@@ -2026,133 +2040,6 @@ export default function App() {
         }, 2500);
 
       }, 1500);
-      return;
-    }
-
-    // --- CASO 4: CARTA SURPRESA GANHAR AURA 🗿✨ ---
-    if (carta.tipo === 'surpresa-ganhar-aura') {
-      setMemoBloqueioCliques(true);
-      setMemoEfeitoAtivo('ganhar-aura');
-      
-      const novasSelecionadas = [...memoCartasSelecionadas, index];
-      setMemoCartasSelecionadas(novasSelecionadas);
-
-      // +2000 pontos de aura equivalem a +2 no placar local
-      const novosPontos = [...memoPontuacao];
-      novosPontos[memoEquipeVez] += 2;
-      setMemoPontuacao(novosPontos);
-
-      const feedback = {
-        equipe: memoEquipeVez,
-        txt: `+2000 de AURA para a Equipe ${memoEquipeVez === 0 ? nomeJ1 : nomeJ2}! GigaChads! 🗿🔥`
-      };
-      setMemoAuraFeedback(feedback);
-
-      enviarMsgProjetor('MEMO_ATUALIZAR', {
-        cartas: novasCartas,
-        cartasSelecionadas: novasSelecionadas,
-        efeitoAtivo: 'ganhar-aura',
-        pontuacao: novosPontos,
-        auraFeedback: feedback,
-        som: 'success'
-      });
-
-      setTimeout(() => {
-        // Passa a vez
-        const proximaVez = memoEquipeVez === 0 ? 1 : 0;
-        setMemoEquipeVez(proximaVez);
-        setMemoCartasSelecionadas([]);
-        setMemoEfeitoAtivo(null);
-        setMemoAuraFeedback(null);
-        setMemoBloqueioCliques(false);
-
-        enviarMsgProjetor('MEMO_ATUALIZAR', {
-          cartas: novasCartas,
-          cartasSelecionadas: [],
-          equipeVez: proximaVez,
-          efeitoAtivo: null,
-          auraFeedback: null
-        });
-      }, 4000);
-      return;
-    }
-
-    // --- CASO 5: CARTA SURPRESA PERDER AURA 📉💔 ---
-    if (carta.tipo === 'surpresa-perder-aura') {
-      setMemoBloqueioCliques(true);
-      setMemoEfeitoAtivo('perder-aura');
-      
-      const novasSelecionadas = [...memoCartasSelecionadas, index];
-      setMemoCartasSelecionadas(novasSelecionadas);
-
-      // -1000 pontos de aura equivalem a -1 no placar local (não menor que 0)
-      const novosPontos = [...memoPontuacao];
-      novosPontos[memoEquipeVez] = Math.max(0, novosPontos[memoEquipeVez] - 1);
-      setMemoPontuacao(novosPontos);
-
-      const feedback = {
-        equipe: memoEquipeVez,
-        txt: `-1000 de AURA para a Equipe ${memoEquipeVez === 0 ? nomeJ1 : nomeJ2}! Que vacilo... 📉💔`
-      };
-      setMemoAuraFeedback(feedback);
-
-      enviarMsgProjetor('MEMO_ATUALIZAR', {
-        cartas: novasCartas,
-        cartasSelecionadas: novasSelecionadas,
-        efeitoAtivo: 'perder-aura',
-        pontuacao: novosPontos,
-        auraFeedback: feedback,
-        som: 'error'
-      });
-
-      setTimeout(() => {
-        // Passa a vez
-        const proximaVez = memoEquipeVez === 0 ? 1 : 0;
-        setMemoEquipeVez(proximaVez);
-        setMemoCartasSelecionadas([]);
-        setMemoEfeitoAtivo(null);
-        setMemoAuraFeedback(null);
-        setMemoBloqueioCliques(false);
-
-        enviarMsgProjetor('MEMO_ATUALIZAR', {
-          cartas: novasCartas,
-          cartasSelecionadas: [],
-          equipeVez: proximaVez,
-          efeitoAtivo: null,
-          auraFeedback: null
-        });
-      }, 4000);
-      return;
-    }
-
-    // --- CASO 6: CARTA SURPRESA VEZ EXTRA 🔄⚡ ---
-    if (carta.tipo === 'surpresa-vez-extra') {
-      setMemoBloqueioCliques(true);
-      setMemoEfeitoAtivo('vez-extra');
-      
-      const novasSelecionadas = [...memoCartasSelecionadas, index];
-      setMemoCartasSelecionadas(novasSelecionadas);
-
-      enviarMsgProjetor('MEMO_ATUALIZAR', {
-        cartas: novasCartas,
-        cartasSelecionadas: novasSelecionadas,
-        efeitoAtivo: 'vez-extra',
-        som: 'dice'
-      });
-
-      setTimeout(() => {
-        // NÃO passa a vez, apenas limpa a seleção para que a equipe ativa jogue de novo
-        setMemoCartasSelecionadas([]);
-        setMemoEfeitoAtivo(null);
-        setMemoBloqueioCliques(false);
-
-        enviarMsgProjetor('MEMO_ATUALIZAR', {
-          cartas: novasCartas,
-          cartasSelecionadas: [],
-          equipeVez: memoEquipeVez, // Mantém a mesma equipe
-          efeitoAtivo: null
-        });
-      }, 3000);
       return;
     }
 
@@ -6636,16 +6523,26 @@ export default function App() {
               {/* Input de nova imagem */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
                 <label style={{ fontWeight: 'bold' }}>Adicionar Imagem por URL</label>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <input 
                     placeholder="Cole a URL da imagem aqui... (Ex: https://images.unsplash.com/...)" 
                     value={cadMemoImagemUrl}
                     onChange={(e) => setCadMemoImagemUrl(e.target.value)}
-                    style={{ flex: 1 }}
+                    style={{ flex: 2, minWidth: '240px' }}
                   />
+                  <select
+                    value={cadMemoImagemMateria}
+                    onChange={(e) => setCadMemoImagemMateria(e.target.value)}
+                    style={{ flex: 1, minWidth: '150px', background: '#1a1f38', color: '#fff', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.85rem', cursor: 'pointer', boxSizing: 'border-box', height: '42px' }}
+                  >
+                    <option value="">🌍 Geral / Todas</option>
+                    {materias.map((m, i) => (
+                      <option key={i} value={m}>{m}</option>
+                    ))}
+                  </select>
                   <button 
                     className="btn-ac btn-add" 
-                    style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)' }}
+                    style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)', padding: '10px 24px', margin: 0, height: '42px' }}
                     onClick={adicionarMemoImagemManual}
                   >
                     Adicionar
@@ -6695,63 +6592,6 @@ export default function App() {
                       value={memoImgSurpresaOlho} 
                       onChange={(e) => setMemoImgSurpresaOlho(e.target.value)}
                       placeholder="URL da imagem para Olho Mágico..."
-                      style={{ fontSize: '0.82rem', padding: '6px 12px' }}
-                    />
-                  </div>
-                </div>
-
-                {/* Surpresa: Ganhar Aura */}
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <img 
-                    src={memoImgSurpresaGanharAura} 
-                    alt="Preview Explosão Aura"
-                    style={{ width: '55px', height: '55px', borderRadius: '8px', border: '1.5px solid rgba(16, 185, 129, 0.4)', objectFit: 'cover', background: '#0f172a' }}
-                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=250&auto=format&fit=crop"; }}
-                  />
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#10b981' }}>Explosão de Aura 🗿✨ (Ganhar Aura)</label>
-                    <input 
-                      value={memoImgSurpresaGanharAura} 
-                      onChange={(e) => setMemoImgSurpresaGanharAura(e.target.value)}
-                      placeholder="URL da imagem para Explosão de Aura..."
-                      style={{ fontSize: '0.82rem', padding: '6px 12px' }}
-                    />
-                  </div>
-                </div>
-
-                {/* Surpresa: Perder Aura */}
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <img 
-                    src={memoImgSurpresaPerderAura} 
-                    alt="Preview Dreno Aura"
-                    style={{ width: '55px', height: '55px', borderRadius: '8px', border: '1.5px solid rgba(239, 68, 68, 0.4)', objectFit: 'cover', background: '#0f172a' }}
-                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop"; }}
-                  />
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#ef4444' }}>Dreno de Aura 📉💔 (Perder Aura)</label>
-                    <input 
-                      value={memoImgSurpresaPerderAura} 
-                      onChange={(e) => setMemoImgSurpresaPerderAura(e.target.value)}
-                      placeholder="URL da imagem para Dreno de Aura..."
-                      style={{ fontSize: '0.82rem', padding: '6px 12px' }}
-                    />
-                  </div>
-                </div>
-
-                {/* Surpresa: Vez Extra */}
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <img 
-                    src={memoImgSurpresaVezExtra} 
-                    alt="Preview Turno Extra"
-                    style={{ width: '55px', height: '55px', borderRadius: '8px', border: '1.5px solid rgba(59, 130, 246, 0.4)', objectFit: 'cover', background: '#0f172a' }}
-                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=250&auto=format&fit=crop"; }}
-                  />
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#3b82f6' }}>Turno Extra 🔄⚡ (Vez Extra)</label>
-                    <input 
-                      value={memoImgSurpresaVezExtra} 
-                      onChange={(e) => setMemoImgSurpresaVezExtra(e.target.value)}
-                      placeholder="URL da imagem para Turno Extra..."
                       style={{ fontSize: '0.82rem', padding: '6px 12px' }}
                     />
                   </div>
@@ -6832,69 +6672,94 @@ export default function App() {
                   overflowY: 'auto', 
                   paddingRight: '6px' 
                 }}>
-                  {memoImagensPool.map((url, idx) => (
-                    <div 
-                      key={idx} 
-                      style={{ 
-                        background: 'rgba(15, 23, 42, 0.6)', 
-                        border: '1px solid rgba(255, 255, 255, 0.08)', 
-                        borderRadius: '10px', 
-                        padding: '6px', 
-                        position: 'relative', 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        alignItems: 'center', 
-                        boxSizing: 'border-box' 
-                      }}
-                    >
-                      <div style={{ 
-                        width: '100%', 
-                        aspectRatio: '1/1', 
-                        borderRadius: '6px', 
-                        overflow: 'hidden', 
-                        background: '#020108',
-                        position: 'relative'
-                      }}>
-                        <img 
-                          src={url} 
-                          alt={`Preview ${idx + 1}`} 
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          onError={(e) => {
-                            e.currentTarget.src = "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop"; // fallback de erro
-                          }}
-                        />
-                        <span style={{ 
-                          position: 'absolute', 
-                          top: '4px', 
-                          left: '4px', 
-                          background: 'rgba(15, 23, 42, 0.85)', 
-                          color: '#f59e0b', 
-                          fontSize: '0.62rem', 
-                          fontWeight: 'bold', 
-                          padding: '2px 6px', 
-                          borderRadius: '4px',
-                          border: '1px solid rgba(245, 158, 11, 0.2)'
-                        }}>
-                          {idx + 1}
-                        </span>
-                      </div>
-                      <button 
-                        className="btn-del" 
+                  {memoImagensPool.map((item, idx) => {
+                    const url = typeof item === 'object' ? item.url : item;
+                    const mat = typeof item === 'object' ? item.mat : '';
+                    return (
+                      <div 
+                        key={idx} 
                         style={{ 
-                          marginTop: '6px', 
-                          width: '100%', 
-                          padding: '4px', 
-                          fontSize: '0.75rem', 
-                          borderRadius: '6px',
-                          justifyContent: 'center',
-                          display: 'flex'
-                        }} 
-                        onClick={() => deletarMemoImagem(idx)}
+                          background: 'rgba(15, 23, 42, 0.6)', 
+                          border: '1px solid rgba(255, 255, 255, 0.08)', 
+                          borderRadius: '10px', 
+                          padding: '6px', 
+                          position: 'relative', 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          alignItems: 'center', 
+                          boxSizing: 'border-box' 
+                        }}
                       >
-                        Remover ✕
-                      </button>
-                    </div>
-                  ))}
+                        <div style={{ 
+                          width: '100%', 
+                          aspectRatio: '1/1', 
+                          borderRadius: '6px', 
+                          overflow: 'hidden', 
+                          background: '#020108',
+                          position: 'relative'
+                        }}>
+                          <img 
+                            src={url} 
+                            alt={`Preview ${idx + 1}`} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => {
+                              e.currentTarget.src = "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=250&auto=format&fit=crop"; // fallback de erro
+                            }}
+                          />
+                          <span style={{ 
+                            position: 'absolute', 
+                            top: '4px', 
+                            left: '4px', 
+                            background: 'rgba(15, 23, 42, 0.85)', 
+                            color: '#f59e0b', 
+                            fontSize: '0.62rem', 
+                            fontWeight: 'bold', 
+                            padding: '2px 6px', 
+                            borderRadius: '4px',
+                            border: '1px solid rgba(245, 158, 11, 0.2)'
+                          }}>
+                            {idx + 1}
+                          </span>
+                        </div>
+                        
+                        {/* Indicador de Matéria */}
+                        <div style={{
+                          marginTop: '5px',
+                          fontSize: '0.65rem',
+                          fontWeight: 'bold',
+                          color: mat ? '#c084fc' : '#9ca3af',
+                          background: mat ? 'rgba(139, 92, 246, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                          border: mat ? '1px solid rgba(139, 92, 246, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
+                          borderRadius: '4px',
+                          padding: '1px 5px',
+                          textAlign: 'center',
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }} title={mat ? `Matéria: ${mat}` : 'Geral (Disponível em todas as matérias)'}>
+                          {mat ? `📚 ${mat}` : '🌍 Geral'}
+                        </div>
+
+                        <button 
+                          className="btn-del" 
+                          style={{ 
+                            marginTop: '6px', 
+                            width: '100%', 
+                            padding: '4px', 
+                            fontSize: '0.75rem', 
+                            borderRadius: '6px',
+                            justifyContent: 'center',
+                            display: 'flex'
+                          }} 
+                          onClick={() => deletarMemoImagem(idx)}
+                        >
+                          Remover ✕
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -9030,9 +8895,6 @@ export default function App() {
                   >
                     <option value="embaralhar">Troca-Tudo 🌪️</option>
                     <option value="olho">Olho Mágico 👁️</option>
-                    <option value="ganhar-aura">Explosão de Aura 🗿✨</option>
-                    <option value="perder-aura">Dreno de Aura 📉💔</option>
-                    <option value="vez-extra">Turno Extra 🔄⚡</option>
                   </select>
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -9044,9 +8906,6 @@ export default function App() {
                   >
                     <option value="embaralhar">Troca-Tudo 🌪️</option>
                     <option value="olho">Olho Mágico 👁️</option>
-                    <option value="ganhar-aura">Explosão de Aura 🗿✨</option>
-                    <option value="perder-aura">Dreno de Aura 📉💔</option>
-                    <option value="vez-extra">Turno Extra 🔄⚡</option>
                   </select>
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -9058,9 +8917,6 @@ export default function App() {
                   >
                     <option value="embaralhar">Troca-Tudo 🌪️</option>
                     <option value="olho">Olho Mágico 👁️</option>
-                    <option value="ganhar-aura">Explosão de Aura 🗿✨</option>
-                    <option value="perder-aura">Dreno de Aura 📉💔</option>
-                    <option value="vez-extra">Turno Extra 🔄⚡</option>
                   </select>
                 </div>
               </div>
