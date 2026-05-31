@@ -7314,7 +7314,7 @@ export default function App() {
                   imagensDisponiveis = memoImagensPool.filter(img => typeof img === 'object' ? !img.mat : true);
                 }
                 const poolUrls = imagensDisponiveis.map(img => typeof img === 'object' ? img.url : img);
-                const poolUrlsFinal = poolUrls.length > 0 ? poolUrls : IMAGENS_PADED_OR_FACTORY || IMAGENS_PADRAO_MEMORIA;
+                const poolUrlsFinal = poolUrls.length > 0 ? poolUrls : IMAGENS_PADRAO_MEMORIA;
 
                 const atualEmbaralhar = cadMemoImagemMateria ? (memoSurpresasPorMateria[cadMemoImagemMateria]?.embaralhar || memoImgSurpresaEmbaralhar) : memoImgSurpresaEmbaralhar;
                 const atualOlho = cadMemoImagemMateria ? (memoSurpresasPorMateria[cadMemoImagemMateria]?.olho || memoImgSurpresaOlho) : memoImgSurpresaOlho;
