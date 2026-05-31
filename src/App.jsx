@@ -636,7 +636,7 @@ export default function App() {
   const [memoAuraFeedback, setMemoAuraFeedback] = useState(null);
   const [memoSurpresaEfeito1, setMemoSurpresaEfeito1] = useState('embaralhar');
   const [memoSurpresaEfeito2, setMemoSurpresaEfeito2] = useState('olho');
-  const [memoSurpresaEfeito3, setMemoSurpresaEfeito3] = useState('vez-extra');
+  const [memoSurpresaEfeito3, setMemoSurpresaEfeito3] = useState('embaralhar');
   const [memoImagensPool, setMemoImagensPool] = useState(() => {
     const saved = localStorage.getItem('dm_memo_imagens');
     return saved ? JSON.parse(saved) : IMAGENS_PADRAO_MEMORIA;
@@ -1973,7 +1973,7 @@ export default function App() {
     setMemoCartas(novasCartas);
 
     // --- CASO 1: CARTA SURPRESA EMBARALHAR 🌪️ ---
-    if (carta.tipo === 'surpresa-embaralhar') {
+    if (carta.tipo === 'surpresa-embaralhar' || (carta.tipo && carta.tipo.startsWith('surpresa-') && carta.tipo !== 'surpresa-olho')) {
       setMemoBloqueioCliques(true);
       setMemoEfeitoAtivo('embaralhar');
       
