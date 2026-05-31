@@ -716,6 +716,17 @@ export default function App() {
     const onErr = (message, source, lineno, colno, error) => {
       try {
         const msg = message?.toString?.() || String(message);
+        const srcStr = String(source || '');
+        
+        // Ignorar erros vindos de extensões ou scripts de terceiros externos
+        if (
+          srcStr.includes('chrome-extension') || 
+          srcStr.includes('pinComponent') ||
+          srcStr.includes('extension') ||
+          msg.includes('chrome-extension') ||
+          msg.includes('pinComponent')
+        ) return false;
+
         // Ignorar erros internos do BroadcastChannel / HMR do Vite
         if (
           msg.includes('BroadcastChannel') ||
@@ -736,8 +747,18 @@ export default function App() {
     const onRej = (ev) => {
       try {
         const reason = ev && (ev.reason || ev.detail || ev);
-        // Ignorar erros do BroadcastChannel e do próprio Vite HMR
         const msg = reason && reason.message ? reason.message : String(reason);
+        const stackStr = String((reason && reason.stack) || '');
+
+        // Ignorar rejeições vindas de extensões do Chrome ou scripts externos
+        if (
+          msg.includes('chrome-extension') || 
+          msg.includes('pinComponent') ||
+          stackStr.includes('chrome-extension') ||
+          stackStr.includes('pinComponent')
+        ) return;
+
+        // Ignorar erros do BroadcastChannel e do próprio Vite HMR
         if (msg.includes('BroadcastChannel') || msg.includes('postMessage') || msg.includes('Channel is closed')) return;
         console.error('Unhandled rejection captured:', ev);
         setAppError({ message: msg, stack: reason && reason.stack ? reason.stack : JSON.stringify(reason) });

@@ -1,6 +1,17 @@
-import { initializeApp } from 'firebase/app';
+// =====================================================================
+// firebase.js — Módulo de integração com Firebase Firestore
+//
+// COMO CONFIGURAR:
+// 1. Acesse https://console.firebase.google.com/ e crie um projeto.
+// 2. Ative o Firestore no modo de banco de dados.
+// 3. Copie as credenciais do seu app Firebase para FIREBASE_CONFIG abaixo.
+// 4. Defina as regras de segurança do Firestore (leitura/escrita pública para testes).
+// =====================================================================
+
+import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 
+// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDMRvUf6SoTmDmqcFRD5pJbPjBYJ6VwuzU",
   authDomain: "duelo-sala.firebaseapp.com",
@@ -10,83 +21,94 @@ const firebaseConfig = {
   appId: "1:483039726893:web:f32bd8056fdf17d842d7a4"
 };
 
-const backupDocId = import.meta.env.VITE_FIREBASE_BACKUP_ID || 'imagem-acao-backup';
 let db = null;
+let firebaseInitializado = false;
 
+/**
+ * Inicializa o Firebase. Chamado uma vez ao montar o App.
+ * Se as credenciais estiverem vazias, opera em modo offline silencioso.
+ */
 export function initFirebase() {
-  if (db) return db;
-  if (!firebaseConfig.projectId) {
-    console.warn('Firebase não está configurado. Defina as variáveis VITE_FIREBASE_* no .env.');
-    return null;
-  }
-
   try {
-    const app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    return db;
-  } catch (error) {
-    console.error('Erro ao inicializar Firebase:', error);
-    return null;
-  }
-}
-
-export async function salvarBackupImAcao(payload) {
-  try {
-    const firestore = initFirebase();
-    if (!firestore) {
-      console.warn('salvarBackupImAcao: firestore não inicializado; pular backup.');
+    if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+      console.warn('[Firebase] Credenciais não configuradas. Sincronização com nuvem desativada.');
       return;
     }
-
-    const backupRef = doc(firestore, 'duelo_sala_backups', backupDocId);
-    await setDoc(backupRef, {
-      ...payload,
-      updatedAt: new Date().toISOString(),
-    }, { merge: true });
-  } catch (error) {
-    console.error('Erro ao salvar backup no Firebase:', error);
-    // não propaga para evitar quebrar a UI — deixa o chamador lidar com status
-  }
-}
-
-export async function publicarBancoNuvem(codigoSala, dados) {
-  try {
-    const firestore = initFirebase();
-    if (!firestore) {
-      console.warn('publicarBancoNuvem: firestore não inicializado.');
-      return false;
-    }
-
-    const docRef = doc(firestore, 'duelo_sala_professores', codigoSala.trim().toUpperCase());
-    await setDoc(docRef, {
-      ...dados,
-      codigoSala: codigoSala.trim().toUpperCase(),
-      updatedAt: new Date().toISOString(),
-    }, { merge: true });
-    return true;
-  } catch (error) {
-    console.error('Erro ao publicar banco no Firebase:', error);
-    throw error;
-  }
-}
-
-export async function obterBancoNuvem(codigoSala) {
-  try {
-    const firestore = initFirebase();
-    if (!firestore) {
-      console.warn('obterBancoNuvem: firestore não inicializado.');
-      return null;
-    }
-
-    const docRef = doc(firestore, 'duelo_sala_professores', codigoSala.trim().toUpperCase());
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return docSnap.data();
+    if (getApps().length === 0) {
+      const app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
     } else {
-      return null;
+      db = getFirestore(getApps()[0]);
     }
-  } catch (error) {
-    console.error('Erro ao obter banco do Firebase:', error);
-    throw error;
+    firebaseInitializado = true;
+    console.log('[Firebase] Inicializado com sucesso.');
+  } catch (e) {
+    console.error('[Firebase] Erro ao inicializar:', e);
+  }
+}
+
+/**
+ * Salva um backup do estado do jogo Imagem & Ação no Firestore.
+ * @param {Object} payload - Objeto com o estado do jogo.
+ * @returns {Promise<boolean>} true se salvo com sucesso.
+ */
+export async function salvarBackupImAcao(payload) {
+  if (!firebaseInitializado || !db) {
+    console.warn('[Firebase] Backup ignorado: Firebase não inicializado.');
+    return false;
+  }
+  try {
+    const ref = doc(db, 'backups', 'imacao');
+    await setDoc(ref, { ...payload, _updatedAt: new Date().toISOString() });
+    return true;
+  } catch (e) {
+    console.error('[Firebase] Erro ao salvar backup:', e);
+    throw e;
+  }
+}
+
+/**
+ * Publica o banco de dados completo na nuvem, identificado por um código de sala.
+ * @param {string} codigoSala - Código único da sala (ex: "SALA123").
+ * @param {Object} payload - Dados completos do banco de perguntas/cartas.
+ * @returns {Promise<boolean>} true se publicado com sucesso, false se Firebase não ativo.
+ */
+export async function publicarBancoNuvem(codigoSala, payload) {
+  if (!firebaseInitializado || !db) {
+    console.warn('[Firebase] Publicação ignorada: Firebase não inicializado.');
+    return false;
+  }
+  try {
+    const chave = codigoSala.trim().toUpperCase();
+    const ref = doc(db, 'salas', chave);
+    await setDoc(ref, { ...payload, _updatedAt: new Date().toISOString() });
+    return true;
+  } catch (e) {
+    console.error('[Firebase] Erro ao publicar banco na nuvem:', e);
+    throw e;
+  }
+}
+
+/**
+ * Obtém o banco de dados da nuvem pelo código de sala.
+ * @param {string} codigoSala - Código único da sala.
+ * @returns {Promise<Object|null>} Dados da sala ou null se não encontrado.
+ */
+export async function obterBancoNuvem(codigoSala) {
+  if (!firebaseInitializado || !db) {
+    console.warn('[Firebase] Busca ignorada: Firebase não inicializado.');
+    return null;
+  }
+  try {
+    const chave = codigoSala.trim().toUpperCase();
+    const ref = doc(db, 'salas', chave);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      return snap.data();
+    }
+    return null;
+  } catch (e) {
+    console.error('[Firebase] Erro ao obter banco da nuvem:', e);
+    throw e;
   }
 }
