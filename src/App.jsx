@@ -5514,17 +5514,34 @@ export default function App() {
 
       {/* 4. TELA CADASTRO */}
       <div id="tela-cadastro" className={`tela ${tela === 'cadastro' ? 'ativa' : ''}`}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
-          <button className="btn-volta" onClick={() => {
-            if (origemConfig) {
-              irParaTela(origemConfig);
-            } else {
-              irParaTela('menu');
-            }
-          }}>
+        <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginBottom: '22px', position: 'relative', justifyContent: 'center' }}>
+          <button 
+            className="btn-volta-link" 
+            onClick={() => {
+              if (origemConfig) irParaTela(origemConfig);
+              else irParaTela('menu');
+            }} 
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              color: '#94a3b8', 
+              fontSize: '0.88rem', 
+              fontWeight: 600, 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px', 
+              padding: 0,
+              position: 'absolute',
+              left: 0
+            }}
+          >
             ← Voltar ao {origemConfig ? 'Lobby' : 'Menu'}
           </button>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: 900 }}>⚙️ Gerenciar Conteúdo do Jogo</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.45rem', fontWeight: 900, fontFamily: 'Outfit', color: '#fff' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(139, 92, 246, 0.1)', padding: '5px', borderRadius: '8px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>⚙️🎨</span>
+            <span>Gerenciar Conteúdo do Jogo</span>
+          </div>
         </div>
 
         {/* Painel de Sincronização em Nuvem (Firebase) */}
@@ -6743,47 +6760,145 @@ export default function App() {
         {cadGerenciadorAba === 'memoria' && (
           <div className="tab-panel ativa" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
-            {/* BLOCO 1: SINCRONIZAÇÃO EM NUVEM & BACKUP (MINIMALISTA) */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', border: '1.5px solid rgba(139, 92, 246, 0.35)', borderRadius: '14px', margin: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '8px' }}>
-                <span style={{ fontSize: '1.1rem' }}>☁️</span>
-                <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#c4b5fd' }}>Sincronização em Nuvem & Backup</span>
+            {/* BLOCO 1: SINCRONIZAÇÃO EM NUVEM & BACKUP (ESTILO PREMIUM IDÊNTICO À IMAGEM) */}
+            <div className="card" style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '14px', 
+              padding: '16px 20px', 
+              background: 'rgba(15, 23, 42, 0.4)', 
+              border: '1px solid rgba(255, 255, 255, 0.08)', 
+              borderRadius: '16px', 
+              margin: '0 0 16px 0',
+              boxSizing: 'border-box'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.2rem', color: '#fff' }}>☁️</span>
+                  <span style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff', fontFamily: 'Outfit', letterSpacing: '0.3px' }}>Cloud Sync & Backup</span>
+                </div>
+                
+                {/* Dropdown decorativo/funcional JSON Ações */}
+                <div style={{ position: 'relative' }}>
+                  <button 
+                    style={{ 
+                      background: 'rgba(255,255,255,0.03)', 
+                      border: '1px solid rgba(255,255,255,0.12)', 
+                      borderRadius: '8px', 
+                      color: '#fff', 
+                      fontSize: '0.78rem', 
+                      fontWeight: 700, 
+                      padding: '5px 12px', 
+                      cursor: 'pointer', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '4px' 
+                    }}
+                    onClick={() => {
+                      alert("Use os botões de Exportar e Importar JSON abaixo para gerenciar seus arquivos locais!");
+                    }}
+                  >
+                    JSON Ações <span>∨</span>
+                  </button>
+                </div>
               </div>
               
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 {/* Lado Esquerdo: Firebase */}
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', flex: '1 1 350px' }}>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {/* Caixa de Texto do Código (Igual ao bloco GUERREIRO) */}
                   <input 
                     value={codigoSalaOnline}
                     onChange={(e) => setCodigoSalaOnline(e.target.value)}
-                    placeholder="Código de Acesso (Ex: SALA10)"
-                    style={{ background: '#0f172a', color: '#fff', border: '1.5px solid rgba(139, 92, 246, 0.4)', borderRadius: '6px', padding: '6px 12px', fontSize: '0.8rem', textTransform: 'uppercase', width: '160px', textAlign: 'center' }}
+                    placeholder="CÓDIGO SALA"
+                    style={{ 
+                      background: 'rgba(255,255,255,0.05)', 
+                      color: '#fff', 
+                      border: '1px solid rgba(255,255,255,0.15)', 
+                      borderRadius: '10px', 
+                      padding: '8px 16px', 
+                      fontSize: '0.82rem', 
+                      fontWeight: 800, 
+                      textTransform: 'uppercase', 
+                      width: '130px', 
+                      textAlign: 'center',
+                      fontFamily: 'Outfit',
+                      letterSpacing: '1px'
+                    }}
                   />
+                  
                   <button 
                     onClick={handleEnviarParaNuvem}
-                    className="btn-start"
-                    style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'linear-gradient(90deg, #3b82f6, #60a5fa)', margin: 0, width: 'auto', boxShadow: 'none', height: '32px', lineHeight: '18px' }}
+                    className="btn-menu btn-play"
+                    style={{ 
+                      padding: '8px 16px', 
+                      fontSize: '0.82rem', 
+                      fontWeight: 700, 
+                      background: 'none', 
+                      border: '1.5px solid #2563eb', 
+                      color: '#60a5fa', 
+                      borderRadius: '10px', 
+                      margin: 0, 
+                      width: 'auto', 
+                      height: '38px', 
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
                   >
                     Enviar 📤
                   </button>
+                  
                   <button 
                     onClick={handleBaixarDaNuvem}
                     className="btn-menu btn-play"
-                    style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'linear-gradient(90deg, #10b981, #34d399)', margin: 0, width: 'auto', boxShadow: 'none', height: '32px', lineHeight: '18px' }}
+                    style={{ 
+                      padding: '8px 16px', 
+                      fontSize: '0.82rem', 
+                      fontWeight: 700, 
+                      background: 'none', 
+                      border: '1.5px solid #059669', 
+                      color: '#34d399', 
+                      borderRadius: '10px', 
+                      margin: 0, 
+                      width: 'auto', 
+                      height: '38px', 
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
                   >
                     Baixar 📥
                   </button>
                 </div>
 
                 {/* Lado Direito: Backup JSON */}
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: '1 1 250px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <button 
                     onClick={exportarMemoriaBackup}
                     className="btn-menu btn-play"
-                    style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'linear-gradient(90deg, #374151, #4b5563)', margin: 0, width: 'auto', height: '32px', lineHeight: '18px', boxShadow: 'none', borderColor: 'rgba(255,255,255,0.1)' }}
+                    style={{ 
+                      padding: '8px 16px', 
+                      fontSize: '0.82rem', 
+                      fontWeight: 700, 
+                      background: 'none', 
+                      border: '1.5px solid rgba(255,255,255,0.2)', 
+                      color: '#fff', 
+                      borderRadius: '10px', 
+                      margin: 0, 
+                      width: 'auto', 
+                      height: '38px', 
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
                   >
-                    Exportar JSON 📤
+                    Exportar JSON ☁️
                   </button>
+                  
                   <div style={{ position: 'relative' }}>
                     <input 
                       type="file" 
@@ -6792,29 +6907,72 @@ export default function App() {
                       style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
                     />
                     <button 
-                      className="btn-start" 
-                      style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', margin: 0, width: 'auto', height: '32px', lineHeight: '18px', boxShadow: 'none' }}
+                      className="btn-menu btn-play" 
+                      style={{ 
+                        padding: '8px 16px', 
+                        fontSize: '0.82rem', 
+                        fontWeight: 700, 
+                        background: 'none', 
+                        border: '1.5px solid rgba(255, 255, 255, 0.2)', 
+                        color: '#fff', 
+                        borderRadius: '10px', 
+                        margin: 0, 
+                        width: 'auto', 
+                        height: '38px', 
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
                     >
-                      Importar JSON 📥
+                      Importar JSON 📤
                     </button>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* BLOCO 2: GERENCIAR IMAGENS DO JOGO DA MEMÓRIA */}
-            <div className="card" style={{ margin: 0 }}>
-              <div className="sec" style={{ marginBottom: '14px' }}>🧠 Gerenciar Imagens do Jogo da Memória</div>
+            {/* BLOCO 2: GERENCIAR IMAGENS DO JOGO DA MEMÓRIA (IDÊNTICO À IMAGEM) */}
+            <div className="card" style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '16px', 
+              padding: '20px 24px', 
+              background: 'rgba(15, 23, 42, 0.35)', 
+              border: '1px solid rgba(255, 255, 255, 0.08)', 
+              borderRadius: '16px', 
+              margin: 0,
+              boxSizing: 'border-box'
+            }}>
+              {/* Título Principal do Card */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', fontWeight: 900, color: '#fff', fontFamily: 'Outfit', textAlign: 'left' }}>
+                <span style={{ color: '#c084fc' }}>🎖️🧠</span>
+                <span>Gerenciar Imagens do Jogo da Memória</span>
+              </div>
               
-              {/* Input de nova imagem */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
-                <label style={{ fontWeight: 'bold' }}>Adicionar Imagem por URL</label>
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* Subtítulo Adicionar Imagem por URL */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                <label style={{ fontSize: '0.78rem', color: '#c084fc', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'left' }}>
+                  Adicionar Imagem por URL
+                </label>
+                
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', width: '100%' }}>
                   <input 
-                    placeholder="Cole a URL da imagem aqui... (Ex: https://images.unsplash.com/...)" 
+                    placeholder="Cole a URL da imagem aqui... (Ex: https://images" 
                     value={cadMemoImagemUrl}
                     onChange={(e) => setCadMemoImagemUrl(e.target.value)}
-                    style={{ flex: 2, minWidth: '240px' }}
+                    style={{ 
+                      flex: 2.2, 
+                      minWidth: '240px',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      color: '#fff',
+                      border: '1px solid rgba(139, 92, 246, 0.35)',
+                      borderRadius: '10px',
+                      padding: '10px 16px',
+                      fontSize: '0.88rem',
+                      height: '42px',
+                      boxSizing: 'border-box'
+                    }}
                   />
                   <select
                     value={cadMemoImagemMateria}
@@ -6827,7 +6985,19 @@ export default function App() {
                         setMostrarCriarCategoriaMemo(false);
                       }
                     }}
-                    style={{ flex: 1, minWidth: '150px', background: '#1a1f38', color: '#fff', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.85rem', cursor: 'pointer', boxSizing: 'border-box', height: '42px' }}
+                    style={{ 
+                      flex: 1.1, 
+                      minWidth: '150px', 
+                      background: 'rgba(0, 0, 0, 0.3)', 
+                      color: '#fff', 
+                      border: '1px solid rgba(139, 92, 246, 0.35)', 
+                      borderRadius: '10px', 
+                      padding: '10px 14px', 
+                      fontSize: '0.85rem', 
+                      cursor: 'pointer', 
+                      boxSizing: 'border-box', 
+                      height: '42px' 
+                    }}
                   >
                     <option value="">🌍 Geral / Todas</option>
                     {materias.map((m, i) => (
@@ -6835,9 +7005,22 @@ export default function App() {
                     ))}
                     <option value="NEW_CATEGORY">➕ Criar nova categoria...</option>
                   </select>
+                  
                   <button 
                     className="btn-ac btn-add" 
-                    style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)', padding: '10px 24px', margin: 0, height: '42px' }}
+                    style={{ 
+                      background: '#7c3aed', 
+                      boxShadow: 'none', 
+                      padding: '10px 28px', 
+                      margin: 0, 
+                      height: '42px',
+                      borderRadius: '10px',
+                      color: '#fff',
+                      fontWeight: 'bold',
+                      fontSize: '0.88rem',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
                     onClick={adicionarMemoImagemManual}
                   >
                     Adicionar
@@ -6871,19 +7054,27 @@ export default function App() {
               </div>
 
               {/* Linha Divisória interna sutil */}
-              <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.08)', margin: '20px 0' }}></div>
+              <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.06)', margin: '4px 0' }}></div>
 
               {/* Cabeçalho Imagens no Banco integrado filtrado por Categoria */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#a78bfa' }}>
-                  🖼️ Imagens Cadastradas ({cadMemoImagemMateria ? `Filtradas por: ${cadMemoImagemMateria}` : 'Geral'}) 
-                  <span style={{ fontSize: '0.8rem', color: '#9ca3af', marginLeft: '6px', fontWeight: 'normal' }}>
-                    (Total no banco: {memoImagensPool.length})
-                  </span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.92rem', fontWeight: 800, color: '#fff', fontFamily: 'Outfit' }}>
+                  <span>🖼️ Imagens Cadastradas ({cadMemoImagemMateria ? cadMemoImagemMateria : 'Geral'})</span>
                 </div>
+                
                 <button 
                   className="btn-del" 
-                  style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', color: '#cbd5e1', boxShadow: 'none', padding: '6px 14px', fontSize: '0.78rem' }}
+                  style={{ 
+                    background: 'none', 
+                    border: '1.5px solid rgba(255, 255, 255, 0.25)', 
+                    color: '#fff', 
+                    boxShadow: 'none', 
+                    padding: '8px 16px', 
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    borderRadius: '10px',
+                    cursor: 'pointer'
+                  }}
                   onClick={restaurarMemoImagensPadrao}
                 >
                   🔄 Restaurar Padrão de Fábrica
@@ -6899,8 +7090,37 @@ export default function App() {
 
                 if (imagensFiltradas.length === 0) {
                   return (
-                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: '8px', padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '0.82rem', fontStyle: 'italic' }}>
-                      Nenhuma imagem cadastrada na categoria "{cadMemoImagemMateria ? cadMemoImagemMateria : 'Geral'}". Cole links acima para adicionar imagens.
+                    <div style={{ 
+                      background: 'rgba(0, 0, 0, 0.15)', 
+                      border: '1.5px dashed rgba(255, 255, 255, 0.08)', 
+                      borderRadius: '14px', 
+                      padding: '28px 24px', 
+                      textAlign: 'center', 
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '18px',
+                      color: '#9ca3af', 
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      minHeight: '120px'
+                    }}>
+                      {/* Ícone de grade estilizado com interrogação */}
+                      <div style={{ display: 'flex', position: 'relative', width: '48px', height: '48px', opacity: 0.35 }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '100%', height: '100%', color: '#fff' }}>
+                          <rect x="3" y="3" width="18" height="18" rx="2" />
+                          <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
+                        </svg>
+                        <span style={{ position: 'absolute', right: '-4px', bottom: '-4px', fontSize: '1.4rem', fontWeight: 900, color: '#fff' }}>?</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', textAlign: 'left' }}>
+                        <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#cbd5e1', fontFamily: 'Outfit' }}>
+                          Nenhuma imagem cadastrada na categoria "{cadMemoImagemMateria ? cadMemoImagemMateria : 'Geral'}".
+                        </span>
+                        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                          Cole links acima para adicionar imagens.
+                        </span>
+                      </div>
                     </div>
                   );
                 }
