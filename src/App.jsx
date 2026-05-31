@@ -1662,11 +1662,11 @@ export default function App() {
 
   const adicionarMemoImagemManual = () => {
     if (!cadMemoImagemUrl.trim()) {
-      alert('Por favor, digite a URL da imagem!');
+      alert('Por favor, insira uma URL válida ou faça o upload de uma imagem!');
       return;
     }
-    if (!cadMemoImagemUrl.startsWith('http://') && !cadMemoImagemUrl.startsWith('https://')) {
-      alert('A URL da imagem deve começar com http:// ou https://');
+    if (!cadMemoImagemUrl.startsWith('http://') && !cadMemoImagemUrl.startsWith('https://') && !cadMemoImagemUrl.startsWith('data:')) {
+      alert('A imagem deve ser um link válido (http/https) ou um upload de arquivo local!');
       return;
     }
     const novaPool = [...memoImagensPool, { url: cadMemoImagemUrl.trim(), mat: cadMemoImagemMateria || "" }];
@@ -7154,8 +7154,8 @@ export default function App() {
                     value={cadMemoImagemUrl}
                     onChange={(e) => setCadMemoImagemUrl(e.target.value)}
                     style={{ 
-                      flex: 2.2, 
-                      minWidth: '240px',
+                      flex: 1.5, 
+                      minWidth: '200px',
                       background: 'rgba(0, 0, 0, 0.3)',
                       color: '#fff',
                       border: '1px solid rgba(139, 92, 246, 0.35)',
@@ -7166,6 +7166,68 @@ export default function App() {
                       boxSizing: 'border-box'
                     }}
                   />
+                  
+                  {/* Botão de Upload de Imagem Local */}
+                  <div style={{ position: 'relative', display: 'inline-flex' }}>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const img = new Image();
+                            img.onload = () => {
+                              const canvas = document.createElement('canvas');
+                              const maxDim = 400;
+                              let w = img.width;
+                              let h = img.height;
+                              if (w > maxDim || h > maxDim) {
+                                if (w > h) {
+                                  h = Math.round((h * maxDim) / w);
+                                  w = maxDim;
+                                } else {
+                                  w = Math.round((w * maxDim) / h);
+                                  h = maxDim;
+                                }
+                              }
+                              canvas.width = w;
+                              canvas.height = h;
+                              const ctx = canvas.getContext('2d');
+                              ctx?.drawImage(img, 0, 0, w, h);
+                              const base64 = canvas.toDataURL('image/jpeg', 0.7);
+                              setCadMemoImagemUrl(base64);
+                            };
+                            img.src = event.target?.result;
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                    />
+                    <button 
+                      type="button"
+                      style={{ 
+                        background: 'rgba(255, 255, 255, 0.03)', 
+                        border: '1.5px solid rgba(139, 92, 246, 0.35)', 
+                        borderRadius: '10px', 
+                        color: '#fff', 
+                        fontSize: '0.82rem', 
+                        fontWeight: 700, 
+                        padding: '10px 16px', 
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        height: '42px',
+                        boxSizing: 'border-box',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      📤 Upload
+                    </button>
+                  </div>
                   <select
                     value={cadMemoImagemMateria}
                     onChange={(e) => {
