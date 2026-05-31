@@ -2347,9 +2347,9 @@ export default function App() {
             });
           }, 2200);
 
-          // Verifica se o jogo acabou (14 pares encontrados)
+          // Verifica se o jogo acabou (todos os 16 pares normais encontrados)
           const totalEncontradas = cartasAcertadas.filter(c => c.encontradaPor !== null).length;
-          if (totalEncontradas >= 28) {
+          if (totalEncontradas >= 32) {
             setTimeout(() => {
               enviarMsgProjetor('MEMO_ATUALIZAR', { som: 'victory' });
               irParaTela('memo-fim');
