@@ -1800,25 +1800,20 @@ export default function App() {
       pergsPartida.push(poolBase[i % poolBase.length]);
     }
 
-    const surpresaEmbaralharUrl = memoSurpresasPorMateria[materiaEscolhida]?.embaralhar || memoImgSurpresaEmbaralhar;
-    const surpresaOlhoUrl = memoSurpresasPorMateria[materiaEscolhida]?.olho || memoImgSurpresaOlho;
-
-    // Filtra prioritariamente as imagens associadas à matéria ativa (excluindo as usadas nas cartas surpresa)
+    // Filtra prioritariamente as imagens associadas à matéria ativa
     let poolImagensMat = memoImagensPool
       .filter(img => typeof img === 'object' ? img.mat === materiaEscolhida : false)
-      .map(img => img.url)
-      .filter(url => url !== surpresaEmbaralharUrl && url !== surpresaOlhoUrl);
+      .map(img => img.url);
 
-    // Se não houver imagens específicas para a matéria, busca imagens Gerais (sem matéria associada, excluindo surpresas)
+    // Se não houver imagens específicas para a matéria, busca imagens Gerais (sem matéria associada)
     if (poolImagensMat.length === 0) {
       poolImagensMat = memoImagensPool
         .filter(img => typeof img === 'object' ? !img.mat : true)
-        .map(img => typeof img === 'object' ? img.url : img)
-        .filter(url => url !== surpresaEmbaralharUrl && url !== surpresaOlhoUrl);
+        .map(img => typeof img === 'object' ? img.url : img);
     }
 
     // Fallback de segurança para o padrão de fábrica caso a pool resultante esteja vazia
-    const poolImagens = poolImagensMat.length > 0 ? poolImagensMat : IMAGENS_PADRAO_MEMORIA.filter(url => url !== surpresaEmbaralharUrl && url !== surpresaOlhoUrl);
+    const poolImagens = poolImagensMat.length > 0 ? poolImagensMat : IMAGENS_PADRAO_MEMORIA;
 
     // 2. Criar cartas (16 perguntas e 16 respostas correspondentes)
     const cartas = [];
@@ -1853,7 +1848,7 @@ export default function App() {
             parId: -1,
             tipo: 'surpresa-embaralhar',
             texto: 'Troca-Tudo! 🌪️',
-            imagem: obterSurpresaAtiva('embaralhar'),
+            imagem: memoImgSurpresaEmbaralhar,
             aberta: false,
             encontradaPor: null
           };
@@ -1863,7 +1858,7 @@ export default function App() {
             parId: -2,
             tipo: 'surpresa-olho',
             texto: 'Olho Mágico! 👁️',
-            imagem: obterSurpresaAtiva('olho'),
+            imagem: memoImgSurpresaOlho,
             aberta: false,
             encontradaPor: null
           };
@@ -1903,7 +1898,7 @@ export default function App() {
             parId: -1,
             tipo: 'surpresa-embaralhar',
             texto: 'Troca-Tudo! 🌪️',
-            imagem: obterSurpresaAtiva('embaralhar'),
+            imagem: memoImgSurpresaEmbaralhar,
             aberta: false,
             encontradaPor: null
           };
@@ -9060,98 +9055,6 @@ export default function App() {
                   <option value="olho">Olho Mágico 👁️</option>
                 </select>
               </div>
-            </div>
-
-            {/* Inputs de URLs de Surpresa Integrados por Categoria no Lobby! */}
-            <div style={{ marginTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#c4b5fd', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-start' }}>
-                🖼️ Selecionar Imagens das Surpresas ({memoMateria || 'Geral'})
-              </div>
-              
-              {(() => {
-                // Obter as imagens cadastradas na categoria ativa ou Geral
-                let imagensDisponiveis = memoImagensPool.filter(img => typeof img === 'object' ? img.mat === memoMateria : false);
-                if (imagensDisponiveis.length === 0) {
-                  imagensDisponiveis = memoImagensPool.filter(img => typeof img === 'object' ? !img.mat : true);
-                }
-                const poolUrls = imagensDisponiveis.map(img => typeof img === 'object' ? img.url : img);
-                const poolUrlsFinal = poolUrls.length > 0 ? poolUrls : IMAGENS_PADRAO_MEMORIA;
-
-                const atualEmbaralhar = memoMateria ? (memoSurpresasPorMateria[memoMateria]?.embaralhar || memoImgSurpresaEmbaralhar) : memoImgSurpresaEmbaralhar;
-                const atualOlho = memoMateria ? (memoSurpresasPorMateria[memoMateria]?.olho || memoImgSurpresaOlho) : memoImgSurpresaOlho;
-
-                // Garantir que as URLs ativas estejam no pool (se não estiverem, insere no início)
-                const poolEmbaralhar = poolUrlsFinal.includes(atualEmbaralhar) ? poolUrlsFinal : [atualEmbaralhar, ...poolUrlsFinal];
-                const poolOlho = poolUrlsFinal.includes(atualOlho) ? poolUrlsFinal : [atualOlho, ...poolUrlsFinal];
-
-                return (
-                  <>
-                    {/* Surpresa: Troca-Tudo */}
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <img 
-                        src={atualEmbaralhar} 
-                        alt="Preview Troca-Tudo"
-                        style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.4)', objectFit: 'cover' }}
-                        onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop"; }}
-                      />
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
-                        <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#f59e0b' }}>Troca-Tudo 🌪️</span>
-                        <select 
-                          value={atualEmbaralhar} 
-                          onChange={(e) => {
-                            const url = e.target.value;
-                            if (!memoMateria) {
-                              setMemoImgSurpresaEmbaralhar(url);
-                            } else {
-                              setMemoSurpresasPorMateria(prev => {
-                                const mat = prev[memoMateria] || {};
-                                return { ...prev, [memoMateria]: { ...mat, embaralhar: url } };
-                              });
-                            }
-                          }}
-                          style={{ fontSize: '0.75rem', padding: '4px 8px', background: '#0c0e1a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', color: '#fff', width: '100%', boxSizing: 'border-box' }}
-                        >
-                          {poolEmbaralhar.map((url, idx) => (
-                            <option key={idx} value={url}>Imagem {idx + 1} ({url.substring(0, 35)}...)</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Surpresa: Olho Mágico */}
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <img 
-                        src={atualOlho} 
-                        alt="Preview Olho"
-                        style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid rgba(139, 92, 246, 0.4)', objectFit: 'cover' }}
-                        onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop"; }}
-                      />
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
-                        <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#8b5cf6' }}>Olho Mágico 👁️</span>
-                        <select 
-                          value={atualOlho} 
-                          onChange={(e) => {
-                            const url = e.target.value;
-                            if (!memoMateria) {
-                              setMemoImgSurpresaOlho(url);
-                            } else {
-                              setMemoSurpresasPorMateria(prev => {
-                                const mat = prev[memoMateria] || {};
-                                return { ...prev, [memoMateria]: { ...mat, olho: url } };
-                              });
-                            }
-                          }}
-                          style={{ fontSize: '0.75rem', padding: '4px 8px', background: '#0c0e1a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', color: '#fff', width: '100%', boxSizing: 'border-box' }}
-                        >
-                          {poolOlho.map((url, idx) => (
-                            <option key={idx} value={url}>Imagem {idx + 1} ({url.substring(0, 35)}...)</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
             </div>
           </div>
 
