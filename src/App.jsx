@@ -592,6 +592,7 @@ export default function App() {
       return 'menu';
     }
   }); // 'menu' | 'ia' | 'controles' | 'cadastro' | 'selecao' | 'nomes' | 'jogo' | 'fim'
+  const [origemConfig, setOrigemConfig] = useState(null);
 
   const irParaTela = (dest) => {
     playSound('click');
@@ -4719,138 +4720,10 @@ export default function App() {
     setTela('pistas-fim');
   };
 
-  // --- RENDERS DE TELAS ---
-
-  return (
-    <div style={{ width: '100%' }}>
-      {appError && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(2,6,23,0.92)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ maxWidth: 900, width: '100%', borderRadius: 12, padding: 18, background: 'linear-gradient(180deg, rgba(17,24,39,0.98), rgba(7,10,20,0.98))', boxShadow: '0 8px 40px rgba(2,6,23,0.6)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>Erro de Aplicação Detectado</div>
-                <div style={{ fontSize: '0.85rem', color: '#9ca3af', marginTop: 6 }}>{appError.message}</div>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn-menu btn-outline" style={{ padding: '8px 12px' }} onClick={() => { navigator.clipboard?.writeText(`${appError.message}\n\n${appError.stack || ''}`); }}>
-                  Copiar
-                </button>
-                <button className="btn-menu btn-outline" style={{ padding: '8px 12px' }} onClick={() => setAppError(null)}>
-                  Fechar
-                </button>
-              </div>
-            </div>
-            <pre style={{ marginTop: 12, maxHeight: '50vh', overflow: 'auto', background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 8, fontSize: '0.8rem', color: '#f8fafc' }}>{appError.stack}</pre>
-          </div>
-        </div>
-      )}
-      {/* 1. TELA MENU */}
-      <div id="tela-menu" className={`tela ${tela === 'menu' ? 'ativa' : ''}`}>
-        <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(124, 58, 237, 0.45))' }}>🏆</div>
-        <h1 style={{ textAlign: 'center' }}>Arena de Jogos</h1>
-        <p style={{ textAlign: 'center', marginBottom: '30px' }}>Selecione a modalidade que deseja jogar na sala de aula</p>
-        
-        <div className="jogos-selecao-grid" style={{ width: '100%', maxWidth: '850px', margin: '0 auto 30px' }}>
-          {/* Card Duelo */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(79, 70, 229, 0.25)', boxShadow: '0 8px 32px rgba(79, 70, 229, 0.15)' }}>
-            <div>
-              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>⚔️</div>
-              <h3 style={{ fontSize: '1.4rem', color: '#60a5fa', marginBottom: '10px', fontFamily: 'Outfit' }}>Duelo na Sala</h3>
-              <p style={{ fontSize: '0.85rem', color: '#c4b5fd', lineHeight: '1.5' }}>
-                Responda rápido, ganhe pontos e use poderes (Bloqueio, 50/50, Pontos Duplos) usando o Gamepad ou controles na tela!
-              </p>
-            </div>
-            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%' }} onClick={() => { setMateriasSelecionadas([]); irParaTela('selecao'); }}>
-              ▶ Jogar Duelo
-            </button>
-          </div>
-
-          {/* Card Três Pistas */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(139, 92, 246, 0.25)', boxShadow: '0 8px 32px rgba(139, 92, 246, 0.15)' }}>
-            <div>
-              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>🗺️</div>
-              <h3 style={{ fontSize: '1.4rem', color: '#ec4899', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo das Três Pistas</h3>
-              <p style={{ fontSize: '0.85rem', color: '#f472b6', lineHeight: '1.5' }}>
-                Jogo clássico de tabuleiro estilo Perfil. Revele até 5 pistas, movimente seus peões de 1 a 30 e tome cuidado com bônus e penalidades!
-              </p>
-            </div>
-            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #ec4899, #7c3aed)', boxShadow: '0 8px 30px rgba(236, 72, 153, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('pistas-nomes'); }}>
-              ▶ Jogar Três Pistas
-            </button>
-          </div>
-
-          {/* Card Imagem e Ação */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(16, 185, 129, 0.25)', boxShadow: '0 8px 32px rgba(16, 185, 129, 0.15)' }}>
-            <div>
-              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>🎨</div>
-              <h3 style={{ fontSize: '1.4rem', color: '#10b981', marginBottom: '10px', fontFamily: 'Outfit' }}>Imagem e Ação</h3>
-              <p style={{ fontSize: '0.85rem', color: '#6ee7b7', lineHeight: '1.5' }}>
-                Jogo de desenho e mímica tática em tela dupla. Exiba o tabuleiro e as cartas ocultas para os alunos, e controle tudo em sigilo!
-              </p>
-            </div>
-            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #10b981, #3b82f6)', boxShadow: '0 8px 30px rgba(16, 185, 129, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('ia-nomes'); }}>
-              ▶ Jogar Imagem e Ação
-            </button>
-          </div>
-
-          {/* Card Jogo da Memória */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(139, 92, 246, 0.25)', boxShadow: '0 8px 32px rgba(139, 92, 246, 0.15)' }}>
-            <div>
-              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>🧠</div>
-              <h3 style={{ fontSize: '1.4rem', color: '#a78bfa', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo da Memória</h3>
-              <p style={{ fontSize: '0.85rem', color: '#c4b5fd', lineHeight: '1.5' }}>
-                Disputa pedagógica em dupla tela com 30 cartas! Associe perguntas e respostas e ative cartas surpresas de embaralhamento 🌪️ e revelação rápida 👁️.
-              </p>
-            </div>
-            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); setMemoMateria(materias.length > 0 ? materias[0].nome : ''); irParaTela('memo-nomes'); }}>
-              ▶ Jogar Memória
-            </button>
-          </div>
-        </div>
-
-        {/* Opções utilitárias inferiores */}
-        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: '850px' }}>
-          <button className="btn-menu btn-outline" style={{ flex: '1 1 200px', fontSize: '0.9rem', padding: '12px 20px' }} onClick={() => { setIaPergsGeradas([]); setIaFeedback(null); irParaTela('ia'); }}>
-            ✨ Gerar com IA
-          </button>
-          <button className="btn-menu btn-outline" style={{ flex: '1 1 200px', fontSize: '0.9rem', padding: '12px 20px' }} onClick={() => { setFeedbackControles(null); setDetectMode(null); irParaTela('controles'); }}>
-            🎮 Controles Gamepad
-          </button>
-          <button className="btn-menu btn-outline" style={{ flex: '1 1 200px', fontSize: '0.9rem', padding: '12px 20px' }} onClick={() => { setCadTab('manual'); irParaTela('cadastro'); }}>
-            ⚙️ Gerenciar Conteúdo
-          </button>
-        </div>
-      </div>
-
-      {/* 2. TELA GERADOR IA */}
-      <div id="tela-ia" className={`tela ${tela === 'ia' ? 'ativa' : ''}`}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
-          <button className="btn-volta" onClick={() => irParaTela('menu')}>← Voltar ao Menu</button>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: 900 }}>✨ Gerar perguntas com IA</h2>
-        </div>
-
-        {/* Abas superiores do gerador de IA */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <button 
-            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: iaAba === 'duelo' ? '#4f46e5' : 'transparent', color: iaAba === 'duelo' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
-            onClick={() => { setIaAba('duelo'); setIaFeedback(null); }}
-          >
-            ⚔️ Perguntas de Duelo
-          </button>
-          <button 
-            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: iaAba === 'pistas' ? '#7c3aed' : 'transparent', color: iaAba === 'pistas' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
-            onClick={() => { setIaAba('pistas'); if (iaQtd > 10) setIaQtd(10); setIaFeedback(null); }}
-          >
-            🗺️ Cartas de Três Pistas
-          </button>
-          <button 
-            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: iaAba === 'imacao' ? '#10b981' : 'transparent', color: iaAba === 'imacao' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
-            onClick={() => { setIaAba('imacao'); if (iaQtd > 10) setIaQtd(10); setIaFeedback(null); }}
-          >
-            🎨 Cartas de Imagem e Ação
-          </button>
-        </div>
-
+  // --- FUNÇÃO AUXILIAR PARA GERADOR DE IA CONTEXTUAL ---
+  const renderGeradorIA = () => {
+    return (
+      <div className="tab-panel ativa">
         <div className="card">
           <div style={{ marginBottom: '20px', padding: '14px', border: '1px solid rgba(139, 92, 246, 0.25)', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.04)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', color: '#c4b5fd', fontSize: '0.95rem' }}>
@@ -4940,7 +4813,6 @@ export default function App() {
 
           <label>Matéria / Tema das Perguntas</label>
           <input 
-            id="ia-materia" 
             placeholder="Ex: História do Brasil, Física Quântica, Conhecimentos Gerais..." 
             value={iaMateria}
             onChange={(e) => setIaMateria(e.target.value)}
@@ -4950,7 +4822,6 @@ export default function App() {
             <div>
               <label>Turma / Ano (Para salvar no banco)</label>
               <input 
-                id="ia-turma" 
                 placeholder="Ex: 8º Ano A..." 
                 value={iaTurma}
                 onChange={(e) => setIaTurma(e.target.value)}
@@ -4960,7 +4831,6 @@ export default function App() {
             <div>
               <label>Tema Específico (Opcional)</label>
               <input 
-                id="ia-tema" 
                 placeholder="Ex: Frações, Ásia..." 
                 value={iaTema}
                 onChange={(e) => setIaTema(e.target.value)}
@@ -4971,7 +4841,6 @@ export default function App() {
 
           <label style={{ marginTop: '14px' }}>Instruções Extras / Prompt Adicional (Opcional)</label>
           <textarea 
-            id="ia-prompt-instrucao" 
             placeholder="Ex: Foque em conceitos fáceis e divertidos; inclua fórmulas matemáticas simples; evite terminologias excessivamente difíceis..." 
             value={iaPromptInstrucao}
             onChange={(e) => setIaPromptInstrucao(e.target.value)}
@@ -4999,7 +4868,6 @@ export default function App() {
             <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>1</span>
             <input 
               type="range" 
-              id="ia-qtd" 
               min="1" 
               max={iaAba !== 'duelo' ? 10 : 20} 
               value={iaQtd > (iaAba !== 'duelo' ? 10 : 20) ? (iaAba !== 'duelo' ? 10 : 20) : iaQtd} 
@@ -5042,7 +4910,7 @@ export default function App() {
         </div>
 
         {/* Preview das perguntas da IA */}
-        {iaPergsGeradas.length > 0 && (
+        {iaAba === 'duelo' && iaPergsGeradas.length > 0 && (
           <div className="card" id="ia-resultado">
             <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'space-between', justifyContent: 'space-between', marginBottom: '14px' }}>
               <div className="sec" style={{ margin: 0 }}>Perguntas Formuladas pela IA</div>
@@ -5091,7 +4959,7 @@ export default function App() {
         )}
 
         {/* Preview das cartas de pistas da IA */}
-        {iaPistasGeradas.length > 0 && (
+        {iaAba === 'pistas' && iaPistasGeradas.length > 0 && (
           <div className="card" id="ia-pistas-resultado" style={{ marginTop: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'space-between', justifyContent: 'space-between', marginBottom: '14px' }}>
               <div className="sec" style={{ margin: 0 }}>Cartas de Três Pistas Formuladas pela IA</div>
@@ -5156,7 +5024,7 @@ export default function App() {
         )}
 
         {/* Preview das cartas de Imagem e Ação da IA */}
-        {iaImAcaoGeradas.length > 0 && (
+        {iaAba === 'imacao' && iaImAcaoGeradas.length > 0 && (
           <div className="card" id="ia-imacao-resultado" style={{ marginTop: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'space-between', justifyContent: 'space-between', marginBottom: '14px' }}>
               <div className="sec" style={{ margin: 0 }}>Cartas de Imagem e Ação Formuladas pela IA</div>
@@ -5199,11 +5067,115 @@ export default function App() {
           </div>
         )}
       </div>
+    );
+  };
+
+  // --- RENDERS DE TELAS ---
+
+  return (
+    <div style={{ width: '100%' }}>
+      {appError && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(2,6,23,0.92)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ maxWidth: 900, width: '100%', borderRadius: 12, padding: 18, background: 'linear-gradient(180deg, rgba(17,24,39,0.98), rgba(7,10,20,0.98))', boxShadow: '0 8px 40px rgba(2,6,23,0.6)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>Erro de Aplicação Detectado</div>
+                <div style={{ fontSize: '0.85rem', color: '#9ca3af', marginTop: 6 }}>{appError.message}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn-menu btn-outline" style={{ padding: '8px 12px' }} onClick={() => { navigator.clipboard?.writeText(`${appError.message}\n\n${appError.stack || ''}`); }}>
+                  Copiar
+                </button>
+                <button className="btn-menu btn-outline" style={{ padding: '8px 12px' }} onClick={() => setAppError(null)}>
+                  Fechar
+                </button>
+              </div>
+            </div>
+            <pre style={{ marginTop: 12, maxHeight: '50vh', overflow: 'auto', background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 8, fontSize: '0.8rem', color: '#f8fafc' }}>{appError.stack}</pre>
+          </div>
+        </div>
+      )}
+      {/* 1. TELA MENU */}
+      <div id="tela-menu" className={`tela ${tela === 'menu' ? 'ativa' : ''}`}>
+        <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(124, 58, 237, 0.45))' }}>🏆</div>
+        <h1 style={{ textAlign: 'center' }}>Arena de Jogos</h1>
+        <p style={{ textAlign: 'center', marginBottom: '30px' }}>Selecione a modalidade que deseja jogar na sala de aula</p>
+        
+        <div className="jogos-selecao-grid" style={{ width: '100%', maxWidth: '850px', margin: '0 auto 30px' }}>
+          {/* Card Duelo */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(79, 70, 229, 0.25)', boxShadow: '0 8px 32px rgba(79, 70, 229, 0.15)' }}>
+            <div>
+              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>⚔️</div>
+              <h3 style={{ fontSize: '1.4rem', color: '#60a5fa', marginBottom: '10px', fontFamily: 'Outfit' }}>Duelo na Sala</h3>
+              <p style={{ fontSize: '0.85rem', color: '#c4b5fd', lineHeight: '1.5' }}>
+                Responda rápido, ganhe pontos e use poderes (Bloqueio, 50/50, Pontos Duplos) usando o Gamepad ou controles na tela!
+              </p>
+            </div>
+            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%' }} onClick={() => { setMateriasSelecionadas([]); irParaTela('selecao'); }}>
+              ▶ Jogar Duelo
+            </button>
+          </div>
+
+          {/* Card Três Pistas */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(139, 92, 246, 0.25)', boxShadow: '0 8px 32px rgba(139, 92, 246, 0.15)' }}>
+            <div>
+              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>🗺️</div>
+              <h3 style={{ fontSize: '1.4rem', color: '#ec4899', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo das Três Pistas</h3>
+              <p style={{ fontSize: '0.85rem', color: '#f472b6', lineHeight: '1.5' }}>
+                Jogo clássico de tabuleiro estilo Perfil. Revele até 5 pistas, movimente seus peões de 1 a 30 e tome cuidado com bônus e penalidades!
+              </p>
+            </div>
+            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #ec4899, #7c3aed)', boxShadow: '0 8px 30px rgba(236, 72, 153, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('pistas-nomes'); }}>
+              ▶ Jogar Três Pistas
+            </button>
+          </div>
+
+          {/* Card Imagem e Ação */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(16, 185, 129, 0.25)', boxShadow: '0 8px 32px rgba(16, 185, 129, 0.15)' }}>
+            <div>
+              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>🎨</div>
+              <h3 style={{ fontSize: '1.4rem', color: '#10b981', marginBottom: '10px', fontFamily: 'Outfit' }}>Imagem e Ação</h3>
+              <p style={{ fontSize: '0.85rem', color: '#6ee7b7', lineHeight: '1.5' }}>
+                Jogo de desenho e mímica tática em tela dupla. Exiba o tabuleiro e as cartas ocultas para os alunos, e controle tudo em sigilo!
+              </p>
+            </div>
+            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #10b981, #3b82f6)', boxShadow: '0 8px 30px rgba(16, 185, 129, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('ia-nomes'); }}>
+              ▶ Jogar Imagem e Ação
+            </button>
+          </div>
+
+          {/* Card Jogo da Memória */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px', justifyContent: 'space-between', border: '1px solid rgba(139, 92, 246, 0.25)', boxShadow: '0 8px 32px rgba(139, 92, 246, 0.15)' }}>
+            <div>
+              <div style={{ fontSize: '3rem', marginBottom: '14px' }}>🧠</div>
+              <h3 style={{ fontSize: '1.4rem', color: '#a78bfa', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo da Memória</h3>
+              <p style={{ fontSize: '0.85rem', color: '#c4b5fd', lineHeight: '1.5' }}>
+                Disputa pedagógica em dupla tela com 30 cartas! Associe perguntas e respostas e ative cartas surpresas de embaralhamento 🌪️ e revelação rápida 👁️.
+              </p>
+            </div>
+            <button className="btn-menu btn-play" style={{ marginTop: '20px', maxWidth: '100%', background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.4)' }} onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); setMemoMateria(materias.length > 0 ? materias[0].nome : ''); irParaTela('memo-nomes'); }}>
+              ▶ Jogar Memória
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      {/* 2. TELA GERADOR IA */}
+
 
       {/* 3. TELA CONTROLES */}
       <div id="tela-controles" className={`tela ${tela === 'controles' ? 'ativa' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
-          <button className="btn-volta" onClick={() => irParaTela('menu')}>← Voltar ao Menu</button>
+          <button className="btn-volta" onClick={() => {
+            if (origemConfig) {
+              irParaTela(origemConfig);
+            } else {
+              irParaTela('menu');
+            }
+          }}>
+            ← Voltar ao {origemConfig ? 'Lobby' : 'Menu'}
+          </button>
           <h2 style={{ fontSize: '1.6rem', fontWeight: 900 }}>🎮 Configurar Controle Compartilhado</h2>
         </div>
 
@@ -5290,7 +5262,13 @@ export default function App() {
           </div>
         )}
 
-        <button className="btn-menu btn-play" style={{ margin: '16px auto 0', width: 'fit-content' }} onClick={() => irParaTela('menu')}>
+        <button className="btn-menu btn-play" style={{ margin: '16px auto 0', width: 'fit-content' }} onClick={() => {
+          if (origemConfig) {
+            irParaTela(origemConfig);
+          } else {
+            irParaTela('menu');
+          }
+        }}>
           ✅ Mapeamento concluído
         </button>
       </div>
@@ -5298,7 +5276,15 @@ export default function App() {
       {/* 4. TELA CADASTRO */}
       <div id="tela-cadastro" className={`tela ${tela === 'cadastro' ? 'ativa' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
-          <button className="btn-volta" onClick={() => irParaTela('menu')}>← Voltar ao Menu</button>
+          <button className="btn-volta" onClick={() => {
+            if (origemConfig) {
+              irParaTela(origemConfig);
+            } else {
+              irParaTela('menu');
+            }
+          }}>
+            ← Voltar ao {origemConfig ? 'Lobby' : 'Menu'}
+          </button>
           <h2 style={{ fontSize: '1.6rem', fontWeight: 900 }}>⚙️ Gerenciar Conteúdo do Jogo</h2>
         </div>
 
@@ -5419,41 +5405,44 @@ export default function App() {
         </div>
 
         {/* Abas superiores do gerenciador geral */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
-          <button 
-            style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'duelo' ? '#4f46e5' : 'transparent', color: cadGerenciadorAba === 'duelo' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
-            onClick={() => setCadGerenciadorAba('duelo')}
-          >
-            ⚔️ Perguntas do Duelo
-          </button>
-          <button 
-            style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'pistas' ? '#7c3aed' : 'transparent', color: cadGerenciadorAba === 'pistas' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
-            onClick={() => setCadGerenciadorAba('pistas')}
-          >
-            🗺️ Cartas de Três Pistas
-          </button>
-          <button 
-            style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'imacao' ? '#10b981' : 'transparent', color: cadGerenciadorAba === 'imacao' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
-            onClick={() => setCadGerenciadorAba('imacao')}
-          >
-            🎨 Cartas de Imagem e Ação
-          </button>
-          <button 
-            style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'memoria' ? '#f59e0b' : 'transparent', color: cadGerenciadorAba === 'memoria' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
-            onClick={() => setCadGerenciadorAba('memoria')}
-          >
-            🧠 Imagens da Memória
-          </button>
-        </div>
+        {!origemConfig && (
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
+            <button 
+              style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'duelo' ? '#4f46e5' : 'transparent', color: cadGerenciadorAba === 'duelo' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+              onClick={() => setCadGerenciadorAba('duelo')}
+            >
+              ⚔️ Perguntas do Duelo
+            </button>
+            <button 
+              style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'pistas' ? '#7c3aed' : 'transparent', color: cadGerenciadorAba === 'pistas' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+              onClick={() => setCadGerenciadorAba('pistas')}
+            >
+              🗺️ Cartas de Três Pistas
+            </button>
+            <button 
+              style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'imacao' ? '#10b981' : 'transparent', color: cadGerenciadorAba === 'imacao' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+              onClick={() => setCadGerenciadorAba('imacao')}
+            >
+              🎨 Cartas de Imagem e Ação
+            </button>
+            <button 
+              style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'memoria' ? '#f59e0b' : 'transparent', color: cadGerenciadorAba === 'memoria' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+              onClick={() => setCadGerenciadorAba('memoria')}
+            >
+              🧠 Imagens da Memória
+            </button>
+          </div>
+        )}
 
         {cadGerenciadorAba === 'duelo' && (
           <>
             <div className="tabs">
-          <button className={`tab ${cadTab === 'manual' ? 'ativa' : ''}`} onClick={() => setCadTab('manual')}>✏️ Manual</button>
-          <button className={`tab ${cadTab === 'importar' ? 'ativa' : ''}`} onClick={() => setCadTab('importar')}>📥 Importar Planilha</button>
-          <button className={`tab ${cadTab === 'lista' ? 'ativa' : ''}`} onClick={() => setCadTab('lista')}>📋 Perguntas ({perguntas.length})</button>
-          <button className={`tab ${cadTab === 'backup' ? 'ativa' : ''}`} onClick={() => setCadTab('backup')}>💾 Backup JSON</button>
-        </div>
+              <button className={`tab ${cadTab === 'manual' ? 'ativa' : ''}`} onClick={() => setCadTab('manual')}>✏️ Manual</button>
+              <button className={`tab ${cadTab === 'importar' ? 'ativa' : ''}`} onClick={() => setCadTab('importar')}>📥 Importar Planilha</button>
+              <button className={`tab ${cadTab === 'lista' ? 'ativa' : ''}`} onClick={() => setCadTab('lista')}>📋 Perguntas ({perguntas.length})</button>
+              <button className={`tab ${cadTab === 'ia' ? 'ativa' : ''}`} onClick={() => { setCadTab('ia'); setIaAba('duelo'); setIaFeedback(null); }}>✨ Gerar com IA</button>
+              <button className={`tab ${cadTab === 'backup' ? 'ativa' : ''}`} onClick={() => setCadTab('backup')}>💾 Backup JSON</button>
+            </div>
 
         {/* TAB 1: MANUAL */}
         {cadTab === 'manual' && (
@@ -5883,6 +5872,8 @@ export default function App() {
             </div>
           );
         })()}
+
+            {cadTab === 'ia' && renderGeradorIA()}
           </>
         )}
 
@@ -5893,6 +5884,7 @@ export default function App() {
               <button className={`tab ${cadTab === 'manual' ? 'ativa' : ''}`} onClick={() => setCadTab('manual')}>✏️ Manual</button>
               <button className={`tab ${cadTab === 'importar' ? 'ativa' : ''}`} onClick={() => setCadTab('importar')}>📥 Importar Planilha</button>
               <button className={`tab ${cadTab === 'lista' ? 'ativa' : ''}`} onClick={() => setCadTab('lista')}>📋 Cartas ({cartasPistas.length})</button>
+              <button className={`tab ${cadTab === 'ia' ? 'ativa' : ''}`} onClick={() => { setCadTab('ia'); setIaAba('pistas'); if (iaQtd > 10) setIaQtd(10); setIaFeedback(null); }}>✨ Gerar com IA</button>
               <button className={`tab ${cadTab === 'backup' ? 'ativa' : ''}`} onClick={() => setCadTab('backup')}>💾 Backup JSON</button>
             </div>
 
@@ -6193,6 +6185,8 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            {cadTab === 'ia' && renderGeradorIA()}
           </div>
         )}
 
@@ -6203,6 +6197,7 @@ export default function App() {
               <button className={`tab ${cadTab === 'manual' ? 'ativa' : ''}`} onClick={() => setCadTab('manual')}>✏️ Manual</button>
               <button className={`tab ${cadTab === 'importar' ? 'ativa' : ''}`} onClick={() => setCadTab('importar')}>📥 Importar Planilha</button>
               <button className={`tab ${cadTab === 'lista' ? 'ativa' : ''}`} onClick={() => setCadTab('lista')}>📋 Cartas ({cartasImAcao.length})</button>
+              <button className={`tab ${cadTab === 'ia' ? 'ativa' : ''}`} onClick={() => { setCadTab('ia'); setIaAba('imacao'); if (iaQtd > 10) setIaQtd(10); setIaFeedback(null); }}>✨ Gerar com IA</button>
               <button className={`tab ${cadTab === 'backup' ? 'ativa' : ''}`} onClick={() => setCadTab('backup')}>💾 Backup JSON</button>
             </div>
 
@@ -6498,6 +6493,8 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            {cadTab === 'ia' && renderGeradorIA()}
           </div>
         )}
 
@@ -6769,7 +6766,12 @@ export default function App() {
 
       {/* 5. TELA SELEÇÃO DE MATÉRIA */}
       <div id="tela-selecao" className={`tela ${tela === 'selecao' ? 'ativa' : ''}`}>
-        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'flex-start' }}>← Voltar</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginBottom: '14px' }}>
+          <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ margin: 0 }}>← Voltar</button>
+          <button className="btn-menu btn-outline" style={{ fontSize: '0.85rem', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, width: 'auto' }} onClick={() => { setCadGerenciadorAba('duelo'); setCadTab('manual'); setOrigemConfig('selecao'); irParaTela('cadastro'); }}>
+            ⚙️ Gerenciar Perguntas & IA
+          </button>
+        </div>
         {(() => {
           // Derivar as opções únicas para exibição com base nos filtros
           const turmasUnicas = Array.from(new Set(perguntas.map(p => p.turma || 'Sem Turma'))).sort();
@@ -7063,7 +7065,12 @@ export default function App() {
 
       {/* 6. TELA NOMES DAS EQUIPES */}
       <div id="tela-nomes" className={`tela ${tela === 'nomes' ? 'ativa' : ''}`}>
-        <button className="btn-volta" onClick={() => irParaTela('selecao')} style={{ alignSelf: 'flex-start' }}>← Voltar</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginBottom: '14px' }}>
+          <button className="btn-volta" onClick={() => irParaTela('selecao')} style={{ margin: 0 }}>← Voltar</button>
+          <button className="btn-menu btn-outline" style={{ fontSize: '0.85rem', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, width: 'auto' }} onClick={() => { setFeedbackControles(null); setDetectMode(null); setOrigemConfig('nomes'); irParaTela('controles'); }}>
+            🎮 Configurar Gamepads
+          </button>
+        </div>
         
         <h2>👥 Quem vai disputar o duelo?</h2>
         <p style={{ color: '#c4b5fd', fontSize: '0.95rem', marginTop: '-12px' }}>Personalize o nome das duas equipes.</p>
@@ -7823,7 +7830,12 @@ export default function App() {
 
       {/* 9. TELA CONFIGURAÇÃO DE NOMES TRÊS PISTAS */}
       <div id="tela-pistas-nomes" className={`tela ${tela === 'pistas-nomes' ? 'ativa' : ''}`} style={{ alignItems: 'center', textAlign: 'center' }}>
-        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'flex-start' }}>← Voltar ao Menu</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginBottom: '14px' }}>
+          <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ margin: 0 }}>← Voltar ao Menu</button>
+          <button className="btn-menu btn-outline" style={{ fontSize: '0.85rem', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, width: 'auto' }} onClick={() => { setCadGerenciadorAba('pistas'); setCadTab('manual'); setOrigemConfig('pistas-nomes'); irParaTela('cadastro'); }}>
+            ⚙️ Gerenciar Cartas & IA
+          </button>
+        </div>
         <div style={{ fontSize: '4rem', filter: 'drop-shadow(0 0 25px rgba(236, 72, 153, 0.45))', margin: '20px 0', width: '100%' }}>🗺️</div>
         <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%' }}>Configurar Equipes (Três Pistas)</h2>
         <p style={{ color: '#c4b5fd', fontSize: '1.05rem', textAlign: 'center', width: '100%', marginTop: '4px' }}>Informe o nome das duas equipes rivais que disputarão o tabuleiro</p>
@@ -8284,7 +8296,12 @@ export default function App() {
 
       {/* 12. TELA DE CONFIGURAÇÃO IMAGEM E AÇÃO */}
       <div id="tela-ia-nomes" className={`tela ${tela === 'ia-nomes' ? 'ativa' : ''}`} style={{ display: tela === 'ia-nomes' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center', minHeight: '100vh', padding: '20px', boxSizing: 'border-box' }}>
-        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'center', marginBottom: '14px' }}>← Voltar ao Menu</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '600px', alignItems: 'center', marginBottom: '14px' }}>
+          <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ margin: 0 }}>← Voltar ao Menu</button>
+          <button className="btn-menu btn-outline" style={{ fontSize: '0.85rem', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, width: 'auto' }} onClick={() => { setCadGerenciadorAba('imacao'); setCadTab('manual'); setOrigemConfig('ia-nomes'); irParaTela('cadastro'); }}>
+            ⚙️ Gerenciar Cartas & IA
+          </button>
+        </div>
         <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 0 25px rgba(16, 185, 129, 0.45))', margin: '14px 0', width: '100%' }}>🎨</div>
         <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%', fontFamily: 'Outfit' }}>Configurar Equipes (Imagem e Ação)</h2>
         <p style={{ color: '#6ee7b7', fontSize: '1.05rem', textAlign: 'center', width: '100%', marginTop: '4px' }}>Configuração da disputa tática de desenho e mímica</p>
@@ -8780,7 +8797,12 @@ export default function App() {
 
       {/* 16. TELA DE CONFIGURAÇÃO JOGO DA MEMÓRIA */}
       <div id="tela-memo-nomes" className={`tela ${tela === 'memo-nomes' ? 'ativa' : ''}`} style={{ display: tela === 'memo-nomes' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center', minHeight: '100vh', padding: '14px', boxSizing: 'border-box', maxWidth: 'none' }}>
-        <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ alignSelf: 'flex-start', marginBottom: '4px' }}>← Voltar ao Menu</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '1080px', alignItems: 'center', marginBottom: '14px' }}>
+          <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ margin: 0 }}>← Voltar ao Menu</button>
+          <button className="btn-menu btn-outline" style={{ fontSize: '0.85rem', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, width: 'auto' }} onClick={() => { setCadGerenciadorAba('memoria'); setCadTab('manual'); setOrigemConfig('memo-nomes'); irParaTela('cadastro'); }}>
+            ⚙️ Gerenciar Imagens
+          </button>
+        </div>
         
         {/* Título Compacto */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center', marginBottom: '8px' }}>
