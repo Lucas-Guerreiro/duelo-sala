@@ -2117,7 +2117,141 @@ export default function App() {
       return;
     }
 
-    // --- CASO 3: CARTA NORMAL ---
+    // --- CASO 3: EXPLOSÃO DE AURA 🗿✨ ---
+    if (carta.tipo === 'surpresa-ganhar-aura') {
+      setMemoBloqueioCliques(true);
+      
+      const novasSelecionadas = [...memoCartasSelecionadas, index];
+      setMemoCartasSelecionadas(novasSelecionadas);
+
+      // Marca a carta como descoberta pela equipe da vez
+      const cartasMarcadas = novasCartas.map((c, idx) => {
+        if (idx === index) return { ...c, encontradaPor: memoEquipeVez };
+        return c;
+      });
+
+      const feedback = {
+        equipe: memoEquipeVez,
+        txt: `🗿✨ EXPLOSÃO DE AURA para a Equipe ${memoEquipeVez === 0 ? nomeJ1 : nomeJ2}! +1000 Aura Points!`
+      };
+      setMemoAuraFeedback(feedback);
+
+      enviarMsgProjetor('MEMO_ATUALIZAR', {
+        cartas: cartasMarcadas,
+        cartasSelecionadas: novasSelecionadas,
+        auraFeedback: feedback,
+        som: 'success'
+      });
+
+      setTimeout(() => {
+        const proximaVez = memoEquipeVez === 0 ? 1 : 0;
+        setMemoCartas(cartasMarcadas);
+        setMemoEquipeVez(proximaVez);
+        setMemoCartasSelecionadas([]);
+        setMemoAuraFeedback(null);
+        setMemoBloqueioCliques(false);
+
+        enviarMsgProjetor('MEMO_ATUALIZAR', {
+          cartas: cartasMarcadas,
+          cartasSelecionadas: [],
+          equipeVez: proximaVez,
+          auraFeedback: null,
+          som: 'success'
+        });
+      }, 3000);
+      return;
+    }
+
+    // --- CASO 4: DRENO DE AURA 📉💔 ---
+    if (carta.tipo === 'surpresa-perder-aura') {
+      setMemoBloqueioCliques(true);
+      
+      const novasSelecionadas = [...memoCartasSelecionadas, index];
+      setMemoCartasSelecionadas(novasSelecionadas);
+
+      // Marca a carta como descoberta pela equipe da vez
+      const cartasMarcadas = novasCartas.map((c, idx) => {
+        if (idx === index) return { ...c, encontradaPor: memoEquipeVez };
+        return c;
+      });
+
+      const feedback = {
+        equipe: memoEquipeVez,
+        txt: `📉💔 DRENO DE AURA da Equipe ${memoEquipeVez === 0 ? nomeJ1 : nomeJ2}! Perderam -500 Aura Points!`
+      };
+      setMemoAuraFeedback(feedback);
+
+      enviarMsgProjetor('MEMO_ATUALIZAR', {
+        cartas: cartasMarcadas,
+        cartasSelecionadas: novasSelecionadas,
+        auraFeedback: feedback,
+        som: 'error'
+      });
+
+      setTimeout(() => {
+        const proximaVez = memoEquipeVez === 0 ? 1 : 0;
+        setMemoCartas(cartasMarcadas);
+        setMemoEquipeVez(proximaVez);
+        setMemoCartasSelecionadas([]);
+        setMemoAuraFeedback(null);
+        setMemoBloqueioCliques(false);
+
+        enviarMsgProjetor('MEMO_ATUALIZAR', {
+          cartas: cartasMarcadas,
+          cartasSelecionadas: [],
+          equipeVez: proximaVez,
+          auraFeedback: null,
+          som: 'error'
+        });
+      }, 3000);
+      return;
+    }
+
+    // --- CASO 5: TURNO EXTRA 🔄⚡ ---
+    if (carta.tipo === 'surpresa-vez-extra') {
+      setMemoBloqueioCliques(true);
+      
+      const novasSelecionadas = [...memoCartasSelecionadas, index];
+      setMemoCartasSelecionadas(novasSelecionadas);
+
+      // Marca a carta como descoberta pela equipe da vez
+      const cartasMarcadas = novasCartas.map((c, idx) => {
+        if (idx === index) return { ...c, encontradaPor: memoEquipeVez };
+        return c;
+      });
+
+      const feedback = {
+        equipe: memoEquipeVez,
+        txt: `🔄⚡ TURNO EXTRA para a Equipe ${memoEquipeVez === 0 ? nomeJ1 : nomeJ2}! Joguem Novamente!`
+      };
+      setMemoAuraFeedback(feedback);
+
+      enviarMsgProjetor('MEMO_ATUALIZAR', {
+        cartas: cartasMarcadas,
+        cartasSelecionadas: novasSelecionadas,
+        auraFeedback: feedback,
+        som: 'dice'
+      });
+
+      setTimeout(() => {
+        // Mantém a mesma equipe da vez ativa (não passa a vez!)
+        setMemoCartas(cartasMarcadas);
+        setMemoCartasSelecionadas([]);
+        setMemoAuraFeedback(null);
+        setMemoBloqueioCliques(false);
+
+        enviarMsgProjetor('MEMO_ATUALIZAR', {
+          cartas: cartasMarcadas,
+          cartasSelecionadas: [],
+          equipeVez: memoEquipeVez,
+          auraFeedback: null,
+          som: 'success'
+        });
+      }, 3000);
+      return;
+    }
+
+    // --- CASO 6: CARTA NORMAL ---
     const novasSelecionadas = [...memoCartasSelecionadas, index];
     setMemoCartasSelecionadas(novasSelecionadas);
 
@@ -9026,6 +9160,9 @@ export default function App() {
                 >
                   <option value="embaralhar">Troca-Tudo 🌪️</option>
                   <option value="olho">Olho Mágico 👁️</option>
+                  <option value="ganhar-aura">Aura Positiva 🗿✨</option>
+                  <option value="perder-aura">Aura Negativa 📉💔</option>
+                  <option value="vez-extra">Turno Extra 🔄⚡</option>
                 </select>
               </div>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -9037,6 +9174,9 @@ export default function App() {
                 >
                   <option value="embaralhar">Troca-Tudo 🌪️</option>
                   <option value="olho">Olho Mágico 👁️</option>
+                  <option value="ganhar-aura">Aura Positiva 🗿✨</option>
+                  <option value="perder-aura">Aura Negativa 📉💔</option>
+                  <option value="vez-extra">Turno Extra 🔄⚡</option>
                 </select>
               </div>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -9048,6 +9188,9 @@ export default function App() {
                 >
                   <option value="embaralhar">Troca-Tudo 🌪️</option>
                   <option value="olho">Olho Mágico 👁️</option>
+                  <option value="ganhar-aura">Aura Positiva 🗿✨</option>
+                  <option value="perder-aura">Aura Negativa 📉💔</option>
+                  <option value="vez-extra">Turno Extra 🔄⚡</option>
                 </select>
               </div>
             </div>
