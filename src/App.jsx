@@ -9305,102 +9305,167 @@ export default function App() {
       </div>
 
       {/* 16. TELA DE CONFIGURAÇÃO JOGO DA MEMÓRIA */}
-      <div id="tela-memo-nomes" className={`tela ${tela === 'memo-nomes' ? 'ativa' : ''}`} style={{ display: tela === 'memo-nomes' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center', minHeight: '100vh', padding: '14px', boxSizing: 'border-box', maxWidth: 'none' }}>
-
+      <div id="tela-memo-nomes" className={`tela ${tela === 'memo-nomes' ? 'ativa' : ''}`} style={{ display: tela === 'memo-nomes' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center', minHeight: '100vh', padding: '20px', boxSizing: 'border-box', maxWidth: 'none', background: 'radial-gradient(circle at 50% 50%, #0c0822 0%, #030209 100%)' }}>
         
-        {/* Título Compacto */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center', marginBottom: '8px' }}>
-          <span style={{ fontSize: '2.5rem', filter: 'drop-shadow(0 0 15px rgba(139, 92, 246, 0.45))' }}>🧠</span>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: 900, margin: 0, fontFamily: 'Outfit' }}>Configurar Jogo da Memória</h2>
+        {/* Título e Subtítulo */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>
+            <span style={{ fontSize: '2.5rem', filter: 'drop-shadow(0 0 15px rgba(236, 72, 153, 0.45))' }}>🧠</span>
+            <h2 style={{ fontSize: '2rem', fontWeight: 900, margin: 0, fontFamily: 'Outfit', color: '#fff', letterSpacing: '0.5px' }}>Configurar Jogo da Memória</h2>
+          </div>
+          <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0, fontFamily: 'Outfit' }}>Duelo pedagógico em dupla tela com 35 cartas!</p>
         </div>
-        <p style={{ color: '#c4b5fd', fontSize: '0.88rem', margin: '0 0 14px', textAlign: 'center' }}>Duelo pedagógico em dupla tela com 35 cartas!</p>
 
-        {/* Layout Master Centralizado Unificado */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%', maxWidth: '580px', margin: '0 auto' }}>
+        {/* Layout Master Centralizado Premium */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', maxWidth: '980px', margin: '0 auto', boxSizing: 'border-box' }}>
           
-          {/* Nomes das Equipes Rivais e Vez Inicial (Fundido) */}
-          <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
-            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#a78bfa', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #8b5cf6', paddingLeft: '8px' }}>
-              👥 Equipes Rivais & Vez Inicial
-            </div>
-            <div className="dupla" style={{ display: 'flex', gap: '12px', margin: 0, width: '100%' }}>
-              <div 
-                className="jcard j1" 
-                style={{ 
-                  flex: 1, 
-                  textAlign: 'center', 
-                  padding: '8px',
-                  border: memoEquipeIniciar === 0 ? '1.5px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '8px',
-                  background: memoEquipeIniciar === 0 ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-                onClick={() => setMemoEquipeIniciar(0)}
-              >
-                <h3 style={{ fontSize: '0.85rem', margin: '0 0 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: memoEquipeIniciar === 0 ? '#60a5fa' : '#fff' }}>
-                  🔵 Equipe 1 {memoEquipeIniciar === 0 && <span style={{ fontSize: '0.75rem' }}>🚩 (Começa)</span>}
-                </h3>
-                <input 
-                  value={nomeJ1} 
-                  onChange={(e) => setNomeJ1(e.target.value)} 
-                  onClick={(e) => e.stopPropagation()} // impede o click de mudar a vez ao digitar
-                  placeholder="Equipe Azul" 
-                  style={{ textAlign: 'center', padding: '6px', fontSize: '0.85rem', width: '100%', boxSizing: 'border-box' }} 
-                />
+          {/* Primeira Linha: Equipes Lado a Lado com Matéria */}
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', width: '100%' }}>
+            
+            {/* Card 1: Equipes Rivais & Vez Inicial */}
+            <div className="card" style={{ flex: 1.2, minWidth: '320px', padding: '14px 18px', background: 'rgba(15, 23, 42, 0.4)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '14px', margin: 0 }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#c084fc', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>👥</span> EQUIPES RIVAIS & VEZ INICIAL
               </div>
-              <div 
-                className="jcard j2" 
-                style={{ 
-                  flex: 1, 
-                  textAlign: 'center', 
-                  padding: '8px',
-                  border: memoEquipeIniciar === 1 ? '1.5px solid #ec4899' : '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '8px',
-                  background: memoEquipeIniciar === 1 ? 'rgba(236, 72, 246, 0.1)' : 'transparent',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-                onClick={() => setMemoEquipeIniciar(1)}
-              >
-                <h3 style={{ fontSize: '0.85rem', margin: '0 0 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: memoEquipeIniciar === 1 ? '#f472b6' : '#fff' }}>
-                  🩷 Equipe 2 {memoEquipeIniciar === 1 && <span style={{ fontSize: '0.75rem' }}>🚩 (Começa)</span>}
-                </h3>
-                <input 
-                  value={nomeJ2} 
-                  onChange={(e) => setNomeJ2(e.target.value)} 
-                  onClick={(e) => e.stopPropagation()} // impede o click de mudar a vez ao digitar
-                  placeholder="Equipe Rosa" 
-                  style={{ textAlign: 'center', padding: '6px', fontSize: '0.85rem', width: '100%', boxSizing: 'border-box' }} 
-                />
+              
+              <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+                {/* Equipe 1 */}
+                <div 
+                  style={{ 
+                    flex: 1, 
+                    textAlign: 'center', 
+                    padding: '8px',
+                    border: memoEquipeIniciar === 0 ? '1.5px solid #2563eb' : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '10px',
+                    background: memoEquipeIniciar === 0 ? 'rgba(37, 99, 235, 0.08)' : 'rgba(0,0,0,0.15)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative'
+                  }}
+                  onClick={() => setMemoEquipeIniciar(0)}
+                >
+                  <div style={{ 
+                    fontSize: '0.68rem', 
+                    fontWeight: 800, 
+                    color: memoEquipeIniciar === 0 ? '#60a5fa' : '#94a3b8', 
+                    marginBottom: '6px',
+                    textTransform: 'uppercase',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}>
+                    <span>🔵</span> EQUIPE 1 {memoEquipeIniciar === 0 && <span style={{ fontSize: '0.62rem', color: '#60a5fa' }}>🚩 (COMEÇA)</span>}
+                  </div>
+                  <input 
+                    value={nomeJ1} 
+                    onChange={(e) => setNomeJ1(e.target.value)} 
+                    onClick={(e) => e.stopPropagation()} 
+                    placeholder="Equipe Azul" 
+                    style={{ 
+                      textAlign: 'center', 
+                      padding: '6px 8px', 
+                      fontSize: '0.82rem', 
+                      width: '100%', 
+                      boxSizing: 'border-box',
+                      background: 'rgba(0,0,0,0.25)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: '6px',
+                      color: '#fff',
+                      fontWeight: 700
+                    }} 
+                  />
+                </div>
+
+                {/* Equipe 2 */}
+                <div 
+                  style={{ 
+                    flex: 1, 
+                    textAlign: 'center', 
+                    padding: '8px',
+                    border: memoEquipeIniciar === 1 ? '1.5px solid #db2777' : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '10px',
+                    background: memoEquipeIniciar === 1 ? 'rgba(219, 39, 119, 0.08)' : 'rgba(0,0,0,0.15)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative'
+                  }}
+                  onClick={() => setMemoEquipeIniciar(1)}
+                >
+                  <div style={{ 
+                    fontSize: '0.68rem', 
+                    fontWeight: 800, 
+                    color: memoEquipeIniciar === 1 ? '#f472b6' : '#94a3b8', 
+                    marginBottom: '6px',
+                    textTransform: 'uppercase',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}>
+                    <span>🩷</span> EQUIPE 2 {memoEquipeIniciar === 1 && <span style={{ fontSize: '0.62rem', color: '#f472b6' }}>🚩 (COMEÇA)</span>}
+                  </div>
+                  <input 
+                    value={nomeJ2} 
+                    onChange={(e) => setNomeJ2(e.target.value)} 
+                    onClick={(e) => e.stopPropagation()} 
+                    placeholder="Equipe Rosa" 
+                    style={{ 
+                      textAlign: 'center', 
+                      padding: '6px 8px', 
+                      fontSize: '0.82rem', 
+                      width: '100%', 
+                      boxSizing: 'border-box',
+                      background: 'rgba(0,0,0,0.25)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: '6px',
+                      color: '#fff',
+                      fontWeight: 700
+                    }} 
+                  />
+                </div>
               </div>
             </div>
+
+            {/* Card 2: Matéria Pedagógica */}
+            <div className="card" style={{ flex: 0.8, minWidth: '240px', padding: '14px 18px', background: 'rgba(15, 23, 42, 0.4)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '14px', margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#c084fc', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'left', borderLeft: '3px solid #8b5cf6', paddingLeft: '8px' }}>
+                📚 MATÉRIA PEDAGÓGICA
+              </div>
+              <select 
+                value={memoMateria}
+                onChange={(e) => setMemoMateria(e.target.value)}
+                style={{ 
+                  background: 'rgba(0,0,0,0.25)', 
+                  color: '#fff', 
+                  border: '1.5px solid rgba(139, 92, 246, 0.35)', 
+                  borderRadius: '10px', 
+                  padding: '10px 14px', 
+                  fontSize: '0.88rem', 
+                  width: '100%', 
+                  cursor: 'pointer', 
+                  textAlign: 'left',
+                  height: '42px',
+                  boxSizing: 'border-box',
+                  fontWeight: 700
+                }}
+              >
+                {materias.length === 0 ? (
+                  <option value="">Nenhuma matéria cadastrada</option>
+                ) : (
+                  materias.map((m, idx) => (
+                    <option key={idx} value={m}>{m}</option>
+                  ))
+                )}
+              </select>
+            </div>
+            
           </div>
 
-          {/* Matéria Pedagógica */}
-          <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
-            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#a78bfa', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #8b5cf6', paddingLeft: '8px' }}>
-              📚 Matéria Pedagógica
-            </div>
-            <select 
-              value={memoMateria}
-              onChange={(e) => setMemoMateria(e.target.value)}
-              style={{ background: '#1a1f38', color: '#fff', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px', padding: '8px 12px', fontSize: '0.9rem', width: '100%', cursor: 'pointer', textAlign: 'center' }}
-            >
-              {materias.length === 0 ? (
-                <option value="">Nenhuma matéria cadastrada</option>
-              ) : (
-                materias.map((m, idx) => (
-                  <option key={idx} value={m}>{m}</option>
-                ))
-              )}
-            </select>
-          </div>
-
-          {/* Escolha das Imagens das Cartas Surpresas (Troca-Tudo e Olho Mágico apenas) */}
-          <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
-            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f59e0b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #f59e0b', paddingLeft: '8px' }}>
-              🖼️ Selecionar Imagens das Surpresas ({memoMateria || 'Geral'})
+          {/* Segunda Linha: Selecionar Imagens das Surpresas */}
+          <div className="card" style={{ padding: '16px 20px', background: 'rgba(15, 23, 42, 0.35)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '14px', margin: 0 }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#f59e0b', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'left', borderLeft: '3px solid #f59e0b', paddingLeft: '8px' }}>
+              🖼️ SELECIONAR IMAGENS DAS SURPRESAS ({(memoMateria || 'GERAL').toUpperCase()})
             </div>
             
             {(() => {
@@ -9420,17 +9485,34 @@ export default function App() {
               const poolOlho = poolUrlsFinal.includes(atualOlho) ? poolUrlsFinal : [atualOlho, ...poolUrlsFinal];
 
               return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+                  
                   {/* Surpresa 1: Troca-Tudo */}
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <img 
-                      src={atualEmbaralhar} 
-                      alt="Preview Troca-Tudo"
-                      style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.4)', objectFit: 'cover' }}
-                      onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop"; }}
-                    />
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
-                      <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#f59e0b' }}>Troca-Tudo 🌪️ (2 Cartas na Mesa)</span>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '10px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <img 
+                        src={atualEmbaralhar} 
+                        alt="Preview Troca-Tudo"
+                        style={{ width: '48px', height: '48px', borderRadius: '10px', border: '1.5px solid rgba(245, 158, 11, 0.4)', objectFit: 'cover', display: 'block' }}
+                        onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop"; }}
+                      />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#fff', fontFamily: 'Outfit' }}>Troca-Tudo 🌪️ <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'normal' }}>(2 Cartas na Mesa)</span></span>
+                        {/* Miniaturas de Preview abaixo do título */}
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: '4px' }}>
+                            <img src={atualEmbaralhar} style={{ width: '14px', height: '14px', borderRadius: '2px', objectFit: 'cover' }} />
+                            <span style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 'bold' }}>Image 1</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: '4px' }}>
+                            <img src={atualEmbaralhar} style={{ width: '14px', height: '14px', borderRadius: '2px', objectFit: 'cover' }} />
+                            <span style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 'bold' }}>Image 2</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <select 
                         value={atualEmbaralhar} 
                         onChange={(e) => {
@@ -9444,25 +9526,36 @@ export default function App() {
                             });
                           }
                         }}
-                        style={{ fontSize: '0.75rem', padding: '4px 8px', background: '#0c0e1a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', color: '#fff', width: '100%', boxSizing: 'border-box', cursor: 'pointer' }}
+                        style={{ fontSize: '0.8rem', fontWeight: 'bold', padding: '8px 24px 8px 12px', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', color: '#fff', cursor: 'pointer', minWidth: '150px' }}
                       >
                         {poolEmbaralhar.map((url, idx) => (
-                          <option key={idx} value={url}>Imagem {idx + 1} ({url.substring(0, 35)}...)</option>
+                          <option key={idx} value={url}>🖼️ Imagem {idx + 1}</option>
                         ))}
                       </select>
                     </div>
                   </div>
 
                   {/* Surpresa 2: Olho Mágico */}
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <img 
-                      src={atualOlho} 
-                      alt="Preview Olho"
-                      style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid rgba(139, 92, 246, 0.4)', objectFit: 'cover' }}
-                      onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop"; }}
-                    />
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
-                      <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#8b5cf6' }}>Olho Mágico 👁️ (1 Carta na Mesa)</span>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'space-between', paddingTop: '4px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <img 
+                        src={atualOlho} 
+                        alt="Preview Olho"
+                        style={{ width: '48px', height: '48px', borderRadius: '10px', border: '1.5px solid rgba(139, 92, 246, 0.4)', objectFit: 'cover', display: 'block' }}
+                        onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop"; }}
+                      />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#fff', fontFamily: 'Outfit' }}>Olho Mágico 👁️ <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'normal' }}>(1 Carta na Mesa)</span></span>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: '4px' }}>
+                            <img src={atualOlho} style={{ width: '14px', height: '14px', borderRadius: '2px', objectFit: 'cover' }} />
+                            <span style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 'bold' }}>Imagem 1</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <select 
                         value={atualOlho} 
                         onChange={(e) => {
@@ -9476,26 +9569,27 @@ export default function App() {
                             });
                           }
                         }}
-                        style={{ fontSize: '0.75rem', padding: '4px 8px', background: '#0c0e1a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', color: '#fff', width: '100%', boxSizing: 'border-box', cursor: 'pointer' }}
+                        style={{ fontSize: '0.8rem', fontWeight: 'bold', padding: '8px 24px 8px 12px', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', color: '#fff', cursor: 'pointer', minWidth: '150px' }}
                       >
                         {poolOlho.map((url, idx) => (
-                          <option key={idx} value={url}>Imagem {idx + 1} ({url.substring(0, 35)}...)</option>
+                          <option key={idx} value={url}>👁️ Imagem {idx + 1}</option>
                         ))}
                       </select>
                     </div>
                   </div>
+
                 </div>
               );
             })()}
           </div>
 
-          {/* Ajuste de Escala */}
-          <div className="card" style={{ padding: '12px 16px', background: 'rgba(22, 33, 62, 0.45)', margin: 0 }}>
-            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#3b82f6', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderLeft: '3px solid #3b82f6', paddingLeft: '8px' }}>
-              📐 Escala do Projetor (Epson 16:10)
+          {/* Terceira Linha: Escala do Projetor (Epson 16:10) */}
+          <div className="card" style={{ padding: '14px 20px', background: 'rgba(15, 23, 42, 0.35)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '14px', margin: 0 }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#3b82f6', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'left', borderLeft: '3px solid #3b82f6', paddingLeft: '8px' }}>
+              📐 ESCALA DO PROJETOR (EPSON 16:10)
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 'bold' }}>Menor (80%)</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+              <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: 'bold' }}>Menor (80%)</span>
               <input 
                 type="range" 
                 min="80" 
@@ -9506,39 +9600,101 @@ export default function App() {
                   setMemoCartaEscala(val);
                   enviarMsgProjetor('MEMO_ATUALIZAR', { cartaEscala: val });
                 }}
-                style={{ flex: 1, accentColor: '#3b82f6', cursor: 'pointer', height: '4px' }}
+                style={{ flex: 1, accentColor: '#8b5cf6', cursor: 'pointer', height: '6px', borderRadius: '4px' }}
               />
-              <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 'bold' }}>({memoCartaEscala}%)</span>
+              <span style={{ fontSize: '0.82rem', color: '#8b5cf6', fontWeight: 900 }}>({memoCartaEscala}%)</span>
             </div>
           </div>
 
-          {/* Ações e Botão de Projetor */}
-          <div style={{ display: 'flex', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
+          {/* Quarta Linha: Ações Principais (Abrir Segunda Tela e Começar Disputa) */}
+          <div style={{ display: 'flex', gap: '14px', marginTop: '4px', flexWrap: 'wrap', width: '100%' }}>
             <button 
-              className="btn-menu btn-outline" 
-              style={{ flex: 1, borderColor: '#8b5cf6', color: '#a78bfa', background: 'rgba(139, 92, 246, 0.05)', fontSize: '0.82rem', padding: '8px 12px', alignSelf: 'center', whiteSpace: 'nowrap' }}
+              className="btn-menu btn-play" 
+              style={{ 
+                flex: 1, 
+                borderColor: '#3b82f6', 
+                color: '#60a5fa', 
+                background: 'rgba(59, 130, 246, 0.05)', 
+                fontSize: '0.88rem', 
+                padding: '10px 18px', 
+                alignSelf: 'center', 
+                whiteSpace: 'nowrap',
+                borderRadius: '12px',
+                border: '1.5px solid #3b82f6',
+                height: '46px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                margin: 0
+              }}
               onClick={() => window.open(window.location.origin + window.location.pathname + '?projetor=true', '_blank', 'width=1200,height=800')}
             >
               📺 Abrir Segunda Tela
             </button>
             
-            <button className="btn-start" style={{ flex: 1.3, background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)', boxShadow: '0 6px 20px rgba(139, 92, 246, 0.35)', padding: '8px 16px', fontSize: '0.9rem', margin: 0 }} onClick={() => iniciarPartidaMemoria(memoMateria)}>
+            <button 
+              className="btn-start" 
+              style={{ 
+                flex: 1.2, 
+                background: '#7c3aed', 
+                boxShadow: '0 6px 20px rgba(124, 58, 237, 0.35)', 
+                padding: '10px 24px', 
+                fontSize: '0.92rem', 
+                margin: 0,
+                borderRadius: '12px',
+                height: '46px',
+                color: '#fff',
+                fontWeight: 'bold',
+                border: 'none',
+                cursor: 'pointer'
+              }} 
+              onClick={() => iniciarPartidaMemoria(memoMateria)}
+            >
               Começar Disputa! 🚀
             </button>
           </div>
 
-          {/* Botões Secundários de Navegação e Configuração (Movidos para baixo!) */}
-          <div style={{ display: 'flex', gap: '10px', marginTop: '8px', width: '100%' }}>
+          {/* Quinta Linha: Ações Secundárias na Base */}
+          <div style={{ display: 'flex', gap: '14px', marginTop: '2px', width: '100%' }}>
             <button 
-              className="btn-volta" 
+              className="btn-volta-link" 
               onClick={() => irParaTela('menu')} 
-              style={{ flex: 1, margin: 0, padding: '8px 12px', fontSize: '0.82rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}
+              style={{ 
+                flex: 1, 
+                margin: 0, 
+                padding: '10px 18px', 
+                fontSize: '0.82rem', 
+                fontWeight: 700,
+                background: 'rgba(255,255,255,0.03)', 
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '10px',
+                color: '#cbd5e1',
+                cursor: 'pointer'
+              }}
             >
               ← Voltar ao Menu
             </button>
             <button 
-              className="btn-menu btn-outline" 
-              style={{ flex: 1, fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', margin: 0 }} 
+              className="btn-menu btn-play" 
+              style={{ 
+                flex: 1, 
+                fontSize: '0.82rem', 
+                fontWeight: 700,
+                padding: '10px 18px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '6px', 
+                margin: 0,
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '10px',
+                color: '#cbd5e1',
+                cursor: 'pointer'
+              }} 
               onClick={() => { setCadGerenciadorAba('memoria'); setCadTab('manual'); setOrigemConfig('memo-nomes'); irParaTela('cadastro'); }}
             >
               ⚙️ Gerenciar Imagens
