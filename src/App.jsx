@@ -7307,6 +7307,117 @@ export default function App() {
                 )}
               </div>
 
+              {/* Selecionar Imagens das Surpresas (Filtrado pela categoria ativa do gerenciador) */}
+              {(() => {
+                let imagensDisponiveis = memoImagensPool.filter(img => typeof img === 'object' ? img.mat === cadMemoImagemMateria : false);
+                if (imagensDisponiveis.length === 0) {
+                  imagensDisponiveis = memoImagensPool.filter(img => typeof img === 'object' ? !img.mat : true);
+                }
+                const poolUrls = imagensDisponiveis.map(img => typeof img === 'object' ? img.url : img);
+                const poolUrlsFinal = poolUrls.length > 0 ? poolUrls : IMAGENS_PADED_OR_FACTORY || IMAGENS_PADRAO_MEMORIA;
+
+                const atualEmbaralhar = cadMemoImagemMateria ? (memoSurpresasPorMateria[cadMemoImagemMateria]?.embaralhar || memoImgSurpresaEmbaralhar) : memoImgSurpresaEmbaralhar;
+                const atualOlho = cadMemoImagemMateria ? (memoSurpresasPorMateria[cadMemoImagemMateria]?.olho || memoImgSurpresaOlho) : memoImgSurpresaOlho;
+
+                const poolEmbaralhar = poolUrlsFinal.includes(atualEmbaralhar) ? poolUrlsFinal : [atualEmbaralhar, ...poolUrlsFinal];
+                const poolOlho = poolUrlsFinal.includes(atualOlho) ? poolUrlsFinal : [atualOlho, ...poolUrlsFinal];
+
+                return (
+                  <div style={{ 
+                    padding: '14px 18px', 
+                    background: 'rgba(0, 0, 0, 0.15)', 
+                    border: '1px solid rgba(139, 92, 246, 0.25)', 
+                    borderRadius: '12px', 
+                    margin: '12px 0 6px 0',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                  }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#f59e0b', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'left', borderLeft: '3px solid #f59e0b', paddingLeft: '8px' }}>
+                      🖼️ SELECIONAR IMAGENS DAS SURPRESAS ({(cadMemoImagemMateria || 'GERAL').toUpperCase()})
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+                      {/* Surpresa 1: Troca-Tudo */}
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '8px' }}>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                          <img 
+                            src={atualEmbaralhar} 
+                            alt="Preview Troca-Tudo"
+                            style={{ width: '42px', height: '42px', borderRadius: '8px', border: '1.5px solid rgba(245, 158, 11, 0.4)', objectFit: 'cover', display: 'block' }}
+                            onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop"; }}
+                          />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#fff', fontFamily: 'Outfit' }}>Troca-Tudo 🌪️ <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 'normal' }}>(2 Cartas)</span></span>
+                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 'bold', background: 'rgba(255,255,255,0.03)', padding: '1px 4px', borderRadius: '3px' }}>Image 1</span>
+                              <span style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 'bold', background: 'rgba(255,255,255,0.03)', padding: '1px 4px', borderRadius: '3px' }}>Image 2</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <select 
+                          value={atualEmbaralhar} 
+                          onChange={(e) => {
+                            const url = e.target.value;
+                            if (!cadMemoImagemMateria) {
+                              setMemoImgSurpresaEmbaralhar(url);
+                            } else {
+                              setMemoSurpresasPorMateria(prev => {
+                                const mat = prev[cadMemoImagemMateria] || {};
+                                return { ...prev, [cadMemoImagemMateria]: { ...mat, embaralhar: url } };
+                              });
+                            }
+                          }}
+                          style={{ fontSize: '0.78rem', fontWeight: 'bold', padding: '6px 16px 6px 8px', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '6px', color: '#fff', cursor: 'pointer', minWidth: '130px' }}
+                        >
+                          {poolEmbaralhar.map((url, idx) => (
+                            <option key={idx} value={url}>🖼️ Imagem {idx + 1}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Surpresa 2: Olho Mágico */}
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                          <img 
+                            src={atualOlho} 
+                            alt="Preview Olho"
+                            style={{ width: '42px', height: '42px', borderRadius: '8px', border: '1.5px solid rgba(139, 92, 246, 0.4)', objectFit: 'cover', display: 'block' }}
+                            onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop"; }}
+                          />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#fff', fontFamily: 'Outfit' }}>Olho Mágico 👁️ <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 'normal' }}>(1 Carta)</span></span>
+                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 'bold', background: 'rgba(255,255,255,0.03)', padding: '1px 4px', borderRadius: '3px' }}>Imagem 1</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <select 
+                          value={atualOlho} 
+                          onChange={(e) => {
+                            const url = e.target.value;
+                            if (!cadMemoImagemMateria) {
+                              setMemoImgSurpresaOlho(url);
+                            } else {
+                              setMemoSurpresasPorMateria(prev => {
+                                const mat = prev[cadMemoImagemMateria] || {};
+                                return { ...prev, [cadMemoImagemMateria]: { ...mat, olho: url } };
+                              });
+                            }
+                          }}
+                          style={{ fontSize: '0.78rem', fontWeight: 'bold', padding: '6px 16px 6px 8px', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '6px', color: '#fff', cursor: 'pointer', minWidth: '130px' }}
+                        >
+                          {poolOlho.map((url, idx) => (
+                            <option key={idx} value={url}>👁️ Imagem {idx + 1}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Linha Divisória interna sutil */}
               <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.06)', margin: '4px 0' }}></div>
 
@@ -9716,126 +9827,7 @@ export default function App() {
             
           </div>
 
-          {/* Segunda Linha: Selecionar Imagens das Surpresas */}
-          <div className="card" style={{ padding: '16px 20px', background: 'rgba(15, 23, 42, 0.35)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '14px', margin: 0 }}>
-            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#f59e0b', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'left', borderLeft: '3px solid #f59e0b', paddingLeft: '8px' }}>
-              🖼️ SELECIONAR IMAGENS DAS SURPRESAS ({(memoMateria || 'GERAL').toUpperCase()})
-            </div>
-            
-            {(() => {
-              // Obter as imagens cadastradas na categoria ativa ou Geral
-              let imagensDisponiveis = memoImagensPool.filter(img => typeof img === 'object' ? img.mat === memoMateria : false);
-              if (imagensDisponiveis.length === 0) {
-                imagensDisponiveis = memoImagensPool.filter(img => typeof img === 'object' ? !img.mat : true);
-              }
-              const poolUrls = imagensDisponiveis.map(img => typeof img === 'object' ? img.url : img);
-              const poolUrlsFinal = poolUrls.length > 0 ? poolUrls : IMAGENS_PADRAO_MEMORIA;
 
-              const atualEmbaralhar = memoMateria ? (memoSurpresasPorMateria[memoMateria]?.embaralhar || memoImgSurpresaEmbaralhar) : memoImgSurpresaEmbaralhar;
-              const atualOlho = memoMateria ? (memoSurpresasPorMateria[memoMateria]?.olho || memoImgSurpresaOlho) : memoImgSurpresaOlho;
-
-              // Garantir que as URLs ativas estejam no pool (se não estiverem, insere no início)
-              const poolEmbaralhar = poolUrlsFinal.includes(atualEmbaralhar) ? poolUrlsFinal : [atualEmbaralhar, ...poolUrlsFinal];
-              const poolOlho = poolUrlsFinal.includes(atualOlho) ? poolUrlsFinal : [atualOlho, ...poolUrlsFinal];
-
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
-                  
-                  {/* Surpresa 1: Troca-Tudo */}
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '10px' }}>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <img 
-                        src={atualEmbaralhar} 
-                        alt="Preview Troca-Tudo"
-                        style={{ width: '48px', height: '48px', borderRadius: '10px', border: '1.5px solid rgba(245, 158, 11, 0.4)', objectFit: 'cover', display: 'block' }}
-                        onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop"; }}
-                      />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left' }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#fff', fontFamily: 'Outfit' }}>Troca-Tudo 🌪️ <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'normal' }}>(2 Cartas na Mesa)</span></span>
-                        {/* Miniaturas de Preview abaixo do título */}
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: '4px' }}>
-                            <img src={atualEmbaralhar} style={{ width: '14px', height: '14px', borderRadius: '2px', objectFit: 'cover' }} />
-                            <span style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 'bold' }}>Image 1</span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: '4px' }}>
-                            <img src={atualEmbaralhar} style={{ width: '14px', height: '14px', borderRadius: '2px', objectFit: 'cover' }} />
-                            <span style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 'bold' }}>Image 2</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <select 
-                        value={atualEmbaralhar} 
-                        onChange={(e) => {
-                          const url = e.target.value;
-                          if (!memoMateria) {
-                            setMemoImgSurpresaEmbaralhar(url);
-                          } else {
-                            setMemoSurpresasPorMateria(prev => {
-                              const mat = prev[memoMateria] || {};
-                              return { ...prev, [memoMateria]: { ...mat, embaralhar: url } };
-                            });
-                          }
-                        }}
-                        style={{ fontSize: '0.8rem', fontWeight: 'bold', padding: '8px 24px 8px 12px', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', color: '#fff', cursor: 'pointer', minWidth: '150px' }}
-                      >
-                        {poolEmbaralhar.map((url, idx) => (
-                          <option key={idx} value={url}>🖼️ Imagem {idx + 1}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Surpresa 2: Olho Mágico */}
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'space-between', paddingTop: '4px' }}>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <img 
-                        src={atualOlho} 
-                        alt="Preview Olho"
-                        style={{ width: '48px', height: '48px', borderRadius: '10px', border: '1.5px solid rgba(139, 92, 246, 0.4)', objectFit: 'cover', display: 'block' }}
-                        onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop"; }}
-                      />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left' }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#fff', fontFamily: 'Outfit' }}>Olho Mágico 👁️ <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'normal' }}>(1 Carta na Mesa)</span></span>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: '4px' }}>
-                            <img src={atualOlho} style={{ width: '14px', height: '14px', borderRadius: '2px', objectFit: 'cover' }} />
-                            <span style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 'bold' }}>Imagem 1</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <select 
-                        value={atualOlho} 
-                        onChange={(e) => {
-                          const url = e.target.value;
-                          if (!memoMateria) {
-                            setMemoImgSurpresaOlho(url);
-                          } else {
-                            setMemoSurpresasPorMateria(prev => {
-                              const mat = prev[memoMateria] || {};
-                              return { ...prev, [memoMateria]: { ...mat, olho: url } };
-                            });
-                          }
-                        }}
-                        style={{ fontSize: '0.8rem', fontWeight: 'bold', padding: '8px 24px 8px 12px', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', color: '#fff', cursor: 'pointer', minWidth: '150px' }}
-                      >
-                        {poolOlho.map((url, idx) => (
-                          <option key={idx} value={url}>👁️ Imagem {idx + 1}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                </div>
-              );
-            })()}
-          </div>
 
           {/* Terceira Linha: Escala do Projetor (Epson 16:10) */}
           <div className="card" style={{ padding: '14px 20px', background: 'rgba(15, 23, 42, 0.35)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '14px', margin: 0 }}>
