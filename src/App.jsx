@@ -3341,6 +3341,33 @@ export default function App() {
     });
   };
 
+  // HELPER PARA LIMPAR PROPRIEDADES UNDEFINED ANTES DE ENVIAR PARA O FIRESTORE
+  const higienizarParaFirestore = (obj) => {
+    if (obj === undefined) return null;
+    if (obj === null) return null;
+    
+    if (Array.isArray(obj)) {
+      return obj.map(higienizarParaFirestore);
+    }
+    
+    if (typeof obj === 'object') {
+      const novoObj = {};
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          const val = obj[key];
+          if (val !== undefined) {
+            novoObj[key] = higienizarParaFirestore(val);
+          } else {
+            novoObj[key] = null;
+          }
+        }
+      }
+      return novoObj;
+    }
+    
+    return obj;
+  };
+
   // SISTEMA DE EXPORTAÇÃO E IMPORTAÇÃO DE BACKUPS (JSON)
   const exportarPerguntasBackup = () => {
     try {
@@ -3678,7 +3705,8 @@ export default function App() {
         }
       };
 
-      const sucesso = await publicarBancoNuvem(codigoSalaOnline, payload);
+      const payloadHigienizado = higienizarParaFirestore(payload);
+      const sucesso = await publicarBancoNuvem(codigoSalaOnline, payloadHigienizado);
       if (sucesso) {
         setStatusSincronismo('✅ Sincronizado com a nuvem em: ' + new Date().toLocaleTimeString());
         alert(`Sucesso! Seus dados de todos os jogos foram salvos na nuvem sob o código: ${codigoSalaOnline.trim().toUpperCase()}`);
@@ -3821,7 +3849,8 @@ export default function App() {
             vezExtra: memoImgSurpresaVezExtra
           }
         };
-        const sucesso = await publicarBancoNuvem(codigoSalaOnline, payload);
+        const payloadHigienizado = higienizarParaFirestore(payload);
+        const sucesso = await publicarBancoNuvem(codigoSalaOnline, payloadHigienizado);
         if (sucesso) {
           setStatusSincronismo('✅ Auto-Sincronizado: ' + new Date().toLocaleTimeString());
         } else {
