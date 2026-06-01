@@ -3628,18 +3628,28 @@ export default function App() {
     reader.onload = (evt) => {
       try {
         const json = JSON.parse(evt.target.result);
-        if (!json || !Array.isArray(json.memoImagensPool)) {
-          throw new Error('Arquivo de backup inválido para o Jogo da Memória.');
+        let poolParaImportar = null;
+        
+        if (json && Array.isArray(json.memoImagensPool)) {
+          poolParaImportar = json.memoImagensPool;
+        } else if (json && Array.isArray(json.imagens)) {
+          poolParaImportar = json.imagens;
+        } else if (Array.isArray(json)) {
+          poolParaImportar = json;
+        }
+
+        if (!poolParaImportar) {
+          throw new Error('Não encontramos uma lista de imagens válida no arquivo de backup. O JSON deve ser um array de links ou conter a chave "memoImagensPool".');
         }
 
         const confirmacao = window.confirm(
           `Backup de Jogo da Memória lido com sucesso!\n` +
-          `Encontramos ${json.memoImagensPool.length} imagens no backup.\n\n` +
+          `Encontramos ${poolParaImportar.length} imagens no backup.\n\n` +
           `Clique em OK para MESCLAR estas imagens à sua lista atual de imagens do jogo.\n` +
           `Clique em CANCELAR para SUBSTITUIR completamente a lista e configurações de surpresas pelo backup.`
         );
 
-        const importadasNormalizadas = json.memoImagensPool
+        const importadasNormalizadas = poolParaImportar
           .map(normalizarImagem)
           .filter(Boolean);
 
