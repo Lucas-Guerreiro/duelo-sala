@@ -3587,6 +3587,16 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const normalizarImagem = (img) => {
+      if (typeof img === 'string') {
+        return { url: img, mat: '' };
+      }
+      if (img && typeof img === 'object') {
+        return { url: img.url || '', mat: img.mat || '' };
+      }
+      return null;
+    };
+
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
@@ -3602,10 +3612,15 @@ export default function App() {
           `Clique em CANCELAR para SUBSTITUIR completamente a lista e configurações de surpresas pelo backup.`
         );
 
+        const importadasNormalizadas = json.memoImagensPool
+          .map(normalizarImagem)
+          .filter(Boolean);
+
         if (confirmacao) {
           const novasImagens = [...memoImagensPool];
-          json.memoImagensPool.forEach(img => {
-            if (!novasImagens.includes(img)) novasImagens.push(img);
+          importadasNormalizadas.forEach(img => {
+            const jaExiste = novasImagens.some(item => (typeof item === 'object' ? item.url : item) === img.url);
+            if (!jaExiste) novasImagens.push(img);
           });
           setMemoImagensPool(novasImagens);
 
@@ -3620,7 +3635,7 @@ export default function App() {
         } else {
           const subConfirm = window.confirm('ATENÇÃO: Você escolheu substituir. Todas as imagens e configurações de surpresas atuais serão apagadas permanentemente. Continuar?');
           if (subConfirm) {
-            setMemoImagensPool(json.memoImagensPool);
+            setMemoImagensPool(importadasNormalizadas);
             if (json.imagensSurpresas) {
               setMemoImgSurpresaEmbaralhar(json.imagensSurpresas.embaralhar || "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop");
               setMemoImgSurpresaOlho(json.imagensSurpresas.olho || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop");
@@ -3722,9 +3737,19 @@ export default function App() {
           setCartasImAcao([...cartasImAcao, ...dados.cartasImAcao]);
         }
         if (Array.isArray(dados.memoImagensPool)) {
+          const normalizarImagem = (img) => {
+            if (typeof img === 'string') return { url: img, mat: '' };
+            if (img && typeof img === 'object') return { url: img.url || '', mat: img.mat || '' };
+            return null;
+          };
+          const importadasNormalizadas = dados.memoImagensPool
+            .map(normalizarImagem)
+            .filter(Boolean);
+
           const novasImgs = [...memoImagensPool];
-          dados.memoImagensPool.forEach(img => {
-            if (!novasImgs.includes(img)) novasImgs.push(img);
+          importadasNormalizadas.forEach(img => {
+            const jaExiste = novasImgs.some(item => (typeof item === 'object' ? item.url : item) === img.url);
+            if (!jaExiste) novasImgs.push(img);
           });
           setMemoImagensPool(novasImgs);
         }
@@ -3745,7 +3770,17 @@ export default function App() {
           setMaterias(dados.materias || []);
           setCartasPistas(dados.cartasPistas || []);
           setCartasImAcao(dados.cartasImAcao || []);
-          setMemoImagensPool(dados.memoImagensPool || []);
+          
+          const normalizarImagem = (img) => {
+            if (typeof img === 'string') return { url: img, mat: '' };
+            if (img && typeof img === 'object') return { url: img.url || '', mat: img.mat || '' };
+            return null;
+          };
+          const importadasNormalizadas = (dados.memoImagensPool || [])
+            .map(normalizarImagem)
+            .filter(Boolean);
+          setMemoImagensPool(importadasNormalizadas);
+
           if (dados.imagensSurpresas) {
             setMemoImgSurpresaEmbaralhar(dados.imagensSurpresas.embaralhar || "https://images.unsplash.com/photo-1527489377706-5bf97e608852?q=80&w=250&auto=format&fit=crop");
             setMemoImgSurpresaOlho(dados.imagensSurpresas.olho || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250&auto=format&fit=crop");
