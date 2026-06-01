@@ -1267,7 +1267,12 @@ export default function App() {
     let projetor = false;
     if (params.get('projetor') === 'true') {
       setIsProjetorMode(true);
-      setTela('ia-projetor');
+      const jogoParam = params.get('jogo');
+      if (jogoParam === 'memoria') {
+        setTela('memo-projetor');
+      } else {
+        setTela('ia-projetor');
+      }
       projetor = true;
     }
 
@@ -9908,7 +9913,7 @@ export default function App() {
                 justifyContent: 'center',
                 margin: 0
               }}
-              onClick={() => window.open(window.location.origin + window.location.pathname + '?projetor=true', '_blank', 'width=1200,height=800')}
+              onClick={() => window.open(window.location.origin + window.location.pathname + '?projetor=true&jogo=memoria', '_blank', 'width=1200,height=800')}
             >
               Abrir Segunda Tela
             </button>
