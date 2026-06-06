@@ -11021,30 +11021,83 @@ export default function App() {
         <div style={{ display: 'flex', flex: 1, width: '100%', overflow: 'hidden' }}>
           
           {/* Painel Esquerdo: Time 1 */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', padding: '24px', background: 'linear-gradient(180deg, rgba(30, 58, 138, 0.15) 0%, rgba(0,0,0,0) 100%)', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '24px', fontSize: '1.8rem', fontWeight: '900', color: '#60a5fa', fontFamily: 'Outfit', letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'center' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'linear-gradient(180deg, rgba(30, 58, 138, 0.15) 0%, rgba(0,0,0,0) 100%)', position: 'relative' }}>
+            <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#60a5fa', fontFamily: 'Outfit', letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'center', marginBottom: '18px' }}>
               {batalhaEstado.teams?.[0]?.name || 'Meninos'}
             </div>
             
             {/* Tanque de Pontuação */}
-            <div style={{ width: '140px', height: '380px', position: 'relative', border: '3px solid rgba(96, 165, 250, 0.4)', borderRadius: '24px', overflow: 'hidden', background: '#070a13', boxShadow: '0 0 30px rgba(59, 130, 246, 0.1)' }}>
-              <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7rem', color: '#94a3b8', whiteSpace: 'nowrap', zIndex: 3, fontWeight: 'bold' }}>META: 100%</div>
-              <div 
-                style={{ 
-                  position: 'absolute', 
-                  bottom: 0, 
-                  width: '100%', 
-                  background: 'linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)', 
-                  height: `${batalhaEstado.teams?.[0]?.score || 0}%`, 
-                  transition: 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)', 
-                  borderRadius: '0 0 20px 20px',
-                  boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)'
-                }}
-              />
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2.2rem', fontWeight: 900, color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.9)', zIndex: 4, fontFamily: 'Outfit' }}>
+            <div style={{ 
+              width: '140px', 
+              height: '380px', 
+              background: 'rgba(255,255,255,0.02)',
+              border: '3px solid rgba(59, 130, 246, 0.35)',
+              borderRadius: '32px 32px 20px 20px',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: 'inset 0 10px 30px rgba(0,0,0,0.8), 0 12px 40px rgba(59, 130, 246, 0.15)',
+              display: 'flex',
+              alignItems: 'flex-end'
+            }}>
+              {/* Líquido do Tanque */}
+              <div style={{ 
+                width: '100%', 
+                height: `${batalhaEstado.teams?.[0]?.score || 0}%`, 
+                background: 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%)', 
+                boxShadow: '0 0 25px rgba(59, 130, 246, 0.6), inset 0 8px 12px rgba(255,255,255,0.4)', 
+                borderRadius: '0 0 16px 16px',
+                transition: 'height 1.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                position: 'relative'
+              }}>
+                {/* Efeito de Ondulação/Bolha no topo do líquido */}
+                <div style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  left: 0,
+                  right: 0,
+                  height: '12px',
+                  background: 'rgba(255,255,255,0.4)',
+                  borderRadius: '50%',
+                  filter: 'blur(1px)',
+                  opacity: 0.8
+                }} />
+              </div>
+
+              {/* Placar Numérico Flutuante dentro do copo */}
+              <div style={{ 
+                position: 'absolute', 
+                top: '50%', 
+                left: '50%', 
+                transform: 'translate(-50%, -50%)', 
+                fontSize: '2.8rem', 
+                fontWeight: 900, 
+                color: '#fff', 
+                textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 10px rgba(255,255,255,0.2)', 
+                zIndex: 5, 
+                fontFamily: 'Outfit',
+                pointerEvents: 'none'
+              }}>
                 {Math.round(batalhaEstado.teams?.[0]?.score || 0)}%
               </div>
             </div>
+
+            {/* Ganho Recente de Pontos */}
+            {batalhaEstado.phase === 'reveal' && batalhaEstado.teams?.[0]?.lastGain > 0 && (
+              <div style={{ 
+                marginTop: '12px',
+                background: 'rgba(34, 197, 94, 0.2)', 
+                border: '1.5px solid #22c55e', 
+                borderRadius: '12px', 
+                padding: '6px 16px', 
+                color: '#4ade80',
+                fontSize: '0.9rem',
+                fontWeight: 'bold',
+                fontFamily: 'Outfit',
+                boxShadow: '0 4px 15px rgba(34, 197, 94, 0.2)'
+              }}>
+                +{batalhaEstado.teams[0].lastGain} pts ⚡
+              </div>
+            )}
 
             <div style={{ marginTop: '20px', background: 'rgba(30, 58, 138, 0.25)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '10px 18px', textAlign: 'center', minWidth: '160px' }}>
               <p style={{ fontSize: '0.78rem', color: '#93c5fd', margin: 0, fontWeight: 'bold' }}>Respostas / Conectados</p>
@@ -11055,11 +11108,11 @@ export default function App() {
           </div>
 
           {/* Painel Central: Pergunta & Gabarito */}
-          <div style={{ width: '420px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', borderLeft: '1px solid rgba(255,255,255,0.06)', borderRight: '1px solid rgba(255,255,255,0.06)', gap: '16px', boxSizing: 'border-box' }}>
+          <div style={{ width: '440px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', borderLeft: '1px solid rgba(255,255,255,0.06)', borderRight: '1px solid rgba(255,255,255,0.06)', gap: '16px', boxSizing: 'border-box' }}>
             
             {batalhaEstado.currentQ ? (
               <>
-                <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1.5px solid rgba(255,255,255,0.07)', borderRadius: '20px', padding: '20px', width: '100%', textAlign: 'center', boxSizing: 'border-box' }}>
+                <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1.5px solid rgba(255,255,255,0.07)', borderRadius: '20px', padding: '20px', width: '100%', textAlign: 'center', boxSizing: 'border-box', position: 'relative' }}>
                   <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#fbbf24', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}>
                     {batalhaEstado.currentQ.cat}
                   </div>
@@ -11129,6 +11182,29 @@ export default function App() {
                   })}
                 </div>
 
+                {/* Bônus de Velocidade Animado na revelação do Gabarito */}
+                {batalhaEstado.phase === 'reveal' && batalhaEstado.fastestStudent && (
+                  <div style={{
+                    width: '100%',
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                    borderRadius: '12px',
+                    padding: '8px 14px',
+                    color: '#fbbf24',
+                    fontSize: '0.82rem',
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    fontFamily: 'Outfit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    animation: 'pulse 1s infinite alternate'
+                  }}>
+                    ⚡ Bônus de Velocidade: <strong>{batalhaEstado.fastestStudent.team === 0 ? (batalhaEstado.teams?.[0]?.name || 'Meninos') : (batalhaEstado.teams?.[1]?.name || 'Meninas')}</strong> respondeu correto mais rápido! (+1 pt)
+                  </div>
+                )}
+
                 {/* Controles do Professor na Pergunta */}
                 {batalhaEstado.phase === 'question' ? (
                   <button className="btn-start" style={{ width: '100%', background: 'linear-gradient(90deg, #d97706, #fbbf24)', boxShadow: '0 6px 20px rgba(217, 119, 6, 0.3)' }} onClick={revelarRespostaBatalha}>
@@ -11155,7 +11231,7 @@ export default function App() {
               </>
             ) : (
               <div style={{ textAlign: 'center', color: '#cbd5e1' }}>
-                <p>Nenhuma pergunta ativa.</p>
+                <p>Nenhuma pergunta activa.</p>
                 <button className="btn-start" style={{ background: 'linear-gradient(90deg, #7c3aed, #a78bfa)' }} onClick={avancarPerguntaBatalha}>
                   Começar Pergunta! ➜
                 </button>
@@ -11165,30 +11241,83 @@ export default function App() {
           </div>
 
           {/* Painel Direito: Time 2 */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', padding: '24px', background: 'linear-gradient(180deg, rgba(236, 72, 153, 0.15) 0%, rgba(0,0,0,0) 100%)', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '24px', fontSize: '1.8rem', fontWeight: '900', color: '#f472b6', fontFamily: 'Outfit', letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'center' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'linear-gradient(180deg, rgba(236, 72, 153, 0.15) 0%, rgba(0,0,0,0) 100%)', position: 'relative' }}>
+            <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#f472b6', fontFamily: 'Outfit', letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'center', marginBottom: '18px' }}>
               {batalhaEstado.teams?.[1]?.name || 'Meninas'}
             </div>
             
             {/* Tanque de Pontuação */}
-            <div style={{ width: '140px', height: '380px', position: 'relative', border: '3px solid rgba(244, 114, 182, 0.4)', borderRadius: '24px', overflow: 'hidden', background: '#070a13', boxShadow: '0 0 30px rgba(236, 72, 153, 0.1)' }}>
-              <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7rem', color: '#94a3b8', whiteSpace: 'nowrap', zIndex: 3, fontWeight: 'bold' }}>META: 100%</div>
-              <div 
-                style={{ 
-                  position: 'absolute', 
-                  bottom: 0, 
-                  width: '100%', 
-                  background: 'linear-gradient(180deg, #f472b6 0%, #db2777 100%)', 
-                  height: `${batalhaEstado.teams?.[1]?.score || 0}%`, 
-                  transition: 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)', 
-                  borderRadius: '0 0 20px 20px',
-                  boxShadow: '0 0 20px rgba(236, 72, 153, 0.6)'
-                }}
-              />
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2.2rem', fontWeight: 900, color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.9)', zIndex: 4, fontFamily: 'Outfit' }}>
+            <div style={{ 
+              width: '140px', 
+              height: '380px', 
+              background: 'rgba(255,255,255,0.02)',
+              border: '3px solid rgba(236, 72, 153, 0.35)',
+              borderRadius: '32px 32px 20px 20px',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: 'inset 0 10px 30px rgba(0,0,0,0.8), 0 12px 40px rgba(236, 72, 153, 0.15)',
+              display: 'flex',
+              alignItems: 'flex-end'
+            }}>
+              {/* Líquido do Tanque */}
+              <div style={{ 
+                width: '100%', 
+                height: `${batalhaEstado.teams?.[1]?.score || 0}%`, 
+                background: 'linear-gradient(180deg, #ec4899 0%, #be185d 100%)', 
+                boxShadow: '0 0 25px rgba(236, 72, 153, 0.6), inset 0 8px 12px rgba(255,255,255,0.4)', 
+                borderRadius: '0 0 16px 16px',
+                transition: 'height 1.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                position: 'relative'
+              }}>
+                {/* Efeito de Ondulação/Bolha no topo do líquido */}
+                <div style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  left: 0,
+                  right: 0,
+                  height: '12px',
+                  background: 'rgba(255,255,255,0.4)',
+                  borderRadius: '50%',
+                  filter: 'blur(1px)',
+                  opacity: 0.8
+                }} />
+              </div>
+
+              {/* Placar Numérico Flutuante dentro do copo */}
+              <div style={{ 
+                position: 'absolute', 
+                top: '50%', 
+                left: '50%', 
+                transform: 'translate(-50%, -50%)', 
+                fontSize: '2.8rem', 
+                fontWeight: 900, 
+                color: '#fff', 
+                textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 10px rgba(255,255,255,0.2)', 
+                zIndex: 5, 
+                fontFamily: 'Outfit',
+                pointerEvents: 'none'
+              }}>
                 {Math.round(batalhaEstado.teams?.[1]?.score || 0)}%
               </div>
             </div>
+
+            {/* Ganho Recente de Pontos */}
+            {batalhaEstado.phase === 'reveal' && batalhaEstado.teams?.[1]?.lastGain > 0 && (
+              <div style={{ 
+                marginTop: '12px',
+                background: 'rgba(34, 197, 94, 0.2)', 
+                border: '1.5px solid #22c55e', 
+                borderRadius: '12px', 
+                padding: '6px 16px', 
+                color: '#4ade80',
+                fontSize: '0.9rem',
+                fontWeight: 'bold',
+                fontFamily: 'Outfit',
+                boxShadow: '0 4px 15px rgba(34, 197, 94, 0.2)'
+              }}>
+                +{batalhaEstado.teams[1].lastGain} pts ⚡
+              </div>
+            )}
 
             <div style={{ marginTop: '20px', background: 'rgba(131, 24, 67, 0.25)', border: '1px solid rgba(236, 72, 153, 0.3)', borderRadius: '12px', padding: '10px 18px', textAlign: 'center', minWidth: '160px' }}>
               <p style={{ fontSize: '0.78rem', color: '#f9a8d4', margin: 0, fontWeight: 'bold' }}>Respostas / Conectados</p>
