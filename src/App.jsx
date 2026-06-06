@@ -2511,47 +2511,54 @@ export default function App() {
 
   // --- FUNÇÕES E LÓGICA DO JOGO: BATALHA DO SABER ---
   const iniciarPartidaBatalha = async () => {
-    if (!codigoSalaOnline.trim()) {
-      alert('Por favor, digite ou gere um Código de Acesso da Sala Online nesta tela de configuração antes de iniciar a Batalha!');
-      return;
-    }
-    
-    // Filtra perguntas disponíveis
-    const poolPerguntas = perguntas.filter(p => batalhaCategoriasAtivas.includes(p.mat));
-    if (poolPerguntas.length === 0) {
-      alert('Nenhuma pergunta cadastrada para as categorias ativas selecionadas!');
-      return;
-    }
-
-    playSound('click');
-    
-    const novoEstado = {
-      teams: [
-        { name: batalhaEquipe1 || 'Meninos', score: 0, count: 0 },
-        { name: batalhaEquipe2 || 'Meninas', score: 0, count: 0 }
-      ],
-      qtime: batalhaQTime,
-      activeCategories: batalhaCategoriasAtivas,
-      usedQs: [],
-      qIndex: -1,
-      currentQ: null,
-      phase: 'waiting',
-      timerEnd: null,
-      winnerIndex: null
-    };
-
-    setBatalhaEstado(novoEstado);
-    setBatalhaConectados([0, 0]);
-    setBatalhaRespostasRodada([]);
-
     try {
-      await publicarEstadoBatalha(codigoSalaOnline, novoEstado);
-      await limparRespostasBatalha(codigoSalaOnline);
-    } catch (err) {
-      console.error('Falha de inicialização no Firebase:', err);
-    }
+      if (!codigoSalaOnline || !codigoSalaOnline.trim()) {
+        alert('Por favor, digite ou gere um Código de Acesso da Sala Online nesta tela de configuração antes de iniciar a Batalha!');
+        return;
+      }
+      
+      const catsAtivas = batalhaCategoriasAtivas || [];
+      const pool = (perguntas || []).filter(p => p && p.mat && catsAtivas.includes(p.mat));
+      
+      if (pool.length === 0) {
+        alert('Nenhuma pergunta cadastrada no banco de dados para as categorias selecionadas! Por favor, selecione outras categorias ou cadastre perguntas.');
+        return;
+      }
 
-    irParaTela('batalha-qr');
+      playSound('click');
+      
+      const novoEstado = {
+        teams: [
+          { name: batalhaEquipe1 || 'Meninos', score: 0, count: 0 },
+          { name: batalhaEquipe2 || 'Meninas', score: 0, count: 0 }
+        ],
+        qtime: batalhaQTime || 30,
+        activeCategories: catsAtivas,
+        usedQs: [],
+        qIndex: -1,
+        currentQ: null,
+        phase: 'waiting',
+        timerEnd: null,
+        winnerIndex: null
+      };
+
+      setBatalhaEstado(novoEstado);
+      setBatalhaConectados([0, 0]);
+      setBatalhaRespostasRodada([]);
+
+      try {
+        await publicarEstadoBatalha(codigoSalaOnline, novoEstado);
+        await limparRespostasBatalha(codigoSalaOnline);
+      } catch (err) {
+        console.error('Falha de inicialização no Firebase:', err);
+        alert('Aviso de Conexão com Firebase: O jogo continuará localmente pois falhou ao salvar na nuvem. Erro: ' + err.message);
+      }
+
+      irParaTela('batalha-qr');
+    } catch (globalErr) {
+      console.error('Erro geral ao iniciar partida:', globalErr);
+      alert('Erro Crítico ao iniciar a Batalha:\n' + globalErr.message + '\n\nStack:\n' + globalErr.stack);
+    }
   };
 
   const comecarJogoBatalha = async () => {
