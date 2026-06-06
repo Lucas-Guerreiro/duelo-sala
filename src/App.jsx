@@ -2518,7 +2518,11 @@ export default function App() {
       }
       
       const catsAtivas = batalhaCategoriasAtivas || [];
-      const pool = (perguntas || []).filter(p => p && p.mat && catsAtivas.includes(p.mat));
+      const pool = (perguntas || []).filter(p => {
+        if (!p || !p.mat) return false;
+        const matQ = String(p.mat).trim().toLowerCase();
+        return catsAtivas.some(c => String(c).trim().toLowerCase() === matQ);
+      });
       
       if (pool.length === 0) {
         alert('Nenhuma pergunta cadastrada no banco de dados para as categorias selecionadas! Por favor, selecione outras categorias ou cadastre perguntas.');
@@ -2576,9 +2580,15 @@ export default function App() {
     try {
       playSound('click');
       
-      const pool = (perguntas || []).filter(p => p && p.mat && (batalhaCategoriasAtivas || []).includes(p.mat) && !(batalhaEstado.usedQs || []).includes(p.q));
+      const pool = (perguntas || []).filter(p => {
+        if (!p || !p.mat) return false;
+        const matQ = String(p.mat).trim().toLowerCase();
+        return (batalhaCategoriasAtivas || []).some(c => String(c).trim().toLowerCase() === matQ);
+      });
       
-      if (pool.length === 0) {
+      const poolNaoUsadas = pool.filter(p => !(batalhaEstado.usedQs || []).includes(p.txt));
+      
+      if (poolNaoUsadas.length === 0) {
         alert('Fim das perguntas! Encerrando disputa.');
         finalizarPartidaBatalha();
         return;
@@ -2592,15 +2602,15 @@ export default function App() {
       
       setBatalhaRespostasRodada([]);
 
-      const sorteada = pool[Math.floor(Math.random() * pool.length)];
+      const sorteada = poolNaoUsadas[Math.floor(Math.random() * poolNaoUsadas.length)];
       const novoQIndex = (batalhaEstado.qIndex || 0) + 1;
-      const novoUsedQs = [...(batalhaEstado.usedQs || []), sorteada.q];
+      const novoUsedQs = [...(batalhaEstado.usedQs || []), sorteada.txt];
       const temporizadorFim = Date.now() + (batalhaQTime || 30) * 1000;
 
       // Define alternativas com segurança
       let alts = [];
       if (sorteada.tipo === 'mc') {
-        alts = [sorteada.a, sorteada.b, sorteada.c, sorteada.d].filter(Boolean);
+        alts = Array.isArray(sorteada.alts) ? sorteada.alts : [];
       } else if (sorteada.tipo === 'vf') {
         alts = ['Verdadeiro', 'Falso'];
       } else {
@@ -2610,18 +2620,18 @@ export default function App() {
       // Calcula o gabarito correto com fallbacks seguros
       let correctIdx = 0;
       if (sorteada.tipo === 'mc') {
-        if (typeof sorteada.correta === 'number') {
-          correctIdx = sorteada.correta;
+        if (typeof sorteada.resp === 'number') {
+          correctIdx = sorteada.resp;
         } else {
-          correctIdx = ['a', 'b', 'c', 'd'].indexOf(String(sorteada.correta || 'a').toLowerCase());
+          correctIdx = ['a', 'b', 'c', 'd'].indexOf(String(sorteada.resp || 'a').toLowerCase());
           if (correctIdx === -1) {
-            const num = Number(sorteada.correta);
+            const num = Number(sorteada.resp);
             correctIdx = isNaN(num) ? 0 : num;
           }
         }
       } else if (sorteada.tipo === 'vf') {
-        const cVal = String(sorteada.corretaVf || sorteada.correta || 'v').toLowerCase();
-        correctIdx = (cVal === 'f' || cVal === '1' || cVal === 'falso') ? 1 : 0;
+        const cVal = String(sorteada.resp || 'v').toLowerCase();
+        correctIdx = (cVal === 'f' || cVal === 'falso') ? 1 : 0;
       }
 
       const novoEstado = {
@@ -2630,7 +2640,7 @@ export default function App() {
         usedQs: novoUsedQs,
         currentQ: {
           cat: sorteada.mat || 'Geral',
-          q: sorteada.q,
+          q: sorteada.txt,
           opts: alts,
           correct: correctIdx,
           qIndex: novoQIndex,
