@@ -2562,55 +2562,93 @@ export default function App() {
   };
 
   const comecarJogoBatalha = async () => {
-    playSound('click');
-    irParaTela('batalha-game');
-    await avancarPerguntaBatalha();
+    try {
+      playSound('click');
+      irParaTela('batalha-game');
+      await avancarPerguntaBatalha();
+    } catch (err) {
+      console.error('Erro ao começar jogo:', err);
+      alert('Erro ao começar a disputa: ' + err.message);
+    }
   };
 
   const avancarPerguntaBatalha = async () => {
-    playSound('click');
-    
-    const pool = perguntas.filter(p => batalhaCategoriasAtivas.includes(p.mat) && !batalhaEstado.usedQs.includes(p.q));
-    
-    if (pool.length === 0) {
-      alert('Fim das perguntas! Encerrando disputa.');
-      finalizarPartidaBatalha();
-      return;
-    }
-
     try {
-      await limparRespostasBatalha(codigoSalaOnline);
+      playSound('click');
+      
+      const pool = (perguntas || []).filter(p => p && p.mat && (batalhaCategoriasAtivas || []).includes(p.mat) && !(batalhaEstado.usedQs || []).includes(p.q));
+      
+      if (pool.length === 0) {
+        alert('Fim das perguntas! Encerrando disputa.');
+        finalizarPartidaBatalha();
+        return;
+      }
+
+      try {
+        await limparRespostasBatalha(codigoSalaOnline);
+      } catch (err) {
+        console.error('Erro ao limpar rodada:', err);
+      }
+      
+      setBatalhaRespostasRodada([]);
+
+      const sorteada = pool[Math.floor(Math.random() * pool.length)];
+      const novoQIndex = (batalhaEstado.qIndex || 0) + 1;
+      const novoUsedQs = [...(batalhaEstado.usedQs || []), sorteada.q];
+      const temporizadorFim = Date.now() + (batalhaQTime || 30) * 1000;
+
+      // Define alternativas com segurança
+      let alts = [];
+      if (sorteada.tipo === 'mc') {
+        alts = [sorteada.a, sorteada.b, sorteada.c, sorteada.d].filter(Boolean);
+      } else if (sorteada.tipo === 'vf') {
+        alts = ['Verdadeiro', 'Falso'];
+      } else {
+        alts = ['Resposta Única'];
+      }
+
+      // Calcula o gabarito correto com fallbacks seguros
+      let correctIdx = 0;
+      if (sorteada.tipo === 'mc') {
+        if (typeof sorteada.correta === 'number') {
+          correctIdx = sorteada.correta;
+        } else {
+          correctIdx = ['a', 'b', 'c', 'd'].indexOf(String(sorteada.correta || 'a').toLowerCase());
+          if (correctIdx === -1) {
+            const num = Number(sorteada.correta);
+            correctIdx = isNaN(num) ? 0 : num;
+          }
+        }
+      } else if (sorteada.tipo === 'vf') {
+        const cVal = String(sorteada.corretaVf || sorteada.correta || 'v').toLowerCase();
+        correctIdx = (cVal === 'f' || cVal === '1' || cVal === 'falso') ? 1 : 0;
+      }
+
+      const novoEstado = {
+        ...batalhaEstado,
+        qIndex: novoQIndex,
+        usedQs: novoUsedQs,
+        currentQ: {
+          cat: sorteada.mat || 'Geral',
+          q: sorteada.q,
+          opts: alts,
+          correct: correctIdx,
+          qIndex: novoQIndex,
+          tipo: sorteada.tipo || 'mc'
+        },
+        phase: 'question',
+        timerEnd: temporizadorFim
+      };
+
+      setBatalhaEstado(novoEstado);
+      try {
+        await publicarEstadoBatalha(codigoSalaOnline, novoEstado);
+      } catch (err) {
+        console.error('Erro ao publicar pergunta:', err);
+      }
     } catch (err) {
-      console.error('Erro ao limpar rodada:', err);
-    }
-    
-    setBatalhaRespostasRodada([]);
-
-    const sorteada = pool[Math.floor(Math.random() * pool.length)];
-    const novoQIndex = batalhaEstado.qIndex + 1;
-    const novoUsedQs = [...batalhaEstado.usedQs, sorteada.q];
-    const temporizadorFim = Date.now() + batalhaQTime * 1000;
-
-    const novoEstado = {
-      ...batalhaEstado,
-      qIndex: novoQIndex,
-      usedQs: novoUsedQs,
-      currentQ: {
-        cat: sorteada.mat || 'Geral',
-        q: sorteada.q,
-        opts: [sorteada.a, sorteada.b, sorteada.c, sorteada.d].filter(Boolean),
-        correct: ['a', 'b', 'c', 'd'].indexOf(sorteada.correta.toLowerCase()),
-        qIndex: novoQIndex
-      },
-      phase: 'question',
-      timerEnd: temporizadorFim
-    };
-
-    setBatalhaEstado(novoEstado);
-    try {
-      await publicarEstadoBatalha(codigoSalaOnline, novoEstado);
-    } catch (err) {
-      console.error('Erro ao publicar pergunta:', err);
+      console.error('Erro em avancarPerguntaBatalha:', err);
+      alert('Erro ao avançar pergunta: ' + err.message);
     }
   };
 
