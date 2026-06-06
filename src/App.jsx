@@ -2512,7 +2512,7 @@ export default function App() {
   // --- FUNÇÕES E LÓGICA DO JOGO: BATALHA DO SABER ---
   const iniciarPartidaBatalha = async () => {
     if (!codigoSalaOnline.trim()) {
-      alert('Por favor, digite um Código de Acesso Online no painel inferior do menu antes de jogar a Batalha do Saber!');
+      alert('Por favor, digite ou gere um Código de Acesso da Sala Online nesta tela de configuração antes de iniciar a Batalha!');
       return;
     }
     
@@ -5859,7 +5859,16 @@ export default function App() {
                   gap: '6px',
                   margin: 0
                 }} 
-                onClick={() => { setBatalhaEquipe1('Meninos'); setBatalhaEquipe2('Meninas'); setBatalhaCategoriasAtivas(materias); irParaTela('batalha-setup'); }}
+                onClick={() => { 
+                  setBatalhaEquipe1('Meninos'); 
+                  setBatalhaEquipe2('Meninas'); 
+                  setBatalhaCategoriasAtivas(materias); 
+                  if (!codigoSalaOnline.trim()) {
+                    const num = Math.floor(1000 + Math.random() * 9000);
+                    setCodigoSalaOnline('BATA' + num);
+                  }
+                  irParaTela('batalha-setup'); 
+                }}
               >
                 ▶ Jogar Batalha
               </button>
@@ -10706,6 +10715,40 @@ export default function App() {
                   style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(244, 114, 182, 0.3)', borderRadius: '10px', padding: '10px 14px', color: '#fff', fontSize: '0.92rem', outline: 'none' }}
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Código da Sala Online */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '0.85rem', color: '#a78bfa', fontWeight: '800', fontFamily: 'Outfit', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Código da Sala Online</label>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input 
+                type="text" 
+                placeholder="Ex: SALA10"
+                value={codigoSalaOnline} 
+                onChange={(e) => setCodigoSalaOnline(e.target.value.toUpperCase())} 
+                style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '10px', padding: '10px 14px', color: '#fff', fontSize: '0.92rem', outline: 'none' }}
+              />
+              <button 
+                type="button" 
+                onClick={() => {
+                  const num = Math.floor(1000 + Math.random() * 9000);
+                  setCodigoSalaOnline('BATA' + num);
+                  playSound('click');
+                }}
+                style={{ 
+                  background: 'rgba(255,255,255,0.05)', 
+                  border: '1px solid rgba(255,255,255,0.1)', 
+                  borderRadius: '10px', 
+                  padding: '10px 16px', 
+                  color: '#fbbf24', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 'bold', 
+                  cursor: 'pointer' 
+                }}
+              >
+                Gerar 🎲
+              </button>
             </div>
           </div>
 
