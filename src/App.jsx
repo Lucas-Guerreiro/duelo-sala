@@ -2551,7 +2551,7 @@ export default function App() {
       console.error('Falha de inicialização no Firebase:', err);
     }
 
-    irParaTela('batalha-setup');
+    irParaTela('batalha-qr');
   };
 
   const comecarJogoBatalha = async () => {
