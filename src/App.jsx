@@ -663,6 +663,7 @@ export default function App() {
   const [batalhaEquipe1, setBatalhaEquipe1] = useState('Meninos');
   const [batalhaEquipe2, setBatalhaEquipe2] = useState('Meninas');
   const [batalhaQTime, setBatalhaQTime] = useState(30);
+  const [batalhaSetupFeedback, setBatalhaSetupFeedback] = useState(null);
   const [batalhaCategoriasAtivas, setBatalhaCategoriasAtivas] = useState(() => {
     try {
       const saved = localStorage.getItem('dm_mat');
@@ -2519,8 +2520,10 @@ export default function App() {
   // --- FUNÇÕES E LÓGICA DO JOGO: BATALHA DO SABER ---
   const iniciarPartidaBatalha = async () => {
     try {
+      setBatalhaSetupFeedback(null);
+      
       if (!codigoSalaOnline || !codigoSalaOnline.trim()) {
-        alert('Por favor, digite ou gere um Código de Acesso da Sala Online nesta tela de configuração antes de iniciar a Batalha!');
+        setBatalhaSetupFeedback({ txt: 'Por favor, digite ou gere um Código de Acesso da Sala Online nesta tela de configuração antes de iniciar a Batalha!', tipo: 'err' });
         return;
       }
       
@@ -2532,7 +2535,7 @@ export default function App() {
       });
       
       if (pool.length === 0) {
-        alert('Nenhuma pergunta cadastrada no banco de dados para as categorias selecionadas! Por favor, selecione outras categorias ou cadastre perguntas.');
+        setBatalhaSetupFeedback({ txt: 'Nenhuma pergunta cadastrada no banco de dados para as categorias selecionadas! Por favor, selecione outras categorias ou clique no botão de gerenciamento acima para cadastrar perguntas.', tipo: 'err' });
         return;
       }
 
@@ -2562,13 +2565,13 @@ export default function App() {
         await limparRespostasBatalha(codigoSalaOnline);
       } catch (err) {
         console.error('Falha de inicialização no Firebase:', err);
-        alert('Aviso de Conexão com Firebase: O jogo continuará localmente pois falhou ao salvar na nuvem. Erro: ' + err.message);
+        setBatalhaSetupFeedback({ txt: 'Erro de Conexão com Firebase (o jogo continuará localmente): ' + err.message, tipo: 'warn' });
       }
 
       irParaTela('batalha-qr');
     } catch (globalErr) {
       console.error('Erro geral ao iniciar partida:', globalErr);
-      alert('Erro Crítico ao iniciar a Batalha:\n' + globalErr.message + '\n\nStack:\n' + globalErr.stack);
+      setBatalhaSetupFeedback({ txt: 'Erro Crítico ao iniciar a Batalha: ' + globalErr.message, tipo: 'err' });
     }
   };
 
@@ -5925,6 +5928,7 @@ export default function App() {
                   setBatalhaEquipe1('Meninos'); 
                   setBatalhaEquipe2('Meninas'); 
                   setBatalhaCategoriasAtivas(materias); 
+                  setBatalhaSetupFeedback(null);
                   if (!codigoSalaOnline.trim()) {
                     const num = Math.floor(1000 + Math.random() * 9000);
                     setCodigoSalaOnline('BATA' + num);
@@ -10908,6 +10912,24 @@ export default function App() {
               )}
             </div>
           </div>
+
+          {batalhaSetupFeedback && (
+            <div style={{ 
+              background: batalhaSetupFeedback.tipo === 'err' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+              border: `1px solid ${batalhaSetupFeedback.tipo === 'err' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+              color: batalhaSetupFeedback.tipo === 'err' ? '#fca5a5' : '#86efac',
+              padding: '12px 16px',
+              borderRadius: '12px',
+              fontSize: '0.85rem',
+              textAlign: 'center',
+              fontFamily: 'Outfit',
+              lineHeight: '1.4',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}>
+              {batalhaSetupFeedback.txt}
+            </div>
+          )}
 
           {/* Controles Setup */}
           <div style={{ display: 'flex', gap: '14px', marginTop: '10px' }}>
