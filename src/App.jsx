@@ -10696,7 +10696,39 @@ export default function App() {
       {/* 20. TELA DE CONFIGURAÇÃO - BATALHA DO SABER */}
       <div id="tela-batalha-setup" className={`tela ${tela === 'batalha-setup' ? 'ativa' : ''}`} style={{ display: tela === 'batalha-setup' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '30px', boxSizing: 'border-box', background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)' }}>
         <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%', fontFamily: 'Outfit', color: '#fff', marginBottom: '8px' }}>⚙️ Configurar Partida (Batalha)</h2>
-        <p style={{ color: '#94a3b8', fontSize: '0.92rem', marginBottom: '24px', fontFamily: 'Outfit', textAlign: 'center' }}>Configure os parâmetros da Batalha do Saber</p>
+        <p style={{ color: '#94a3b8', fontSize: '0.92rem', marginBottom: '20px', fontFamily: 'Outfit', textAlign: 'center' }}>Configure os parâmetros da Batalha do Saber</p>
+
+        <button 
+          className="btn-menu btn-outline" 
+          style={{ 
+            fontSize: '0.85rem', 
+            padding: '10px 18px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            gap: '8px', 
+            margin: '0 auto 20px', 
+            width: 'auto', 
+            maxWidth: '300px',
+            background: 'rgba(124, 58, 237, 0.1)',
+            border: '1px solid rgba(124, 58, 237, 0.4)',
+            color: '#c4b5fd',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            fontWeight: 'bold',
+            fontFamily: 'Outfit'
+          }} 
+          onClick={() => { 
+            setCadGerenciadorAba('duelo'); 
+            setCadTab('manual'); 
+            setOrigemConfig('batalha-setup'); 
+            irParaTela('cadastro'); 
+            playSound('click');
+          }}
+        >
+          📝 Gerenciar Perguntas / Matérias
+        </button>
 
         <div className="setup-card" style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1.5px solid rgba(245, 158, 11, 0.25)', borderRadius: '24px', padding: '30px', width: '100%', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)', boxSizing: 'border-box' }}>
           
@@ -10776,42 +10808,49 @@ export default function App() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontSize: '0.85rem', color: '#a78bfa', fontWeight: '800', fontFamily: 'Outfit', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Categorias Ativas</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '140px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              {materias.map((mat) => {
-                const ativa = batalhaCategoriasAtivas.includes(mat);
-                return (
-                  <label 
-                    key={mat} 
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px', 
-                      background: ativa ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.02)', 
-                      border: `1.5px solid ${ativa ? '#f59e0b' : 'rgba(255,255,255,0.06)'}`, 
-                      padding: '6px 12px', 
-                      borderRadius: '8px', 
-                      cursor: 'pointer', 
-                      fontSize: '0.82rem', 
-                      color: ativa ? '#fbbf24' : '#cbd5e1', 
-                      fontFamily: 'Outfit',
-                      fontWeight: ativa ? 'bold' : 'normal'
-                    }}
-                  >
-                    <input 
-                      type="checkbox" 
-                      checked={ativa} 
-                      onChange={() => {
+              {materias.length === 0 ? (
+                <div style={{ color: '#94a3b8', fontSize: '0.82rem', fontStyle: 'italic', padding: '10px', width: '100%', textAlign: 'center' }}>
+                  Nenhuma matéria cadastrada. Clique no botão "Gerenciar Perguntas" acima para cadastrar!
+                </div>
+              ) : (
+                materias.map((mat) => {
+                  const ativa = (batalhaCategoriasAtivas || []).includes(mat);
+                  return (
+                    <div 
+                      key={mat} 
+                      onClick={() => {
                         if (ativa) {
-                          setBatalhaCategoriasAtivas(prev => prev.filter(x => x !== mat));
+                          setBatalhaCategoriasAtivas(prev => (prev || []).filter(x => x !== mat));
                         } else {
-                          setBatalhaCategoriasAtivas(prev => [...prev, mat]);
+                          setBatalhaCategoriasAtivas(prev => [...(prev || []), mat]);
                         }
+                        playSound('click');
                       }}
-                      style={{ accentColor: '#f59e0b', cursor: 'pointer' }}
-                    />
-                    {mat || 'Geral'}
-                  </label>
-                );
-              })}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px', 
+                        background: ativa ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.02)', 
+                        border: `1.5px solid ${ativa ? '#f59e0b' : 'rgba(255,255,255,0.06)'}`, 
+                        padding: '6px 12px', 
+                        borderRadius: '8px', 
+                        cursor: 'pointer', 
+                        fontSize: '0.82rem', 
+                        color: ativa ? '#fbbf24' : '#cbd5e1', 
+                        fontFamily: 'Outfit',
+                        fontWeight: ativa ? 'bold' : 'normal',
+                        userSelect: 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center' }}>
+                        {ativa ? '🟧' : '⬜'}
+                      </span>
+                      <span>{mat || 'Geral'}</span>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 
