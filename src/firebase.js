@@ -9,7 +9,7 @@
 // =====================================================================
 
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, getDocs, deleteDoc } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -109,6 +109,100 @@ export async function obterBancoNuvem(codigoSala) {
     return null;
   } catch (e) {
     console.error('[Firebase] Erro ao obter banco da nuvem:', e);
+    throw e;
+  }
+}
+
+/**
+ * Publica o estado principal da Batalha do Saber.
+ */
+export async function publicarEstadoBatalha(codigoSala, state) {
+  if (!firebaseInitializado || !db) return false;
+  try {
+    const chave = codigoSala.trim().toUpperCase();
+    const ref = doc(db, 'salas', chave, 'batalha', 'estado');
+    await setDoc(ref, { ...state, _updatedAt: new Date().toISOString() });
+    return true;
+  } catch (e) {
+    console.error('[Firebase] Erro ao publicar estado da batalha:', e);
+    throw e;
+  }
+}
+
+/**
+ * Escuta o estado principal da Batalha do Saber em tempo real.
+ */
+export function ouvirEstadoBatalha(codigoSala, callback) {
+  if (!firebaseInitializado || !db) return () => {};
+  const chave = codigoSala.trim().toUpperCase();
+  const ref = doc(db, 'salas', chave, 'batalha', 'estado');
+  return onSnapshot(ref, (snap) => {
+    if (snap.exists()) {
+      callback(snap.data());
+    } else {
+      callback(null);
+    }
+  }, (err) => {
+    console.error('[Firebase] Erro ao ouvir estado da batalha:', err);
+  });
+}
+
+/**
+ * Envia a resposta individual de um aluno para o Firestore.
+ */
+export async function enviarRespostaBatalha(codigoSala, pid, equipe, optIdx, correct, speedBonus) {
+  if (!firebaseInitializado || !db) return false;
+  try {
+    const chave = codigoSala.trim().toUpperCase();
+    const ref = doc(db, 'salas', chave, 'batalha_respostas', pid);
+    await setDoc(ref, {
+      team: equipe,
+      pid: pid,
+      optIdx: optIdx,
+      correct: correct,
+      speedBonus: speedBonus,
+      timestamp: new Date().toISOString()
+    });
+    return true;
+  } catch (e) {
+    console.error('[Firebase] Erro ao enviar resposta do aluno:', e);
+    throw e;
+  }
+}
+
+/**
+ * Escuta em tempo real as respostas dos alunos na rodada ativa.
+ */
+export function ouvirRespostasBatalha(codigoSala, callback) {
+  if (!firebaseInitializado || !db) return () => {};
+  const chave = codigoSala.trim().toUpperCase();
+  const ref = collection(db, 'salas', chave, 'batalha_respostas');
+  return onSnapshot(ref, (snap) => {
+    const respostas = [];
+    snap.forEach(d => respostas.push(d.data()));
+    callback(respostas);
+  }, (err) => {
+    console.error('[Firebase] Erro ao ouvir respostas da batalha:', err);
+  });
+}
+
+/**
+ * Limpa todas as respostas enviadas na subcoleção batalha_respostas.
+ */
+export async function limparRespostasBatalha(codigoSala) {
+  if (!firebaseInitializado || !db) return false;
+  try {
+    const chave = codigoSala.trim().toUpperCase();
+    const colRef = collection(db, 'salas', chave, 'batalha_respostas');
+    const snap = await getDocs(colRef);
+    const promessas = [];
+    snap.forEach(d => {
+      promessas.push(deleteDoc(d.ref));
+    });
+    await Promise.all(promessas);
+    return true;
+  } catch (e) {
+    console.error('[Firebase] Erro ao limpar respostas da batalha:', e);
     throw e;
   }
 }

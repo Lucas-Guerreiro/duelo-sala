@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-import { initFirebase, salvarBackupImAcao, publicarBancoNuvem, obterBancoNuvem } from './firebase';
+import { initFirebase, salvarBackupImAcao, publicarBancoNuvem, obterBancoNuvem, publicarEstadoBatalha, ouvirEstadoBatalha, enviarRespostaBatalha, ouvirRespostasBatalha, limparRespostasBatalha } from './firebase';
 
 // Componente para renderização de fórmulas matemáticas KaTeX de forma offline
 function MathText({ text }) {
@@ -659,6 +659,51 @@ export default function App() {
     return saved ? JSON.parse(saved) : {};
   });
 
+  // --- ESTADOS DO NOVO JOGO: BATALHA DO SABER ---
+  const [batalhaEquipe1, setBatalhaEquipe1] = useState('Meninos');
+  const [batalhaEquipe2, setBatalhaEquipe2] = useState('Meninas');
+  const [batalhaQTime, setBatalhaQTime] = useState(30);
+  const [batalhaCategoriasAtivas, setBatalhaCategoriasAtivas] = useState([]);
+  const [batalhaEstado, setBatalhaEstado] = useState({
+    teams: [{ name: 'Meninos', score: 0 }, { name: 'Meninas', score: 0 }],
+    qtime: 30,
+    activeCategories: [],
+    usedQs: [],
+    qIndex: -1,
+    currentQ: null,
+    phase: 'waiting',
+    timerEnd: null
+  });
+  const [batalhaConectados, setBatalhaConectados] = useState([0, 0]);
+  const [batalhaRespostasRodada, setBatalhaRespostasRodada] = useState([]);
+  const [batalhaMeuTime, setBatalhaMeuTime] = useState(0);
+  const [batalhaMeuPid] = useState(() => 'p' + Math.random().toString(36).substring(2, 10));
+  const [batalhaRespondida, setBatalhaRespondida] = useState(false);
+  const [batalhaOpcaoSelecionada, setBatalhaOpcaoSelecionada] = useState(null);
+  const [batalhaRespostaCorreta, setBatalhaRespostaCorreta] = useState(null);
+  const [batalhaUltimaQuestaoRespondida, setBatalhaUltimaQuestaoRespondida] = useState(-1);
+  const [batalhaTempoRestante, setBatalhaTempoRestante] = useState(0);
+
+  useEffect(() => {
+    if (tela !== 'batalha-game' && tela !== 'batalha-aluno') return;
+    if (batalhaEstado.phase !== 'question' || !batalhaEstado.timerEnd) {
+      setBatalhaTempoRestante(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const resto = Math.max(0, Math.ceil((batalhaEstado.timerEnd - Date.now()) / 1000));
+      setBatalhaTempoRestante(resto);
+      
+      if (resto <= 0 && tela === 'batalha-game' && batalhaEstado.phase === 'question') {
+        clearInterval(interval);
+        revelarRespostaBatalha();
+      }
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [tela, batalhaEstado.phase, batalhaEstado.timerEnd]);
+
   const [codigoSalaOnline, setCodigoSalaOnline] = useState(() => localStorage.getItem('codigoSalaOnline') || '');
   const [sincronismoAutomatico, setSincronismoAutomatico] = useState(() => localStorage.getItem('sincronismoAutomatico') === 'true');
   const [statusSincronismo, setStatusSincronismo] = useState('Nuvem não ativa. Insira o Código de Acesso.');
@@ -1265,9 +1310,19 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     let projetor = false;
-    if (params.get('projetor') === 'true') {
+    
+    const jogoParam = params.get('jogo');
+    const salaParam = params.get('sala');
+    const equipeParam = params.get('equipe');
+
+    if (jogoParam === 'batalha' && salaParam) {
+      setCodigoSalaOnline(salaParam.toUpperCase());
+      if (equipeParam !== null) {
+        setBatalhaMeuTime(Number(equipeParam));
+      }
+      setTela('batalha-aluno');
+    } else if (params.get('projetor') === 'true') {
       setIsProjetorMode(true);
-      const jogoParam = params.get('jogo');
       if (jogoParam === 'memoria') {
         setTela('memo-projetor');
       } else {
@@ -2452,6 +2507,243 @@ export default function App() {
       });
       return novas;
     });
+  };
+
+  // --- FUNÇÕES E LÓGICA DO JOGO: BATALHA DO SABER ---
+  const iniciarPartidaBatalha = async () => {
+    if (!codigoSalaOnline.trim()) {
+      alert('Por favor, digite um Código de Acesso Online no painel inferior do menu antes de jogar a Batalha do Saber!');
+      return;
+    }
+    
+    // Filtra perguntas disponíveis
+    const poolPerguntas = perguntas.filter(p => batalhaCategoriasAtivas.includes(p.mat));
+    if (poolPerguntas.length === 0) {
+      alert('Nenhuma pergunta cadastrada para as categorias ativas selecionadas!');
+      return;
+    }
+
+    playSound('click');
+    
+    const novoEstado = {
+      teams: [
+        { name: batalhaEquipe1 || 'Meninos', score: 0, count: 0 },
+        { name: batalhaEquipe2 || 'Meninas', score: 0, count: 0 }
+      ],
+      qtime: batalhaQTime,
+      activeCategories: batalhaCategoriasAtivas,
+      usedQs: [],
+      qIndex: -1,
+      currentQ: null,
+      phase: 'waiting',
+      timerEnd: null,
+      winnerIndex: null
+    };
+
+    setBatalhaEstado(novoEstado);
+    setBatalhaConectados([0, 0]);
+    setBatalhaRespostasRodada([]);
+
+    try {
+      await publicarEstadoBatalha(codigoSalaOnline, novoEstado);
+      await limparRespostasBatalha(codigoSalaOnline);
+    } catch (err) {
+      console.error('Falha de inicialização no Firebase:', err);
+    }
+
+    irParaTela('batalha-setup');
+  };
+
+  const comecarJogoBatalha = async () => {
+    playSound('click');
+    irParaTela('batalha-game');
+    await avancarPerguntaBatalha();
+  };
+
+  const avancarPerguntaBatalha = async () => {
+    playSound('click');
+    
+    const pool = perguntas.filter(p => batalhaCategoriasAtivas.includes(p.mat) && !batalhaEstado.usedQs.includes(p.q));
+    
+    if (pool.length === 0) {
+      alert('Fim das perguntas! Encerrando disputa.');
+      finalizarPartidaBatalha();
+      return;
+    }
+
+    try {
+      await limparRespostasBatalha(codigoSalaOnline);
+    } catch (err) {
+      console.error('Erro ao limpar rodada:', err);
+    }
+    
+    setBatalhaRespostasRodada([]);
+
+    const sorteada = pool[Math.floor(Math.random() * pool.length)];
+    const novoQIndex = batalhaEstado.qIndex + 1;
+    const novoUsedQs = [...batalhaEstado.usedQs, sorteada.q];
+    const temporizadorFim = Date.now() + batalhaQTime * 1000;
+
+    const novoEstado = {
+      ...batalhaEstado,
+      qIndex: novoQIndex,
+      usedQs: novoUsedQs,
+      currentQ: {
+        cat: sorteada.mat || 'Geral',
+        q: sorteada.q,
+        opts: [sorteada.a, sorteada.b, sorteada.c, sorteada.d].filter(Boolean),
+        correct: ['a', 'b', 'c', 'd'].indexOf(sorteada.correta.toLowerCase()),
+        qIndex: novoQIndex
+      },
+      phase: 'question',
+      timerEnd: temporizadorFim
+    };
+
+    setBatalhaEstado(novoEstado);
+    try {
+      await publicarEstadoBatalha(codigoSalaOnline, novoEstado);
+    } catch (err) {
+      console.error('Erro ao publicar pergunta:', err);
+    }
+  };
+
+  const revelarRespostaBatalha = async () => {
+    if (batalhaEstado.phase !== 'question') return;
+    playSound('correct');
+
+    const novoEstado = {
+      ...batalhaEstado,
+      phase: 'reveal'
+    };
+
+    const equipe1Ans = batalhaRespostasRodada.filter(r => r.team === 0 && r.optIdx !== -1);
+    const equipe2Ans = batalhaRespostasRodada.filter(r => r.team === 1 && r.optIdx !== -1);
+
+    const calcularGanho = (respostasDoTime, indexTime) => {
+      if (respostasDoTime.length === 0) return 0;
+      const acertos = respostasDoTime.filter(r => r.correct).length;
+      const ratio = acertos / respostasDoTime.length;
+      
+      const totalConectadosTime = Math.max(1, batalhaConectados[indexTime]);
+      const speedSum = respostasDoTime.filter(r => r.correct).reduce((s, a) => s + (a.speedBonus || 0), 0);
+      
+      return Math.round((ratio * 10 + speedSum / totalConectadosTime) * 10) / 10;
+    };
+
+    const ganhoTime1 = calcularGanho(equipe1Ans, 0);
+    const ganhoTime2 = calcularGanho(equipe2Ans, 1);
+
+    const novoScore1 = Math.min(100, (batalhaEstado.teams[0].score || 0) + ganhoTime1);
+    const novoScore2 = Math.min(100, (batalhaEstado.teams[1].score || 0) + ganhoTime2);
+
+    novoEstado.teams[0].score = novoScore1;
+    novoEstado.teams[1].score = novoScore2;
+
+    setBatalhaEstado(novoEstado);
+    try {
+      await publicarEstadoBatalha(codigoSalaOnline, novoEstado);
+    } catch (err) {
+      console.error('Erro ao salvar placar:', err);
+    }
+
+    if (novoScore1 >= 100 || novoScore2 >= 100) {
+      setTimeout(() => {
+        exibirVencedorBatalha(novoScore1 >= novoScore2 ? 0 : 1);
+      }, 3000);
+    }
+  };
+
+  const exibirVencedorBatalha = async (indexTime) => {
+    playSound('victory');
+    const novoEstado = {
+      ...batalhaEstado,
+      phase: 'winner',
+      winnerIndex: indexTime
+    };
+    setBatalhaEstado(novoEstado);
+    try {
+      await publicarEstadoBatalha(codigoSalaOnline, novoEstado);
+    } catch (err) {
+      console.error('Erro ao declarar vencedor:', err);
+    }
+    irParaTela('batalha-fim');
+  };
+
+  const finalizarPartidaBatalha = async () => {
+    playSound('click');
+    if (codigoSalaOnline.trim()) {
+      try {
+        await publicarEstadoBatalha(codigoSalaOnline, { phase: 'waiting', teams: [] });
+        await limparRespostasBatalha(codigoSalaOnline);
+      } catch (err) {
+        console.error('Erro ao resetar sala:', err);
+      }
+    }
+    irParaTela('menu');
+  };
+
+  // Escuta de respostas em tempo real (Professor)
+  useEffect(() => {
+    if (tela !== 'batalha-qr' && tela !== 'batalha-game') return;
+    if (!codigoSalaOnline.trim()) return;
+
+    const unsub = ouvirRespostasBatalha(codigoSalaOnline, (respostas) => {
+      setBatalhaRespostasRodada(respostas);
+      const time0Conectados = respostas.filter(r => r.team === 0).length;
+      const time1Conectados = respostas.filter(r => r.team === 1).length;
+      setBatalhaConectados([time0Conectados, time1Conectados]);
+    });
+
+    return () => unsub();
+  }, [tela, codigoSalaOnline]);
+
+  // Escuta de estado do jogo (Aluno)
+  useEffect(() => {
+    if (tela !== 'batalha-aluno') return;
+    if (!codigoSalaOnline.trim()) return;
+
+    // Envia presença inicial do aluno
+    enviarRespostaBatalha(codigoSalaOnline, batalhaMeuPid, batalhaMeuTime, -1, false, 0)
+      .catch(err => console.error('Erro de presença:', err));
+
+    const unsub = ouvirEstadoBatalha(codigoSalaOnline, (estado) => {
+      if (!estado) return;
+      setBatalhaEstado(estado);
+
+      if (estado.phase === 'question' && estado.currentQ) {
+        const qIdx = estado.currentQ.qIndex;
+        setBatalhaUltimaQuestaoRespondida(prev => {
+          if (prev !== qIdx) {
+            setBatalhaRespondida(false);
+            setBatalhaOpcaoSelecionada(null);
+            setBatalhaRespostaCorreta(null);
+            return qIdx;
+          }
+          return prev;
+        });
+      }
+    });
+
+    return () => unsub();
+  }, [tela, codigoSalaOnline, batalhaMeuTime]);
+
+  const submeterRespostaAlunoBatalha = async (optIdx) => {
+    if (batalhaRespondida) return;
+    setBatalhaRespondida(true);
+    setBatalhaOpcaoSelecionada(optIdx);
+
+    const correct = optIdx === batalhaEstado.currentQ.correct;
+    setBatalhaRespostaCorreta(correct);
+    playSound(correct ? 'correct' : 'wrong');
+
+    const tempoRestante = Math.max(0, (batalhaEstado.timerEnd - Date.now()) / 1000);
+    const speedBonus = correct ? Math.round((tempoRestante / batalhaEstado.qtime) * 5 * 10) / 10 : 0;
+
+    try {
+      await enviarRespostaBatalha(codigoSalaOnline, batalhaMeuPid, batalhaMeuTime, optIdx, correct, speedBonus);
+    } catch (e) {
+      console.error('Erro ao enviar resposta do aluno:', e);
+    }
   };
 
   // --- ESTADOS DO GAMEPAD E DETECÇÃO ---
@@ -5497,7 +5789,7 @@ export default function App() {
                 <div style={{ fontSize: '2.6rem', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(219, 39, 119, 0.3))' }}>🗺️</div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#db2777', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo das Três Pistas</h3>
                 <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 16px', minHeight: '66px' }}>
-                  Jogo clássico de tabuleiro estilo Perfil. Revele até 5 pistas, movimente seus peões 30 e tome cuidado com bônus e penalidades!
+                  Jogo clássico de tabuleiro estilo Perfil. Revele até 5 pistas, movimente seus peões e tome cuidado com bônus e penalidades!
                 </p>
               </div>
               <button 
@@ -5525,10 +5817,64 @@ export default function App() {
               </button>
             </div>
 
-            {/* Card Imagem e Ação */}
+            {/* Card Batalha do Saber */}
             <div className="card" style={{ 
               flex: 1, 
               minWidth: '280px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              textAlign: 'center', 
+              padding: '24px 20px', 
+              justifyContent: 'space-between', 
+              background: 'rgba(15, 23, 42, 0.45)',
+              border: '1.5px solid rgba(245, 158, 11, 0.36)', 
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(245, 158, 11, 0.12)',
+              margin: 0
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                <div style={{ fontSize: '2.6rem', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(245, 158, 11, 0.3))' }}>⚡</div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#f59e0b', marginBottom: '10px', fontFamily: 'Outfit' }}>Batalha do Saber</h3>
+                <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 16px', minHeight: '66px' }}>
+                  Competição multiplayer síncrona por equipes! Os alunos usam seus próprios celulares para responder perguntas e acumular pontos na tela da sala!
+                </p>
+              </div>
+              <button 
+                className="btn-menu btn-play" 
+                style={{ 
+                  background: '#d97706', 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: '10px', 
+                  padding: '10px 24px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 'bold', 
+                  cursor: 'pointer', 
+                  width: '100%', 
+                  height: '42px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  margin: 0
+                }} 
+                onClick={() => { setBatalhaEquipe1('Meninos'); setBatalhaEquipe2('Meninas'); setBatalhaCategoriasAtivas(materias); irParaTela('batalha-setup'); }}
+              >
+                ▶ Jogar Batalha
+              </button>
+            </div>
+            
+          </div>
+          
+          {/* Linha 2: 2 cards centralizados abaixo */}
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', width: '100%', justifyContent: 'center' }}>
+            
+            {/* Card Imagem e Ação */}
+            <div className="card" style={{ 
+              width: 'calc(50% - 8px)',
+              minWidth: '280px',
+              maxWidth: '340px',
               display: 'flex', 
               flexDirection: 'column', 
               alignItems: 'center', 
@@ -5572,14 +5918,12 @@ export default function App() {
                 ▶ Jogar Imagem e Ação
               </button>
             </div>
-            
-          </div>
-          
-          {/* Linha 2: Card Jogo da Memória centralizado abaixo */}
-          <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+
+            {/* Card Jogo da Memória */}
             <div className="card" style={{ 
-              width: '100%',
-              maxWidth: '340px', 
+              width: 'calc(50% - 8px)',
+              minWidth: '280px',
+              maxWidth: '340px',
               display: 'flex', 
               flexDirection: 'column', 
               alignItems: 'center', 
@@ -5596,7 +5940,7 @@ export default function App() {
                 <div style={{ fontSize: '2.6rem', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(37, 99, 235, 0.3))' }}>🧠</div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#2563eb', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo da Memória</h3>
                 <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 16px', minHeight: '66px' }}>
-                  Disputa pedagógica em dupla tela com 30 cartas! Associe perguntas e respostas e ative cartas surpresas de embaralhamento 🔀 e revelação rápida.
+                  Disputa pedagógica em dupla tela com 30 cartas! Associe perguntas e respostas e ative cartas surpresas de embaralhamento e revelação rápida.
                 </p>
               </div>
               <button 
@@ -5623,6 +5967,7 @@ export default function App() {
                 ▶ Jogar Memória
               </button>
             </div>
+
           </div>
           
         </div>
@@ -10330,6 +10675,626 @@ export default function App() {
             Voltar ao Menu 🏠
           </button>
         </div>
+      </div>
+
+      {/* 20. TELA DE CONFIGURAÇÃO - BATALHA DO SABER */}
+      <div id="tela-batalha-setup" className={`tela ${tela === 'batalha-setup' ? 'ativa' : ''}`} style={{ display: tela === 'batalha-setup' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '30px', boxSizing: 'border-box', background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)' }}>
+        <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%', fontFamily: 'Outfit', color: '#fff', marginBottom: '8px' }}>⚙️ Configurar Partida (Batalha)</h2>
+        <p style={{ color: '#94a3b8', fontSize: '0.92rem', marginBottom: '24px', fontFamily: 'Outfit', textAlign: 'center' }}>Configure os parâmetros da Batalha do Saber</p>
+
+        <div className="setup-card" style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1.5px solid rgba(245, 158, 11, 0.25)', borderRadius: '24px', padding: '30px', width: '100%', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)', boxSizing: 'border-box' }}>
+          
+          {/* Nomes das Equipes */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '0.85rem', color: '#a78bfa', fontWeight: '800', fontFamily: 'Outfit', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Nomes das Equipes</label>
+            <div style={{ display: 'flex', gap: '14px' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '0.72rem', color: '#60a5fa', fontWeight: 'bold' }}>🔵 Equipe 1</span>
+                <input 
+                  type="text" 
+                  value={batalhaEquipe1} 
+                  onChange={(e) => setBatalhaEquipe1(e.target.value)} 
+                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(96, 165, 250, 0.3)', borderRadius: '10px', padding: '10px 14px', color: '#fff', fontSize: '0.92rem', outline: 'none' }}
+                />
+              </div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '0.72rem', color: '#f472b6', fontWeight: 'bold' }}>🩷 Equipe 2</span>
+                <input 
+                  type="text" 
+                  value={batalhaEquipe2} 
+                  onChange={(e) => setBatalhaEquipe2(e.target.value)} 
+                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(244, 114, 182, 0.3)', borderRadius: '10px', padding: '10px 14px', color: '#fff', fontSize: '0.92rem', outline: 'none' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Tempo limite por Pergunta */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '0.85rem', color: '#a78bfa', fontWeight: '800', fontFamily: 'Outfit', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tempo por Pergunta (segundos)</label>
+            <input 
+              type="number" 
+              value={batalhaQTime} 
+              onChange={(e) => setBatalhaQTime(Math.max(10, Math.min(120, Number(e.target.value))))} 
+              min="10" 
+              max="120"
+              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px 14px', color: '#fff', fontSize: '0.92rem', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          {/* Categorias / Matérias Ativas */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '0.85rem', color: '#a78bfa', fontWeight: '800', fontFamily: 'Outfit', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Categorias Ativas</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '140px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              {materias.map((mat) => {
+                const ativa = batalhaCategoriasAtivas.includes(mat);
+                return (
+                  <label 
+                    key={mat} 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      background: ativa ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.02)', 
+                      border: `1.5px solid ${ativa ? '#f59e0b' : 'rgba(255,255,255,0.06)'}`, 
+                      padding: '6px 12px', 
+                      borderRadius: '8px', 
+                      cursor: 'pointer', 
+                      fontSize: '0.82rem', 
+                      color: ativa ? '#fbbf24' : '#cbd5e1', 
+                      fontFamily: 'Outfit',
+                      fontWeight: ativa ? 'bold' : 'normal'
+                    }}
+                  >
+                    <input 
+                      type="checkbox" 
+                      checked={ativa} 
+                      onChange={() => {
+                        if (ativa) {
+                          setBatalhaCategoriasAtivas(prev => prev.filter(x => x !== mat));
+                        } else {
+                          setBatalhaCategoriasAtivas(prev => [...prev, mat]);
+                        }
+                      }}
+                      style={{ accentColor: '#f59e0b', cursor: 'pointer' }}
+                    />
+                    {mat || 'Geral'}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Controles Setup */}
+          <div style={{ display: 'flex', gap: '14px', marginTop: '10px' }}>
+            <button className="btn-start" style={{ flex: 1.5, background: 'linear-gradient(90deg, #d97706, #f59e0b)', boxShadow: '0 8px 30px rgba(245, 158, 11, 0.4)' }} onClick={iniciarPartidaBatalha}>
+              Lobby de Espera 📱
+            </button>
+            <button className="btn-start" style={{ flex: 1, background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('menu')}>
+              ← Voltar
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* 21. TELA LOBBY & QR CODE - BATALHA DO SABER */}
+      <div id="tela-batalha-qr" className={`tela ${tela === 'batalha-qr' ? 'ativa' : ''}`} style={{ display: tela === 'batalha-qr' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '30px', boxSizing: 'border-box', background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)' }}>
+        <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%', fontFamily: 'Outfit', color: '#fff', marginBottom: '8px' }}>📱 Alunos: Escaneiem o QR Code da sua equipe</h2>
+        <p style={{ color: '#a78bfa', fontSize: '1rem', fontWeight: 'bold', marginBottom: '28px', fontFamily: 'Outfit', textAlign: 'center' }}>Código da Sala Online: <span style={{ color: '#fff', background: 'rgba(245, 158, 11, 0.2)', border: '1px solid #f59e0b', padding: '4px 12px', borderRadius: '8px', marginLeft: '6px' }}>{codigoSalaOnline}</span></p>
+
+        <div style={{ display: 'flex', gap: '28px', flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: '820px', marginBottom: '28px' }}>
+          
+          {/* QR Card - Time 1 */}
+          <div style={{ flex: 1, minWidth: '260px', background: 'rgba(30, 58, 138, 0.3)', border: '2px solid rgba(59, 130, 246, 0.4)', borderRadius: '24px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', boxShadow: '0 8px 32px rgba(59, 130, 246, 0.08)' }}>
+            <h3 style={{ color: '#60a5fa', fontSize: '1.4rem', fontWeight: 900, fontFamily: 'Outfit' }}>{batalhaEquipe1}</h3>
+            <div style={{ background: '#fff', padding: '12px', borderRadius: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?jogo=batalha&sala=${codigoSalaOnline}&equipe=0`)}`} 
+                alt="QR Code Equipe 1" 
+                style={{ width: '160px', height: '160px' }}
+              />
+            </div>
+            <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '6px 12px', fontSize: '0.72rem', color: '#94a3b8', wordBreak: 'break-all', textAlign: 'center', maxWidth: '240px' }}>
+              {`${window.location.origin}${window.location.pathname}?jogo=batalha&sala=${codigoSalaOnline}&equipe=0`}
+            </div>
+            <div style={{ background: '#1e3a5f', borderRadius: '20px', padding: '5px 16px', fontSize: '0.85rem', color: '#93c5fd', fontWeight: 'bold' }}>
+              {batalhaConectados[0]} conectados
+            </div>
+          </div>
+
+          {/* QR Card - Time 2 */}
+          <div style={{ flex: 1, minWidth: '260px', background: 'rgba(131, 24, 67, 0.3)', border: '2px solid rgba(236, 72, 153, 0.4)', borderRadius: '24px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', boxShadow: '0 8px 32px rgba(236, 72, 153, 0.08)' }}>
+            <h3 style={{ color: '#f472b6', fontSize: '1.4rem', fontWeight: 900, fontFamily: 'Outfit' }}>{batalhaEquipe2}</h3>
+            <div style={{ background: '#fff', padding: '12px', borderRadius: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?jogo=batalha&sala=${codigoSalaOnline}&equipe=1`)}`} 
+                alt="QR Code Equipe 2" 
+                style={{ width: '160px', height: '160px' }}
+              />
+            </div>
+            <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '6px 12px', fontSize: '0.72rem', color: '#94a3b8', wordBreak: 'break-all', textAlign: 'center', maxWidth: '240px' }}>
+              {`${window.location.origin}${window.location.pathname}?jogo=batalha&sala=${codigoSalaOnline}&equipe=1`}
+            </div>
+            <div style={{ background: '#4a1942', borderRadius: '20px', padding: '5px 16px', fontSize: '0.85rem', color: '#f9a8d4', fontWeight: 'bold' }}>
+              {batalhaConectados[1]} conectados
+            </div>
+          </div>
+
+        </div>
+
+        <p style={{ color: '#94a3b8', fontSize: '0.95rem', marginBottom: '24px', fontFamily: 'Outfit' }}>Total conectados: <strong style={{ color: '#fff', fontSize: '1.1rem' }}>{batalhaConectados[0] + batalhaConectados[1]}</strong></p>
+
+        <div style={{ display: 'flex', gap: '14px' }}>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #d97706, #f59e0b)', boxShadow: '0 8px 30px rgba(245, 158, 11, 0.4)' }} onClick={comecarJogoBatalha}>
+            ▶ Iniciar Partida!
+          </button>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('batalha-setup')}>
+            ← Voltar
+          </button>
+        </div>
+      </div>
+
+      {/* 22. TELA DE PARTIDA DO PROFESSOR - BATALHA DO SABER */}
+      <div id="tela-batalha-game" className={`tela ${tela === 'batalha-game' ? 'ativa' : ''}`} style={{ display: tela === 'batalha-game' ? 'flex' : 'none', flexDirection: 'column', height: '100vh', width: '100vw', padding: 0, boxSizing: 'border-box', background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)', overflow: 'hidden' }}>
+        
+        {/* Header Superior */}
+        <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '12px 24px', boxSizing: 'border-box', flexShrink: 0 }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 900, background: 'linear-gradient(90deg, #f59e0b, #e0a96d)', webkitBackgroundClip: 'text', webkitTextFillColor: 'transparent', margin: 0, fontFamily: 'Outfit' }}>⚡ Batalha do Saber</h1>
+          <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+            {batalhaEstado.currentQ && (
+              <span style={{ color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold' }}>Pergunta {batalhaEstado.qIndex + 1}</span>
+            )}
+            <button className="btn-del" style={{ padding: '6px 14px', fontSize: '0.8rem', borderRadius: '8px', cursor: 'pointer' }} onClick={finalizarPartidaBatalha}>
+              ✕ Encerrar Partida
+            </button>
+          </div>
+        </div>
+
+        {/* Corpo Principal */}
+        <div style={{ display: 'flex', flex: 1, width: '100%', overflow: 'hidden' }}>
+          
+          {/* Painel Esquerdo: Time 1 */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', padding: '24px', background: 'linear-gradient(180deg, rgba(30, 58, 138, 0.15) 0%, rgba(0,0,0,0) 100%)', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '24px', fontSize: '1.8rem', fontWeight: '900', color: '#60a5fa', fontFamily: 'Outfit', letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'center' }}>
+              {batalhaEstado.teams?.[0]?.name || 'Meninos'}
+            </div>
+            
+            {/* Tanque de Pontuação */}
+            <div style={{ width: '140px', height: '380px', position: 'relative', border: '3px solid rgba(96, 165, 250, 0.4)', borderRadius: '24px', overflow: 'hidden', background: '#070a13', boxShadow: '0 0 30px rgba(59, 130, 246, 0.1)' }}>
+              <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7rem', color: '#94a3b8', whiteSpace: 'nowrap', zIndex: 3, fontWeight: 'bold' }}>META: 100%</div>
+              <div 
+                style={{ 
+                  position: 'absolute', 
+                  bottom: 0, 
+                  width: '100%', 
+                  background: 'linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)', 
+                  height: `${batalhaEstado.teams?.[0]?.score || 0}%`, 
+                  transition: 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)', 
+                  borderRadius: '0 0 20px 20px',
+                  boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)'
+                }}
+              />
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2.2rem', fontWeight: 900, color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.9)', zIndex: 4, fontFamily: 'Outfit' }}>
+                {Math.round(batalhaEstado.teams?.[0]?.score || 0)}%
+              </div>
+            </div>
+
+            <div style={{ marginTop: '20px', background: 'rgba(30, 58, 138, 0.25)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '10px 18px', textAlign: 'center', minWidth: '160px' }}>
+              <p style={{ fontSize: '0.78rem', color: '#93c5fd', margin: 0, fontWeight: 'bold' }}>Respostas / Conectados</p>
+              <span style={{ fontSize: '1.4rem', fontWeight: '900', color: '#60a5fa', fontFamily: 'Outfit' }}>
+                {batalhaRespostasRodada.filter(r => r.team === 0 && r.optIdx !== -1).length} / {batalhaConectados[0]}
+              </span>
+            </div>
+          </div>
+
+          {/* Painel Central: Pergunta & Gabarito */}
+          <div style={{ width: '420px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', borderLeft: '1px solid rgba(255,255,255,0.06)', borderRight: '1px solid rgba(255,255,255,0.06)', gap: '16px', boxSizing: 'border-box' }}>
+            
+            {batalhaEstado.currentQ ? (
+              <>
+                <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1.5px solid rgba(255,255,255,0.07)', borderRadius: '20px', padding: '20px', width: '100%', textAlign: 'center', boxSizing: 'border-box' }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#fbbf24', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    {batalhaEstado.currentQ.cat}
+                  </div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff', lineHeight: '1.4', marginBottom: '14px', fontFamily: 'Outfit', wordBreak: 'break-word' }}>
+                    <MathText text={batalhaEstado.currentQ.q} />
+                  </div>
+                  
+                  {/* Cronômetro */}
+                  <div 
+                    className={`q-timer ${batalhaTempoRestante <= 5 ? 'urgent' : ''}`}
+                    style={{ 
+                      fontSize: '3rem', 
+                      fontWeight: '900', 
+                      color: batalhaTempoRestante <= 5 ? '#ef4444' : '#f59e0b',
+                      animation: batalhaTempoRestante <= 5 ? 'pulse 0.5s infinite alternate' : 'none'
+                    }}
+                  >
+                    {batalhaEstado.phase === 'reveal' ? 'FIM' : `${batalhaTempoRestante}s`}
+                  </div>
+                </div>
+
+                {/* Grid de Alternativas */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                  {batalhaEstado.currentQ.opts.map((opcao, idx) => {
+                    const letters = ['A', 'B', 'C', 'D'];
+                    const correta = idx === batalhaEstado.currentQ.correct;
+                    const reveal = batalhaEstado.phase === 'reveal';
+                    
+                    let bg = 'rgba(15, 23, 42, 0.5)';
+                    let border = '2px solid rgba(255,255,255,0.08)';
+                    let color = '#fff';
+
+                    if (reveal) {
+                      if (correta) {
+                        bg = 'rgba(20, 83, 45, 0.7)';
+                        border = '2px solid #22c55e';
+                        color = '#86efac';
+                      } else {
+                        bg = 'rgba(69, 10, 10, 0.4)';
+                        border = '2px solid rgba(239, 68, 68, 0.3)';
+                        color = '#fca5a5';
+                      }
+                    }
+
+                    return (
+                      <div 
+                        key={idx}
+                        style={{ 
+                          padding: '12px 16px', 
+                          borderRadius: '12px', 
+                          background: bg,
+                          border: border,
+                          color: color,
+                          fontSize: '0.88rem',
+                          fontWeight: 'bold',
+                          textAlign: 'left',
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <span style={{ color: reveal && correta ? '#86efac' : '#a78bfa' }}>{letters[idx]})</span>
+                        <span>{opcao}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Controles do Professor na Pergunta */}
+                {batalhaEstado.phase === 'question' ? (
+                  <button className="btn-start" style={{ width: '100%', background: 'linear-gradient(90deg, #d97706, #fbbf24)', boxShadow: '0 6px 20px rgba(217, 119, 6, 0.3)' }} onClick={revelarRespostaBatalha}>
+                    👁️ Revelar Gabarito
+                  </button>
+                ) : (
+                  <button className="btn-start" style={{ width: '100%', background: 'linear-gradient(90deg, #7c3aed, #a78bfa)', boxShadow: '0 6px 20px rgba(124, 58, 237, 0.3)' }} onClick={avancarPerguntaBatalha}>
+                    Próxima Pergunta ➜
+                  </button>
+                )}
+
+                {/* Mini-Placar */}
+                <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '10px 14px', width: '100%', boxSizing: 'border-box' }}>
+                  <h4 style={{ fontSize: '0.7rem', color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'center', margin: '0 0 6px' }}>📊 PLACAR GERAL</h4>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px', marginBottom: '4px' }}>
+                    <span style={{ color: '#60a5fa', fontWeight: 'bold' }}>{batalhaEstado.teams?.[0]?.name}</span>
+                    <span style={{ color: '#60a5fa', fontWeight: '900' }}>{Math.round(batalhaEstado.teams?.[0]?.score || 0)}%</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                    <span style={{ color: '#f472b6', fontWeight: 'bold' }}>{batalhaEstado.teams?.[1]?.name}</span>
+                    <span style={{ color: '#f472b6', fontWeight: '900' }}>{Math.round(batalhaEstado.teams?.[1]?.score || 0)}%</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', color: '#cbd5e1' }}>
+                <p>Nenhuma pergunta ativa.</p>
+                <button className="btn-start" style={{ background: 'linear-gradient(90deg, #7c3aed, #a78bfa)' }} onClick={avancarPerguntaBatalha}>
+                  Começar Pergunta! ➜
+                </button>
+              </div>
+            )}
+
+          </div>
+
+          {/* Painel Direito: Time 2 */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', padding: '24px', background: 'linear-gradient(180deg, rgba(236, 72, 153, 0.15) 0%, rgba(0,0,0,0) 100%)', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '24px', fontSize: '1.8rem', fontWeight: '900', color: '#f472b6', fontFamily: 'Outfit', letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'center' }}>
+              {batalhaEstado.teams?.[1]?.name || 'Meninas'}
+            </div>
+            
+            {/* Tanque de Pontuação */}
+            <div style={{ width: '140px', height: '380px', position: 'relative', border: '3px solid rgba(244, 114, 182, 0.4)', borderRadius: '24px', overflow: 'hidden', background: '#070a13', boxShadow: '0 0 30px rgba(236, 72, 153, 0.1)' }}>
+              <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7rem', color: '#94a3b8', whiteSpace: 'nowrap', zIndex: 3, fontWeight: 'bold' }}>META: 100%</div>
+              <div 
+                style={{ 
+                  position: 'absolute', 
+                  bottom: 0, 
+                  width: '100%', 
+                  background: 'linear-gradient(180deg, #f472b6 0%, #db2777 100%)', 
+                  height: `${batalhaEstado.teams?.[1]?.score || 0}%`, 
+                  transition: 'height 1s cubic-bezier(0.34, 1.56, 0.64, 1)', 
+                  borderRadius: '0 0 20px 20px',
+                  boxShadow: '0 0 20px rgba(236, 72, 153, 0.6)'
+                }}
+              />
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2.2rem', fontWeight: 900, color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.9)', zIndex: 4, fontFamily: 'Outfit' }}>
+                {Math.round(batalhaEstado.teams?.[1]?.score || 0)}%
+              </div>
+            </div>
+
+            <div style={{ marginTop: '20px', background: 'rgba(131, 24, 67, 0.25)', border: '1px solid rgba(236, 72, 153, 0.3)', borderRadius: '12px', padding: '10px 18px', textAlign: 'center', minWidth: '160px' }}>
+              <p style={{ fontSize: '0.78rem', color: '#f9a8d4', margin: 0, fontWeight: 'bold' }}>Respostas / Conectados</p>
+              <span style={{ fontSize: '1.4rem', fontWeight: '900', color: '#f472b6', fontFamily: 'Outfit' }}>
+                {batalhaRespostasRodada.filter(r => r.team === 1 && r.optIdx !== -1).length} / {batalhaConectados[1]}
+              </span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* 23. TELA DE FIM DE PARTIDA - BATALHA DO SABER */}
+      <div id="tela-batalha-fim" className={`tela ${tela === 'batalha-fim' ? 'ativa' : ''}`} style={{ display: tela === 'batalha-fim' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '20px', boxSizing: 'border-box', background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)' }}>
+        <div className="trofeu" style={{ filter: 'drop-shadow(0 0 35px rgba(245, 158, 11, 0.6))', fontSize: '7rem', margin: '12px 0', animation: 'pulse 0.8s infinite alternate' }}>🏆</div>
+        
+        {batalhaEstado.winnerIndex !== null && (
+          <>
+            <h2 style={{ fontSize: '2.6rem', fontWeight: 900, fontFamily: 'Outfit', background: 'linear-gradient(90deg, #fbbf24, #f59e0b)', webkitBackgroundClip: 'text', webkitTextFillColor: 'transparent', margin: '0 0 10px', letterSpacing: '-0.5px' }}>
+              VENCEDOR: {batalhaEstado.teams?.[batalhaEstado.winnerIndex]?.name}!
+            </h2>
+            <p style={{ color: '#cbd5e1', fontSize: '1.2rem', marginBottom: '24px' }}>
+              Parabéns! A equipe dominou o saber com {Math.round(batalhaEstado.teams?.[batalhaEstado.winnerIndex]?.score || 100)}% de energia!
+            </p>
+          </>
+        )}
+
+        <div className="placar-final" style={{ display: 'flex', gap: '24px', alignItems: 'center', margin: '20px 0', background: 'rgba(255,255,255,0.02)', padding: '20px 45px', borderRadius: '20px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ color: '#60a5fa', fontSize: '1.15rem', fontWeight: 'bold' }}>🔵 {batalhaEstado.teams?.[0]?.name}</div>
+            <div style={{ color: '#60a5fa', fontSize: '1.8rem', fontWeight: 900 }}>{Math.round(batalhaEstado.teams?.[0]?.score || 0)}%</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', color: '#f59e0b', fontSize: '2rem', fontWeight: 800 }}>×</div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ color: '#f472b6', fontSize: '1.15rem', fontWeight: 'bold' }}>🩷 {batalhaEstado.teams?.[1]?.name}</div>
+            <div style={{ color: '#f472b6', fontSize: '1.8rem', fontWeight: 900 }}>{Math.round(batalhaEstado.teams?.[1]?.score || 0)}%</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '20px' }}>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #d97706, #f59e0b)', boxShadow: '0 8px 30px rgba(245, 158, 11, 0.4)' }} onClick={iniciarPartidaBatalha}>
+            Jogar Novamente 🔄
+          </button>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={finalizarPartidaBatalha}>
+            Voltar ao Menu 🏠
+          </button>
+        </div>
+      </div>
+
+      {/* 24. TELA DO ALUNO (CELULAR) - BATALHA DO SABER */}
+      <div id="tela-batalha-aluno" className={`tela ${tela === 'batalha-aluno' ? 'ativa' : ''}`} style={{ display: tela === 'batalha-aluno' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', width: '100%', padding: '24px', boxSizing: 'border-box', background: '#0a0b10', color: '#fff', textAlign: 'center' }}>
+        
+        {/* Equipe Badge do Aluno */}
+        <h2 style={{ fontSize: '1.8rem', fontWeight: 900, color: batalhaMeuTime === 0 ? '#60a5fa' : '#f472b6', fontFamily: 'Outfit', margin: '0 0 4px' }}>
+          {batalhaEstado.teams?.[batalhaMeuTime]?.name || (batalhaMeuTime === 0 ? 'Meninos' : 'Meninas')}
+        </h2>
+        <div 
+          style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '6px', 
+            background: batalhaMeuTime === 0 ? 'rgba(59,130,246,0.15)' : 'rgba(236,72,153,0.15)', 
+            border: `1.5px solid ${batalhaMeuTime === 0 ? '#3b82f6' : '#ec4899'}`, 
+            borderRadius: '20px', 
+            padding: '5px 16px', 
+            fontSize: '0.85rem', 
+            color: batalhaMeuTime === 0 ? '#93c5fd' : '#f9a8d4', 
+            fontWeight: 'bold',
+            marginBottom: '24px'
+          }}
+        >
+          {batalhaMeuTime === 0 ? '💙 Equipe Azul' : 'pink Equipe Rosa'}
+        </div>
+
+        {/* Lógica das fases do jogo na tela do aluno */}
+        {(() => {
+          if (!batalhaEstado || batalhaEstado.phase === 'waiting') {
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <p className="waiting" style={{ color: '#94a3b8', fontSize: '0.95rem', animation: 'fade 1.5s infinite alternate' }}>
+                  Aguardando o professor iniciar a próxima rodada...
+                </p>
+                <span style={{ fontSize: '2.5rem', animation: 'pulse 1s infinite alternate' }}>⏳</span>
+              </div>
+            );
+          }
+
+          if (batalhaEstado.phase === 'question' && batalhaEstado.currentQ) {
+            const letters = ['A', 'B', 'C', 'D'];
+            return (
+              <div style={{ width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px', boxSizing: 'border-box' }}>
+                
+                {/* Timer do aluno */}
+                <div 
+                  className={`timer ${batalhaTempoRestante <= 5 ? 'urgent' : ''}`}
+                  style={{ 
+                    fontSize: '2.8rem', 
+                    fontWeight: 900, 
+                    color: batalhaTempoRestante <= 5 ? '#ef4444' : '#f59e0b',
+                    animation: batalhaTempoRestante <= 5 ? 'pulse 0.5s infinite alternate' : 'none'
+                  }}
+                >
+                  {batalhaTempoRestante}s
+                </div>
+
+                {/* Card de Pergunta */}
+                <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '20px', width: '100%', textAlign: 'left', boxSizing: 'border-box' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 'bold' }}>
+                    {batalhaEstado.currentQ.cat}
+                  </div>
+                  <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#fff', lineHeight: '1.4', fontFamily: 'Outfit' }}>
+                    <MathText text={batalhaEstado.currentQ.q} />
+                  </div>
+                </div>
+
+                {/* Alternativas de Resposta */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                  {batalhaEstado.currentQ.opts.map((opcao, idx) => {
+                    const respondida = batalhaRespondida;
+                    const selecionada = idx === batalhaOpcaoSelecionada;
+                    
+                    let bg = '#1e293b';
+                    let border = '2px solid #334155';
+                    let scale = 'scale(1)';
+
+                    if (respondida) {
+                      if (selecionada) {
+                        border = '2px solid #f59e0b';
+                        bg = 'rgba(245, 158, 11, 0.1)';
+                      } else {
+                        bg = 'rgba(30, 41, 59, 0.4)';
+                        border = '2px solid rgba(255, 255, 255, 0.04)';
+                      }
+                    }
+
+                    return (
+                      <button 
+                        key={idx}
+                        disabled={respondida}
+                        onClick={() => submeterRespostaAlunoBatalha(idx)}
+                        style={{ 
+                          padding: '16px 20px', 
+                          borderRadius: '16px', 
+                          background: bg,
+                          border: border,
+                          color: respondida && !selecionada ? '#64748b' : '#fff',
+                          fontSize: '0.95rem',
+                          fontWeight: 'bold',
+                          textAlign: 'left',
+                          cursor: respondida ? 'default' : 'pointer',
+                          transition: 'all 0.2s',
+                          width: '100%',
+                          outline: 'none',
+                          transform: scale
+                        }}
+                      >
+                        <span style={{ respondida: respondida && !selecionada ? '#475569' : '#a78bfa', marginRight: '6px' }}>{letters[idx]})</span>
+                        {opcao}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {batalhaRespondida && (
+                  <p className="waiting" style={{ color: '#a78bfa', fontSize: '0.85rem', fontWeight: 'bold', marginTop: '6px' }}>
+                    Sua resposta foi enviada! Aguardando os outros alunos... ⏳
+                  </p>
+                )}
+
+              </div>
+            );
+          }
+
+          if (batalhaEstado.phase === 'reveal' && batalhaEstado.currentQ) {
+            const letters = ['A', 'B', 'C', 'D'];
+            return (
+              <div style={{ width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px', boxSizing: 'border-box' }}>
+                
+                {/* Gabarito Local do Aluno */}
+                {batalhaOpcaoSelecionada !== null ? (
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: batalhaRespostaCorreta ? '#22c55e' : '#ef4444', fontFamily: 'Outfit' }}>
+                    {batalhaRespostaCorreta ? '✅ Você Acertou!' : '❌ Você Errou!'}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#f59e0b', fontFamily: 'Outfit' }}>
+                    ⏰ Tempo Esgotado!
+                  </div>
+                )}
+
+                <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '20px', width: '100%', textAlign: 'left', boxSizing: 'border-box' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 'bold' }}>
+                    {batalhaEstado.currentQ.cat}
+                  </div>
+                  <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#fff', lineHeight: '1.4', fontFamily: 'Outfit' }}>
+                    <MathText text={batalhaEstado.currentQ.q} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                  {batalhaEstado.currentQ.opts.map((opcao, idx) => {
+                    const correta = idx === batalhaEstado.currentQ.correct;
+                    const selecionada = idx === batalhaOpcaoSelecionada;
+                    
+                    let bg = '#1e293b';
+                    let border = '2px solid #334155';
+                    let color = '#cbd5e1';
+
+                    if (correta) {
+                      bg = 'rgba(20, 83, 45, 0.7)';
+                      border = '2px solid #22c55e';
+                      color = '#86efac';
+                    } else if (selecionada) {
+                      bg = 'rgba(69, 10, 10, 0.4)';
+                      border = '2px solid #ef4444';
+                      color = '#fca5a5';
+                    } else {
+                      bg = 'rgba(30, 41, 59, 0.2)';
+                      border = '2px solid rgba(255, 255, 255, 0.02)';
+                      color = '#475569';
+                    }
+
+                    return (
+                      <button 
+                        key={idx}
+                        disabled
+                        style={{ 
+                          padding: '16px 20px', 
+                          borderRadius: '16px', 
+                          background: bg,
+                          border: border,
+                          color: color,
+                          fontSize: '0.95rem',
+                          fontWeight: 'bold',
+                          textAlign: 'left',
+                          width: '100%',
+                          transition: 'all 0.2s',
+                          outline: 'none'
+                        }}
+                      >
+                        <span style={{ marginRight: '6px', color: correta ? '#86efac' : '#e2e8f0' }}>{letters[idx]})</span>
+                        {opcao}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="waiting" style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '10px' }}>
+                  Aguardando o professor avançar a rodada... ⏳
+                </p>
+
+              </div>
+            );
+          }
+
+          if (batalhaEstado.phase === 'winner') {
+            const souVencedor = batalhaEstado.winnerIndex === batalhaMeuTime;
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
+                <span style={{ fontSize: '6rem', filter: 'drop-shadow(0 0 25px rgba(245, 158, 11, 0.55))', animation: 'pulse 0.8s infinite alternate' }}>{souVencedor ? '👑' : '🤝'}</span>
+                <h3 style={{ fontSize: '2rem', fontWeight: 900, color: souVencedor ? '#fbbf24' : '#cbd5e1', fontFamily: 'Outfit' }}>
+                  {souVencedor ? 'Parabéns, Vocês Venceram! 🏆' : 'Bom Jogo! Valeu o Esforço! 🤝'}
+                </h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+                  O professor finalizará a sala no computador.
+                </p>
+              </div>
+            );
+          }
+
+          return null;
+        })()}
+
       </div>
 
 
