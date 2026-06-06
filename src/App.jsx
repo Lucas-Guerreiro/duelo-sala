@@ -663,7 +663,14 @@ export default function App() {
   const [batalhaEquipe1, setBatalhaEquipe1] = useState('Meninos');
   const [batalhaEquipe2, setBatalhaEquipe2] = useState('Meninas');
   const [batalhaQTime, setBatalhaQTime] = useState(30);
-  const [batalhaCategoriasAtivas, setBatalhaCategoriasAtivas] = useState([]);
+  const [batalhaCategoriasAtivas, setBatalhaCategoriasAtivas] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dm_mat');
+      return saved ? JSON.parse(saved) : ['História', 'Matemática', 'Conhecimentos Gerais'];
+    } catch (e) {
+      return ['História', 'Matemática', 'Conhecimentos Gerais'];
+    }
+  });
   const [batalhaEstado, setBatalhaEstado] = useState({
     teams: [{ name: 'Meninos', score: 0 }, { name: 'Meninas', score: 0 }],
     qtime: 30,
