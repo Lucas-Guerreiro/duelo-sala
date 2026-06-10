@@ -599,6 +599,62 @@ export default function App() {
     setTela(dest);
   };
 
+  const sairDaPartida = () => {
+    playSound('click');
+    if (window.confirm("Deseja realmente sair da partida atual? Seu progresso será perdido.")) {
+      // Limpar todos os timers ativos
+      if (timerIntRef.current) {
+        clearInterval(timerIntRef.current);
+        timerIntRef.current = null;
+      }
+      if (pistasTimerIntRef.current) {
+        clearInterval(pistasTimerIntRef.current);
+        pistasTimerIntRef.current = null;
+      }
+      if (imAcaoTimerIntRef.current) {
+        clearInterval(imAcaoTimerIntRef.current);
+        imAcaoTimerIntRef.current = null;
+      }
+
+      // Resetar Duelo
+      setRodAtual(0);
+      setRodDescanso(false);
+      setTimerSeg(15);
+      setFila([]);
+      setPts([0, 0]);
+      setApostasRodada([null, null]);
+      setApostasConfirmadas([false, false]);
+
+      // Resetar Três Pistas
+      setPistasPontuacao([1, 1]);
+      setPistasEquipeVez(0);
+      setPistasReveladas([false, false, false, false, false]);
+      setPistasTentouAdivinhar([false, false]);
+      setPistasEfeitoAtivo(null);
+      setPistasFluxoPalpite(null);
+      setPistasVezPassada(false);
+
+      // Resetar Imagem e Ação
+      setImAcaoPontuacao([1, 1]);
+      setImAcaoRodada(1);
+      setImAcaoCartaAtual(null);
+      setImAcaoTimer(60);
+      setImAcaoFluxo('preparacao');
+      setImAcaoCartaRevelada(false);
+      setImAcaoEquipeVez(0);
+
+      // Resetar Jogo da Memória
+      setMemoPontuacao([0, 0]);
+      setMemoEquipeVez(0);
+      setMemoCartasSelecionadas([]);
+      setMemoEfeitoAtivo(null);
+      setMemoBloqueioCliques(false);
+      
+      // Mudar tela para menu principal
+      irParaTela('menu');
+    }
+  };
+
   // Persistir tela atual para reinício seguro (apenas se não for modo projetor)
   useEffect(() => {
     if (isProjetorMode) return;
@@ -3112,6 +3168,63 @@ export default function App() {
     setIaPergsGeradas([]);
     setIaPistasGeradas([]);
 
+    let conteudoUrlExtraido = '';
+    let inlineDataObj = null;
+
+    if (iaSourceMode === 'url') {
+      const urlNormalizada = iaUrl.trim();
+      const isPDFUrl = urlNormalizada.toLowerCase().endsWith('.pdf');
+      const isImgUrl = /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(urlNormalizada);
+
+      try {
+        if (isPDFUrl || isImgUrl) {
+          setIaFeedback({ txt: `⏳ Baixando arquivo da URL (${isPDFUrl ? 'PDF' : 'Imagem'})...`, tipo: 'warn' });
+          const res = await fetch(urlNormalizada);
+          if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+          const blob = await res.blob();
+          
+          const b64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          
+          inlineDataObj = {
+            mimeType: blob.type || (isPDFUrl ? 'application/pdf' : 'image/jpeg'),
+            data: b64
+          };
+        } else {
+          setIaFeedback({ txt: '⏳ Conectando ao link e extraindo texto...', tipo: 'warn' });
+          const res = await fetch(urlNormalizada);
+          if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+          const html = await res.text();
+          
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const tagsParaRemover = doc.querySelectorAll('script, style, iframe, noscript, svg, nav, footer, header, link');
+          tagsParaRemover.forEach(tag => tag.remove());
+          
+          const texto = doc.body ? doc.body.innerText : doc.documentElement.innerText;
+          conteudoUrlExtraido = texto
+            .replace(/\r\n/g, '\n')
+            .replace(/\n\s*\n/g, '\n\n')
+            .trim();
+            
+          if (!conteudoUrlExtraido) {
+            throw new Error('A página está vazia ou não contém texto legível.');
+          }
+        }
+      } catch (err) {
+        console.warn('[Gemini URL Parser] Erro ao extrair dados do link:', err.message);
+        setIaFeedback({ 
+          txt: `⚠️ Falha ao ler conteúdo da URL diretamente (CORS ou erro de rede). Enviando apenas o link para a IA: ${err.message}`, 
+          tipo: 'warn' 
+        });
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    }
+
     const tiposDisponiveis = [];
     if (iaTipoMC) tiposDisponiveis.push('mc');
     if (iaTipoVF) tiposDisponiveis.push('vf');
@@ -3202,13 +3315,14 @@ export default function App() {
 
     const prompt = iaSourceMode === 'file' 
       ? `Analise o conteúdo deste arquivo.\n\n${promptBase}`
-      : `Visite, leia e analise minuciosamente o conteúdo deste link de internet: ${iaUrl.trim()}.\n\n${promptBase}`;
+      : conteudoUrlExtraido
+        ? `Analise o conteúdo extraído da seguinte URL (${iaUrl.trim()}):\n\n--- INÍCIO DO CONTEÚDO ---\n${conteudoUrlExtraido}\n--- FIM DO CONTEÚDO ---\n\n${promptBase}`
+        : `Visite, leia e analise minuciosamente o conteúdo deste link de internet: ${iaUrl.trim()}.\n\n${promptBase}`;
 
     // Se tivermos a chave do Gemini inserida pelo usuário, fazemos a chamada direta
     if (geminiKey.trim()) {
       // Tentamos modelos em ordem, do mais recente ao mais estável
       const modelos = [
-        'gemini-2.5-flash-preview-05-20',
         'gemini-2.0-flash',
         'gemini-1.5-flash'
       ];
@@ -3219,7 +3333,10 @@ export default function App() {
 
           const reqBody = {
             contents: [{
-              parts: iaSourceMode === 'file' ? [
+              parts: inlineDataObj ? [
+                { inlineData: inlineDataObj },
+                { text: `Analise o conteúdo deste arquivo baixado da URL (${iaUrl.trim()}).\n\n${promptBase}` }
+              ] : iaSourceMode === 'file' ? [
                 { inlineData: { mimeType: iaFileMediaType, data: iaFileData } },
                 { text: prompt }
               ] : [
@@ -3241,8 +3358,10 @@ export default function App() {
             const errData = await response.json().catch(() => ({}));
             const errMsg = errData.error?.message || `Erro HTTP ${response.status}`;
             console.warn(`[Gemini] Modelo ${modelo} falhou: ${errMsg}`);
-            // Se for erro de chave inválida (401/403), não adianta tentar outros modelos
-            if (response.status === 400 || response.status === 401 || response.status === 403) {
+            // Só interrompe se for erro de credenciais (401/403) ou erro 400 explicitando problema com a chave
+            const isApiKeyError = response.status === 401 || response.status === 403 ||
+              (response.status === 400 && errMsg.toLowerCase().includes('key'));
+            if (isApiKeyError) {
               setIaFeedback({ txt: `❌ Chave inválida ou sem permissão (${response.status}): ${errMsg}`, tipo: 'err' });
               setIaLoading(false);
               return;
@@ -11794,6 +11913,45 @@ export default function App() {
           </>
         )}
       </div>
+
+      {/* Botão Global de Cancelar/Sair da Partida Ativa */}
+      {['jogo', 'pistas-jogo', 'ia-jogo', 'memo-jogo', 'duelo-online-game'].includes(tela) && (
+        <button 
+          onClick={sairDaPartida}
+          className="btn-cancelar-partida"
+          style={{
+            position: 'fixed',
+            top: '16px',
+            right: '16px',
+            padding: '10px 18px',
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1.5px solid rgba(239, 68, 68, 0.35)',
+            color: '#fca5a5',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            fontSize: '0.85rem',
+            fontWeight: 'bold',
+            zIndex: 99999,
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontFamily: "'Outfit', sans-serif"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)';
+            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.35)';
+            e.currentTarget.style.transform = 'none';
+          }}
+        >
+          🚪 Cancelar Partida
+        </button>
+      )}
 
     </div>
   );
