@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-import { initFirebase, salvarBackupImAcao, publicarBancoNuvem, obterBancoNuvem, publicarEstadoBatalha, ouvirEstadoBatalha, enviarRespostaBatalha, ouvirRespostasBatalha, limparRespostasBatalha } from './firebase';
+import { initFirebase, salvarBackupImAcao, publicarBancoNuvem, obterBancoNuvem, publicarEstadoDueloOnline, ouvirEstadoDueloOnline, enviarRespostaDueloOnline, ouvirRespostasDueloOnline, limparRespostasDueloOnline } from './firebase';
 
 // Componente para renderização de fórmulas matemáticas KaTeX de forma offline
 function MathText({ text }) {
@@ -659,62 +659,71 @@ export default function App() {
     return saved ? JSON.parse(saved) : {};
   });
 
-  // --- ESTADOS DO NOVO JOGO: BATALHA DO SABER ---
-  const [batalhaEquipe1, setBatalhaEquipe1] = useState('Meninos');
-  const [batalhaEquipe2, setBatalhaEquipe2] = useState('Meninas');
-  const [batalhaQTime, setBatalhaQTime] = useState(30);
-  const [batalhaSetupFeedback, setBatalhaSetupFeedback] = useState(null);
-  const [batalhaCategoriasAtivas, setBatalhaCategoriasAtivas] = useState(() => {
-    try {
-      const saved = localStorage.getItem('dm_mat');
-      return saved ? JSON.parse(saved) : ['História', 'Matemática', 'Conhecimentos Gerais'];
-    } catch (e) {
-      return ['História', 'Matemática', 'Conhecimentos Gerais'];
-    }
-  });
-  const [batalhaEstado, setBatalhaEstado] = useState({
+  const [codigoSalaOnline, setCodigoSalaOnline] = useState(() => localStorage.getItem('codigoSalaOnline') || '');
+  const [sincronismoAutomatico, setSincronismoAutomatico] = useState(() => localStorage.getItem('sincronismoAutomatico') === 'true');
+  const [statusSincronismo, setStatusSincronismo] = useState('Nuvem não ativa. Insira o Código de Acesso.');
+
+  // --- ESTADOS DO DUELO ONLINE (CELULAR) ---
+  const [dueloModoControle, setDueloModoControle] = useState('fisico'); // 'fisico' ou 'celular'
+  const [dueloEstado, setDueloEstado] = useState({
     teams: [{ name: 'Meninos', score: 0 }, { name: 'Meninas', score: 0 }],
     qtime: 30,
-    activeCategories: [],
     usedQs: [],
     qIndex: -1,
     currentQ: null,
     phase: 'waiting',
-    timerEnd: null
+    timerEnd: null,
+    winnerIndex: null
   });
-  const [batalhaConectados, setBatalhaConectados] = useState([0, 0]);
-  const [batalhaRespostasRodada, setBatalhaRespostasRodada] = useState([]);
-  const [batalhaMeuTime, setBatalhaMeuTime] = useState(0);
-  const [batalhaMeuPid] = useState(() => 'p' + Math.random().toString(36).substring(2, 10));
-  const [batalhaRespondida, setBatalhaRespondida] = useState(false);
-  const [batalhaOpcaoSelecionada, setBatalhaOpcaoSelecionada] = useState(null);
-  const [batalhaRespostaCorreta, setBatalhaRespostaCorreta] = useState(null);
-  const [batalhaUltimaQuestaoRespondida, setBatalhaUltimaQuestaoRespondida] = useState(-1);
-  const [batalhaTempoRestante, setBatalhaTempoRestante] = useState(0);
+  const [dueloConectados, setDueloConectados] = useState([0, 0]);
+  const [dueloRespostasRodada, setDueloRespostasRodada] = useState([]);
+  const [dueloMeuTime, setDueloMeuTime] = useState(0);
+  const [dueloMeuPid, setDueloMeuPid] = useState(() => {
+    try {
+      let saved = localStorage.getItem('duelo_pid');
+      if (!saved) {
+        saved = 'p' + Math.random().toString(36).substring(2, 10);
+        localStorage.setItem('duelo_pid', saved);
+      }
+      return saved;
+    } catch (e) {
+      return 'p' + Math.random().toString(36).substring(2, 10);
+    }
+  });
+  const [dueloApelidoAluno, setDueloApelidoAluno] = useState(() => {
+    try {
+      return localStorage.getItem('duelo_apelido') || '';
+    } catch (e) {
+      return '';
+    }
+  });
+  const [dueloRespondida, setDueloRespondida] = useState(false);
+  const [dueloOpcaoSelecionada, setDueloOpcaoSelecionada] = useState(null);
+  const [dueloRespostaCorreta, setDueloRespostaCorreta] = useState(null);
+  const [dueloUltimaQuestaoRespondida, setDueloUltimaQuestaoRespondida] = useState(-1);
+  const [dueloTempoRestante, setDueloTempoRestante] = useState(0);
+  const [firebaseErroMsg, setFirebaseErroMsg] = useState(null);
 
+  // Efeito do timer do Duelo Online
   useEffect(() => {
-    if (tela !== 'batalha-game' && tela !== 'batalha-aluno') return;
-    if (batalhaEstado.phase !== 'question' || !batalhaEstado.timerEnd) {
-      setBatalhaTempoRestante(0);
+    if (tela !== 'duelo-online-game' && tela !== 'duelo-aluno') return;
+    if (!dueloEstado || dueloEstado.phase !== 'question' || !dueloEstado.timerEnd) {
+      setDueloTempoRestante(0);
       return;
     }
 
     const interval = setInterval(() => {
-      const resto = Math.max(0, Math.ceil((batalhaEstado.timerEnd - Date.now()) / 1000));
-      setBatalhaTempoRestante(resto);
+      const resto = Math.max(0, Math.ceil((dueloEstado.timerEnd - Date.now()) / 1000));
+      setDueloTempoRestante(resto);
       
-      if (resto <= 0 && tela === 'batalha-game' && batalhaEstado.phase === 'question') {
+      if (resto <= 0 && tela === 'duelo-online-game' && dueloEstado.phase === 'question') {
         clearInterval(interval);
-        revelarRespostaBatalha();
+        revelarRespostaDueloOnline();
       }
     }, 250);
 
     return () => clearInterval(interval);
-  }, [tela, batalhaEstado.phase, batalhaEstado.timerEnd]);
-
-  const [codigoSalaOnline, setCodigoSalaOnline] = useState(() => localStorage.getItem('codigoSalaOnline') || '');
-  const [sincronismoAutomatico, setSincronismoAutomatico] = useState(() => localStorage.getItem('sincronismoAutomatico') === 'true');
-  const [statusSincronismo, setStatusSincronismo] = useState('Nuvem não ativa. Insira o Código de Acesso.');
+  }, [tela, dueloEstado ? dueloEstado.phase : null, dueloEstado ? dueloEstado.timerEnd : null]);
 
   const [memoCartaEscala, setMemoCartaEscala] = useState(() => Number(localStorage.getItem('memoCartaEscala')) || 100);
   const [memoProjetorCartaEscala, setMemoProjetorCartaEscala] = useState(100);
@@ -1323,13 +1332,15 @@ export default function App() {
     const salaParam = params.get('sala');
     const equipeParam = params.get('equipe');
 
-    if (jogoParam === 'batalha' && salaParam) {
-      setCodigoSalaOnline(salaParam.toUpperCase());
-      if (equipeParam !== null) {
-        setBatalhaMeuTime(Number(equipeParam));
-      }
-      setTela('batalha-aluno');
-    } else if (params.get('projetor') === 'true') {
+    if (jogoParam === 'duelo' && salaParam && equipeParam) {
+      setCodigoSalaOnline(salaParam);
+      const eq = parseInt(equipeParam, 10);
+      setDueloMeuTime(isNaN(eq) ? 0 : eq);
+      setDueloModoControle('celular');
+      setTela('duelo-aluno');
+    }
+
+    if (params.get('projetor') === 'true') {
       setIsProjetorMode(true);
       if (jogoParam === 'memoria') {
         setTela('memo-projetor');
@@ -2517,105 +2528,41 @@ export default function App() {
     });
   };
 
-  // --- FUNÇÕES E LÓGICA DO JOGO: BATALHA DO SABER ---
-  const iniciarPartidaBatalha = async () => {
-    try {
-      setBatalhaSetupFeedback(null);
-      
-      if (!codigoSalaOnline || !codigoSalaOnline.trim()) {
-        setBatalhaSetupFeedback({ txt: 'Por favor, digite ou gere um Código de Acesso da Sala Online nesta tela de configuração antes de iniciar a Batalha!', tipo: 'err' });
-        return;
-      }
-      
-      const catsAtivas = batalhaCategoriasAtivas || [];
-      const pool = (perguntas || []).filter(p => {
-        if (!p || !p.mat) return false;
-        const matQ = String(p.mat).trim().toLowerCase();
-        return catsAtivas.some(c => String(c).trim().toLowerCase() === matQ);
-      });
-      
-      if (pool.length === 0) {
-        setBatalhaSetupFeedback({ txt: 'Nenhuma pergunta cadastrada no banco de dados para as categorias selecionadas! Por favor, selecione outras categorias ou clique no botão de gerenciamento acima para cadastrar perguntas.', tipo: 'err' });
-        return;
-      }
-
-      playSound('click');
-      
-      const novoEstado = {
-        teams: [
-          { name: batalhaEquipe1 || 'Meninos', score: 0, count: 0 },
-          { name: batalhaEquipe2 || 'Meninas', score: 0, count: 0 }
-        ],
-        qtime: batalhaQTime || 30,
-        activeCategories: catsAtivas,
-        usedQs: [],
-        qIndex: -1,
-        currentQ: null,
-        phase: 'waiting',
-        timerEnd: null,
-        winnerIndex: null
-      };
-
-      setBatalhaEstado(novoEstado);
-      setBatalhaConectados([0, 0]);
-      setBatalhaRespostasRodada([]);
-
-      try {
-        await publicarEstadoBatalha(codigoSalaOnline, novoEstado);
-        await limparRespostasBatalha(codigoSalaOnline);
-      } catch (err) {
-        console.error('Falha de inicialização no Firebase:', err);
-        setBatalhaSetupFeedback({ txt: 'Erro de Conexão com Firebase (o jogo continuará localmente): ' + err.message, tipo: 'warn' });
-      }
-
-      irParaTela('batalha-qr');
-    } catch (globalErr) {
-      console.error('Erro geral ao iniciar partida:', globalErr);
-      setBatalhaSetupFeedback({ txt: 'Erro Crítico ao iniciar a Batalha: ' + globalErr.message, tipo: 'err' });
-    }
-  };
-
-  const comecarJogoBatalha = async () => {
+  // --- FUNÇÕES E LÓGICA DO JOGO: DUELO ONLINE (CELULAR) ---
+  const comecarJogoDueloOnline = () => {
     try {
       playSound('click');
-      irParaTela('batalha-game');
-      await avancarPerguntaBatalha();
+      irParaTela('duelo-online-game');
+      avancarPerguntaDueloOnline();
     } catch (err) {
-      console.error('Erro ao começar jogo:', err);
-      alert('Erro ao começar a disputa: ' + err.message);
+      console.error('Erro ao começar jogo online:', err);
     }
   };
 
-  const avancarPerguntaBatalha = async () => {
+  const avancarPerguntaDueloOnline = () => {
     try {
       playSound('click');
       
-      const pool = (perguntas || []).filter(p => {
-        if (!p || !p.mat) return false;
-        const matQ = String(p.mat).trim().toLowerCase();
-        return (batalhaCategoriasAtivas || []).some(c => String(c).trim().toLowerCase() === matQ);
-      });
-      
-      const poolNaoUsadas = pool.filter(p => !(batalhaEstado.usedQs || []).includes(p.txt));
-      
-      if (poolNaoUsadas.length === 0) {
-        alert('Fim das perguntas! Encerrando disputa.');
-        finalizarPartidaBatalha();
+      if (rodAtual > fila.length) {
+        alert('Fim das perguntas! Encerrando duelo.');
+        finalizarPartidaDueloOnline();
         return;
       }
 
-      try {
-        await limparRespostasBatalha(codigoSalaOnline);
-      } catch (err) {
-        console.error('Erro ao limpar rodada:', err);
-      }
+      // Limpa respostas dos alunos da rodada anterior no Firestore (em segundo plano)
+      limparRespostasDueloOnline(codigoSalaOnline).catch(err => {
+        console.error('Erro ao limpar respostas:', err);
+        setFirebaseErroMsg('Limpar respostas: ' + (err.message || String(err)));
+      });
       
-      setBatalhaRespostasRodada([]);
+      setDueloRespostasRodada([]);
 
-      const sorteada = poolNaoUsadas[Math.floor(Math.random() * poolNaoUsadas.length)];
-      const novoQIndex = (batalhaEstado.qIndex || 0) + 1;
-      const novoUsedQs = [...(batalhaEstado.usedQs || []), sorteada.txt];
-      const temporizadorFim = Date.now() + (batalhaQTime || 30) * 1000;
+      const sorteada = fila[rodAtual - 1];
+      const novoQIndex = rodAtual - 1;
+      
+      // O limite de tempo da rodada
+      const limite = globalTimerEnabled ? globalTempo : 30;
+      const temporizadorFim = Date.now() + limite * 1000;
 
       // Define alternativas com segurança
       let alts = [];
@@ -2627,7 +2574,7 @@ export default function App() {
         alts = ['Resposta Única'];
       }
 
-      // Calcula o gabarito correto com fallbacks seguros
+      // Calcula o gabarito
       let correctIdx = 0;
       if (sorteada.tipo === 'mc') {
         if (typeof sorteada.resp === 'number') {
@@ -2645,9 +2592,8 @@ export default function App() {
       }
 
       const novoEstado = {
-        ...batalhaEstado,
+        ...dueloEstado,
         qIndex: novoQIndex,
-        usedQs: novoUsedQs,
         currentQ: {
           cat: sorteada.mat || 'Geral',
           q: sorteada.txt,
@@ -2660,103 +2606,147 @@ export default function App() {
         timerEnd: temporizadorFim
       };
 
-      setBatalhaEstado(novoEstado);
-      try {
-        await publicarEstadoBatalha(codigoSalaOnline, novoEstado);
-      } catch (err) {
-        console.error('Erro ao publicar pergunta:', err);
-      }
+      setDueloEstado(novoEstado);
+      // Publica no Firestore em segundo plano
+      publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
+        console.error('Erro ao publicar estado do duelo:', err);
+        setFirebaseErroMsg('Publicar estado: ' + (err.message || String(err)));
+      });
+      
     } catch (err) {
-      console.error('Erro em avancarPerguntaBatalha:', err);
-      alert('Erro ao avançar pergunta: ' + err.message);
+      console.error('Erro em avancarPerguntaDueloOnline:', err);
     }
   };
 
-  const revelarRespostaBatalha = async () => {
-    if (batalhaEstado.phase !== 'question') return;
+  const revelarRespostaDueloOnline = async () => {
+    if (!dueloEstado || dueloEstado.phase !== 'question') return;
     playSound('correct');
 
     const novoEstado = {
-      ...batalhaEstado,
+      ...dueloEstado,
       phase: 'reveal'
     };
 
-    const equipe1Ans = batalhaRespostasRodada.filter(r => r.team === 0 && r.optIdx !== -1);
-    const equipe2Ans = batalhaRespostasRodada.filter(r => r.team === 1 && r.optIdx !== -1);
+    // Respostas válidas de cada time
+    const equipe1Ans = dueloRespostasRodada.filter(r => r.team === 0 && r.optIdx !== -1);
+    const equipe2Ans = dueloRespostasRodada.filter(r => r.team === 1 && r.optIdx !== -1);
+
+    // Calcular quem respondeu correto mais rápido globalmente para o bônus de velocidade de rodada
+    let maisRapidoAcertou = null;
+    const todasRespostasCorretas = dueloRespostasRodada.filter(r => r.correct && r.optIdx !== -1);
+    if (todasRespostasCorretas.length > 0) {
+      todasRespostasCorretas.sort((a, b) => b.speedBonus - a.speedBonus);
+      maisRapidoAcertou = todasRespostasCorretas[0];
+      novoEstado.fastestStudent = {
+        team: maisRapidoAcertou.team,
+        pid: maisRapidoAcertou.pid
+      };
+    }
 
     const calcularGanho = (respostasDoTime, indexTime) => {
       if (respostasDoTime.length === 0) return 0;
       const acertos = respostasDoTime.filter(r => r.correct).length;
-      const ratio = acertos / respostasDoTime.length;
+      const ratio = acertos / respostasDoTime.length; // Proporção de acertos
       
-      const totalConectadosTime = Math.max(1, batalhaConectados[indexTime]);
+      const totalConectadosTime = Math.max(1, dueloConectados[indexTime]);
       const speedSum = respostasDoTime.filter(r => r.correct).reduce((s, a) => s + (a.speedBonus || 0), 0);
       
-      return Math.round((ratio * 10 + speedSum / totalConectadosTime) * 10) / 10;
+      // Cada rodada vale no máximo 15 pontos de preenchimento do copo
+      // 10 pontos pela taxa de acerto do grupo + até 5 pontos de bônus de velocidade média
+      const ganhoRaw = (ratio * 10) + (speedSum / totalConectadosTime);
+      return Math.round(ganhoRaw * 10) / 10;
     };
 
     const ganhoTime1 = calcularGanho(equipe1Ans, 0);
     const ganhoTime2 = calcularGanho(equipe2Ans, 1);
 
-    const novoScore1 = Math.min(100, (batalhaEstado.teams[0].score || 0) + ganhoTime1);
-    const novoScore2 = Math.min(100, (batalhaEstado.teams[1].score || 0) + ganhoTime2);
+    const novoScore1 = Math.min(100, (dueloEstado.teams[0].score || 0) + ganhoTime1);
+    const novoScore2 = Math.min(100, (dueloEstado.teams[1].score || 0) + ganhoTime2);
 
     novoEstado.teams[0].score = novoScore1;
+    novoEstado.teams[0].lastGain = ganhoTime1;
     novoEstado.teams[1].score = novoScore2;
+    novoEstado.teams[1].lastGain = ganhoTime2;
 
-    setBatalhaEstado(novoEstado);
-    try {
-      await publicarEstadoBatalha(codigoSalaOnline, novoEstado);
-    } catch (err) {
+    // Avança o contador de rodadas local
+    setRodAtual(prev => prev + 1);
+
+    setDueloEstado(novoEstado);
+    publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
       console.error('Erro ao salvar placar:', err);
-    }
+      setFirebaseErroMsg('Salvar placar: ' + (err.message || String(err)));
+    });
 
+    // Se alguma equipe encheu o copo (100%), finaliza após 3.5 segundos
     if (novoScore1 >= 100 || novoScore2 >= 100) {
       setTimeout(() => {
-        exibirVencedorBatalha(novoScore1 >= novoScore2 ? 0 : 1);
-      }, 3000);
+        exibirVencedorDueloOnline(novoScore1 >= 100 && novoScore2 >= 100 ? (novoScore1 >= novoScore2 ? 0 : 1) : (novoScore1 >= 100 ? 0 : 1));
+      }, 3500);
     }
   };
 
-  const exibirVencedorBatalha = async (indexTime) => {
+  const exibirVencedorDueloOnline = (indexTime) => {
     playSound('victory');
     const novoEstado = {
-      ...batalhaEstado,
+      ...dueloEstado,
       phase: 'winner',
       winnerIndex: indexTime
     };
-    setBatalhaEstado(novoEstado);
-    try {
-      await publicarEstadoBatalha(codigoSalaOnline, novoEstado);
-    } catch (err) {
+    setDueloEstado(novoEstado);
+    publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
       console.error('Erro ao declarar vencedor:', err);
-    }
-    irParaTela('batalha-fim');
+      setFirebaseErroMsg('Declarar vencedor: ' + (err.message || String(err)));
+    });
+    irParaTela('duelo-online-fim');
   };
 
-  const finalizarPartidaBatalha = async () => {
+  const finalizarPartidaDueloOnline = () => {
     playSound('click');
     if (codigoSalaOnline.trim()) {
-      try {
-        await publicarEstadoBatalha(codigoSalaOnline, { phase: 'waiting', teams: [] });
-        await limparRespostasBatalha(codigoSalaOnline);
-      } catch (err) {
-        console.error('Erro ao resetar sala:', err);
-      }
+      publicarEstadoDueloOnline(codigoSalaOnline, { phase: 'waiting', teams: [] })
+        .then(() => limparRespostasDueloOnline(codigoSalaOnline))
+        .catch(err => {
+          console.error('Erro ao resetar sala:', err);
+          setFirebaseErroMsg('Resetar sala: ' + (err.message || String(err)));
+        });
     }
     irParaTela('menu');
   };
 
+  const submeterRespostaAlunoDueloOnline = async (optIdx) => {
+    if (dueloRespondida) return;
+    setDueloRespondida(true);
+    setDueloOpcaoSelecionada(optIdx);
+
+    const correct = optIdx === dueloEstado.currentQ.correct;
+    setDueloRespostaCorreta(correct);
+    playSound(correct ? 'correct' : 'wrong');
+
+    const limite = dueloEstado.qtime || 30;
+    const tempoRestante = Math.max(0, (dueloEstado.timerEnd - Date.now()) / 1000);
+    // Bônus de velocidade varia de 0 a 5 baseado no tempo restante
+    const speedBonus = correct ? Math.round((tempoRestante / limite) * 5 * 10) / 10 : 0;
+
+    try {
+      await enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, optIdx, correct, speedBonus, dueloApelidoAluno);
+    } catch (e) {
+      console.error('Erro ao enviar resposta do aluno:', e);
+      setFirebaseErroMsg('Enviar resposta: ' + (e.message || String(e)));
+    }
+  };
+
   // Escuta de respostas em tempo real (Professor)
   useEffect(() => {
-    if (tela !== 'batalha-qr' && tela !== 'batalha-game') return;
+    if (tela !== 'duelo-qr' && tela !== 'duelo-online-game') return;
     if (!codigoSalaOnline.trim()) return;
 
-    const unsub = ouvirRespostasBatalha(codigoSalaOnline, (respostas) => {
-      setBatalhaRespostasRodada(respostas);
+    const unsub = ouvirRespostasDueloOnline(codigoSalaOnline, (respostas) => {
+      setDueloRespostasRodada(respostas);
       const time0Conectados = respostas.filter(r => r.team === 0).length;
       const time1Conectados = respostas.filter(r => r.team === 1).length;
-      setBatalhaConectados([time0Conectados, time1Conectados]);
+      setDueloConectados([time0Conectados, time1Conectados]);
+    }, (err) => {
+      setFirebaseErroMsg('Escuta do Professor: ' + (err.message || String(err)));
     });
 
     return () => unsub();
@@ -2764,52 +2754,39 @@ export default function App() {
 
   // Escuta de estado do jogo (Aluno)
   useEffect(() => {
-    if (tela !== 'batalha-aluno') return;
+    if (tela !== 'duelo-aluno') return;
     if (!codigoSalaOnline.trim()) return;
 
-    // Envia presença inicial do aluno
-    enviarRespostaBatalha(codigoSalaOnline, batalhaMeuPid, batalhaMeuTime, -1, false, 0)
-      .catch(err => console.error('Erro de presença:', err));
+    // Envia presença inicial do aluno (como optIdx = -1)
+    enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, dueloApelidoAluno)
+      .catch(err => {
+        console.error('Erro de presença:', err);
+        setFirebaseErroMsg('Presença inicial: ' + (err.message || String(err)));
+      });
 
-    const unsub = ouvirEstadoBatalha(codigoSalaOnline, (estado) => {
+    const unsub = ouvirEstadoDueloOnline(codigoSalaOnline, (estado) => {
       if (!estado) return;
-      setBatalhaEstado(estado);
+      setDueloEstado(estado);
 
+      // Se virou pergunta, reseta estado local do aluno
       if (estado.phase === 'question' && estado.currentQ) {
         const qIdx = estado.currentQ.qIndex;
-        setBatalhaUltimaQuestaoRespondida(prev => {
+        setDueloUltimaQuestaoRespondida(prev => {
           if (prev !== qIdx) {
-            setBatalhaRespondida(false);
-            setBatalhaOpcaoSelecionada(null);
-            setBatalhaRespostaCorreta(null);
+            setDueloRespondida(false);
+            setDueloOpcaoSelecionada(null);
+            setDueloRespostaCorreta(null);
             return qIdx;
           }
           return prev;
         });
       }
+    }, (err) => {
+      setFirebaseErroMsg('Escuta do Aluno: ' + (err.message || String(err)));
     });
 
     return () => unsub();
-  }, [tela, codigoSalaOnline, batalhaMeuTime]);
-
-  const submeterRespostaAlunoBatalha = async (optIdx) => {
-    if (batalhaRespondida) return;
-    setBatalhaRespondida(true);
-    setBatalhaOpcaoSelecionada(optIdx);
-
-    const correct = optIdx === batalhaEstado.currentQ.correct;
-    setBatalhaRespostaCorreta(correct);
-    playSound(correct ? 'correct' : 'wrong');
-
-    const tempoRestante = Math.max(0, (batalhaEstado.timerEnd - Date.now()) / 1000);
-    const speedBonus = correct ? Math.round((tempoRestante / batalhaEstado.qtime) * 5 * 10) / 10 : 0;
-
-    try {
-      await enviarRespostaBatalha(codigoSalaOnline, batalhaMeuPid, batalhaMeuTime, optIdx, correct, speedBonus);
-    } catch (e) {
-      console.error('Erro ao enviar resposta do aluno:', e);
-    }
-  };
+  }, [tela, codigoSalaOnline, dueloMeuTime, dueloApelidoAluno]);
 
   // --- ESTADOS DO GAMEPAD E DETECÇÃO ---
   const [gamepadsConectados, setGamepadsConectados] = useState([]);
@@ -3229,100 +3206,121 @@ export default function App() {
 
     // Se tivermos a chave do Gemini inserida pelo usuário, fazemos a chamada direta
     if (geminiKey.trim()) {
-      try {
-        const reqBody = {
-          contents: [{
-            parts: iaSourceMode === 'file' ? [
-              { inlineData: { mimeType: iaFileMediaType, data: iaFileData } },
-              { text: prompt }
-            ] : [
-              { text: prompt }
-            ]
-          }],
-          generationConfig: {
-            responseMimeType: "application/json"
+      // Tentamos modelos em ordem, do mais recente ao mais estável
+      const modelos = [
+        'gemini-2.5-flash-preview-05-20',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash'
+      ];
+
+      for (const modelo of modelos) {
+        try {
+          setIaFeedback({ txt: `⏳ Tentando modelo ${modelo}...`, tipo: 'warn' });
+
+          const reqBody = {
+            contents: [{
+              parts: iaSourceMode === 'file' ? [
+                { inlineData: { mimeType: iaFileMediaType, data: iaFileData } },
+                { text: prompt }
+              ] : [
+                { text: prompt }
+              ]
+            }],
+            generationConfig: {
+              responseMimeType: "application/json"
+            }
+          };
+
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${geminiKey.trim()}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reqBody)
+          });
+
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            const errMsg = errData.error?.message || `Erro HTTP ${response.status}`;
+            console.warn(`[Gemini] Modelo ${modelo} falhou: ${errMsg}`);
+            // Se for erro de chave inválida (401/403), não adianta tentar outros modelos
+            if (response.status === 400 || response.status === 401 || response.status === 403) {
+              setIaFeedback({ txt: `❌ Chave inválida ou sem permissão (${response.status}): ${errMsg}`, tipo: 'err' });
+              setIaLoading(false);
+              return;
+            }
+            continue; // Tenta próximo modelo
           }
-        };
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.trim()}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(reqBody)
-        });
+          const data = await response.json();
+          let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          text = text.trim();
 
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error?.message || `Erro HTTP ${response.status}`);
+          const parsed = JSON.parse(text);
+          if (!Array.isArray(parsed) || !parsed.length) throw new Error('O retorno da IA não é um array válido.');
+
+          if (iaAba === 'pistas') {
+            const validadasPistas = parsed.filter(c => {
+              return c.cat && c.resp && Array.isArray(c.pistas) && c.pistas.length === 5 && c.pistas.every(p => p.txt);
+            }).map(c => ({
+              cat: c.cat,
+              resp: c.resp,
+              pistas: c.pistas.map(p => ({
+                txt: p.txt,
+                efeito: p.efeito || null
+              }))
+            }));
+
+            if (!validadasPistas.length) throw new Error('Nenhuma carta de pistas gerada atendeu aos critérios de validação.');
+
+            setIaPistasGeradas(validadasPistas);
+            setIaFeedback({ txt: `✅ ${validadasPistas.length} cartas de Três Pistas geradas com sucesso pelo modelo ${modelo}!`, tipo: 'ok' });
+            setIaLoading(false);
+            return;
+          } else if (iaAba === 'imacao') {
+            const validadasImAcao = parsed.filter(c => {
+              return Array.isArray(c.opcoes) && c.opcoes.length === 5 && c.opcoes.every(o => o.num && o.cat && o.resp);
+            }).map(c => ({
+              opcoes: c.opcoes.map(o => ({
+                num: Number(o.num),
+                cat: o.cat,
+                resp: o.resp
+              }))
+            }));
+
+            if (!validadasImAcao.length) throw new Error('Nenhuma carta de Imagem e Ação gerada atendeu aos critérios de validação.');
+
+            setIaImAcaoGeradas(validadasImAcao);
+            setIaFeedback({ txt: `✅ ${validadasImAcao.length} cartas de Imagem e Ação geradas com sucesso pelo modelo ${modelo}!`, tipo: 'ok' });
+            setIaLoading(false);
+            return;
+          } else {
+            const validadas = parsed.filter(p => {
+              if (!p.tipo || !p.txt) return false;
+              if (p.tipo === 'mc') return Array.isArray(p.alts) && p.alts.length === 4 && p.resp >= 0 && p.resp <= 3;
+              if (p.tipo === 'vf') return p.resp === 'v' || p.resp === 'f';
+              if (p.tipo === 'veloc') return !!p.resp;
+              return false;
+            }).map(p => ({ 
+              ...p, 
+              turma: p.turma || iaTurma.trim() || 'Sem Turma', 
+              mat: p.mat || materia, 
+              tema: p.tema || iaTema.trim() || 'Geral' 
+            }));
+
+            if (!validadas.length) throw new Error('Nenhuma pergunta gerada atendeu aos critérios de validação.');
+
+            setIaPergsGeradas(validadas);
+            setIaFeedback({ txt: `✅ ${validadas.length} perguntas de Duelo formuladas com sucesso pelo modelo ${modelo}!`, tipo: 'ok' });
+            setIaLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.warn(`[Gemini] Erro com modelo ${modelo}:`, err.message);
+          // Continua para o próximo modelo
         }
-
-        const data = await response.json();
-        let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        text = text.trim();
-
-        const parsed = JSON.parse(text);
-        if (!Array.isArray(parsed) || !parsed.length) throw new Error('O retorno da IA não é um array válido.');
-
-        if (iaAba === 'pistas') {
-          const validadasPistas = parsed.filter(c => {
-            return c.cat && c.resp && Array.isArray(c.pistas) && c.pistas.length === 5 && c.pistas.every(p => p.txt);
-          }).map(c => ({
-            cat: c.cat,
-            resp: c.resp,
-            pistas: c.pistas.map(p => ({
-              txt: p.txt,
-              efeito: p.efeito || null
-            }))
-          }));
-
-          if (!validadasPistas.length) throw new Error('Nenhuma carta de pistas gerada atendeu aos critérios de validação.');
-
-          setIaPistasGeradas(validadasPistas);
-          setIaFeedback({ txt: `✅ ${validadasPistas.length} cartas de Três Pistas geradas com sucesso pela IA do Gemini!`, tipo: 'ok' });
-          setIaLoading(false);
-          return;
-        } else if (iaAba === 'imacao') {
-          const validadasImAcao = parsed.filter(c => {
-            return Array.isArray(c.opcoes) && c.opcoes.length === 5 && c.opcoes.every(o => o.num && o.cat && o.resp);
-          }).map(c => ({
-            opcoes: c.opcoes.map(o => ({
-              num: Number(o.num),
-              cat: o.cat,
-              resp: o.resp
-            }))
-          }));
-
-          if (!validadasImAcao.length) throw new Error('Nenhuma carta de Imagem e Ação gerada atendeu aos critérios de validação.');
-
-          setIaImAcaoGeradas(validadasImAcao);
-          setIaFeedback({ txt: `✅ ${validadasImAcao.length} cartas de Imagem e Ação geradas com sucesso pela IA do Gemini!`, tipo: 'ok' });
-          setIaLoading(false);
-          return;
-        } else {
-          const validadas = parsed.filter(p => {
-            if (!p.tipo || !p.txt) return false;
-            if (p.tipo === 'mc') return Array.isArray(p.alts) && p.alts.length === 4 && p.resp >= 0 && p.resp <= 3;
-            if (p.tipo === 'vf') return p.resp === 'v' || p.resp === 'f';
-            if (p.tipo === 'veloc') return !!p.resp;
-            return false;
-          }).map(p => ({ 
-            ...p, 
-            turma: p.turma || iaTurma.trim() || 'Sem Turma', 
-            mat: p.mat || materia, 
-            tema: p.tema || iaTema.trim() || 'Geral' 
-          }));
-
-          if (!validadas.length) throw new Error('Nenhuma pergunta gerada atendeu aos critérios de validação.');
-
-          setIaPergsGeradas(validadas);
-          setIaFeedback({ txt: `✅ ${validadas.length} perguntas de Duelo formuladas com sucesso pela IA do Gemini!`, tipo: 'ok' });
-          setIaLoading(false);
-          return;
-        }
-      } catch (err) {
-        console.error('Erro na API do Gemini:', err);
-        setIaFeedback({ txt: `⚠️ Falha na API do Gemini: ${err.message}. Ativando simulação local...`, tipo: 'warn' });
-        // Deixa seguir para o fallback local
       }
+
+      // Todos os modelos falharam
+      setIaFeedback({ txt: `⚠️ Todos os modelos Gemini falharam. Verifique sua chave ou tente novamente. Ativando simulação local...`, tipo: 'warn' });
     }
 
     // Fallback Local se a API não estiver configurada ou falhar
@@ -3523,9 +3521,9 @@ export default function App() {
       setIaPergsGeradas(selecionadas);
       setIaFeedback({
         txt: geminiKey.trim()
-          ? `✨ Modo Simulação Ativo: A API do Gemini falhou ou retornou inválido. Geramos perguntas simuladas para o tema "${materia}"!`
-          : `✨ Modo Simulação: Para ler PDFs reais, insira sua chave do Gemini. Geramos perguntas simuladas para o tema "${materia}"!`,
-        tipo: 'ok'
+          ? `⚠️ Simulação ativada: A API Gemini não respondeu corretamente. Geradas ${selecionadas.length} perguntas simuladas sobre "${materia}". Verifique sua chave de API.`
+          : `ℹ️ Sem chave de API: Geradas ${selecionadas.length} perguntas simuladas sobre "${materia}". Insira sua chave do Gemini para usar IA real.`,
+        tipo: geminiKey.trim() ? 'warn' : 'ok'
       });
       setIaLoading(false);
     }, 1500);
@@ -4649,6 +4647,39 @@ export default function App() {
     
     // Reset de tempos individuais
     temposRespRef.current = [null, null];
+
+    if (dueloModoControle === 'celular') {
+      if (!codigoSalaOnline || !codigoSalaOnline.trim()) {
+        alert('Por favor, digite ou gere um Código de Acesso da Sala Online antes de começar!');
+        return;
+      }
+      
+      const novoEstado = {
+        teams: [
+          { name: nomeJ1 || 'Meninos', score: 0 },
+          { name: nomeJ2 || 'Meninas', score: 0 }
+        ],
+        qtime: globalTimerEnabled ? globalTempo : 30,
+        usedQs: [],
+        qIndex: -1,
+        currentQ: null,
+        phase: 'waiting',
+        timerEnd: null,
+        winnerIndex: null
+      };
+
+      setDueloEstado(novoEstado);
+      setDueloConectados([0, 0]);
+      setDueloRespostasRodada([]);
+
+      publicarEstadoDueloOnline(codigoSalaOnline, novoEstado)
+        .then(() => limparRespostasDueloOnline(codigoSalaOnline))
+        .catch(err => console.error('Erro de inicialização no Firebase:', err));
+
+      irParaTela('duelo-qr');
+      playSound('click');
+      return;
+    }
 
     // Reset de poderes para nova partida
     setPoderes([
@@ -5882,65 +5913,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* Card Batalha do Saber */}
-            <div className="card" style={{ 
-              flex: 1, 
-              minWidth: '280px', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              textAlign: 'center', 
-              padding: '24px 20px', 
-              justifyContent: 'space-between', 
-              background: 'rgba(15, 23, 42, 0.45)',
-              border: '1.5px solid rgba(245, 158, 11, 0.36)', 
-              borderRadius: '16px',
-              boxShadow: '0 8px 32px rgba(245, 158, 11, 0.12)',
-              margin: 0
-            }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                <div style={{ fontSize: '2.6rem', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(245, 158, 11, 0.3))' }}>⚡</div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#f59e0b', marginBottom: '10px', fontFamily: 'Outfit' }}>Batalha do Saber</h3>
-                <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 16px', minHeight: '66px' }}>
-                  Competição multiplayer síncrona por equipes! Os alunos usam seus próprios celulares para responder perguntas e acumular pontos na tela da sala!
-                </p>
-              </div>
-              <button 
-                className="btn-menu btn-play" 
-                style={{ 
-                  background: '#d97706', 
-                  color: '#fff', 
-                  border: 'none', 
-                  borderRadius: '10px', 
-                  padding: '10px 24px', 
-                  fontSize: '0.85rem', 
-                  fontWeight: 'bold', 
-                  cursor: 'pointer', 
-                  width: '100%', 
-                  height: '42px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  margin: 0
-                }} 
-                onClick={() => { 
-                  setBatalhaEquipe1('Meninos'); 
-                  setBatalhaEquipe2('Meninas'); 
-                  setBatalhaCategoriasAtivas(materias); 
-                  setBatalhaSetupFeedback(null);
-                  if (!codigoSalaOnline.trim()) {
-                    const num = Math.floor(1000 + Math.random() * 9000);
-                    setCodigoSalaOnline('BATA' + num);
-                  }
-                  irParaTela('batalha-setup'); 
-                }}
-              >
-                ▶ Jogar Batalha
-              </button>
             </div>
-            
-          </div>
           
           {/* Linha 2: 2 cards centralizados abaixo */}
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', width: '100%', justifyContent: 'center' }}>
@@ -6046,6 +6019,26 @@ export default function App() {
           </div>
           
         </div>
+
+        {/* Botões de Ação Inferiores */}
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: '980px', margin: '0 auto' }}>
+          <button
+            className="btn-menu btn-outline"
+            style={{ flex: 1, minWidth: '200px', maxWidth: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 20px', fontSize: '0.9rem', fontWeight: 'bold', borderRadius: '12px', border: '1.5px solid rgba(139, 92, 246, 0.35)', background: 'rgba(139, 92, 246, 0.08)', color: '#c4b5fd', cursor: 'pointer', margin: 0, transition: 'all 0.2s' }}
+            onClick={() => { setOrigemConfig(null); irParaTela('cadastro'); }}
+          >
+            ⚙️ Gerenciar Conteúdo
+          </button>
+
+          <button
+            className="btn-menu btn-outline"
+            style={{ flex: 1, minWidth: '200px', maxWidth: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 20px', fontSize: '0.9rem', fontWeight: 'bold', borderRadius: '12px', border: '1.5px solid rgba(99, 102, 241, 0.35)', background: 'rgba(99, 102, 241, 0.08)', color: '#a5b4fc', cursor: 'pointer', margin: 0, transition: 'all 0.2s' }}
+            onClick={() => { setFeedbackControles(null); setDetectMode(null); setOrigemConfig(null); irParaTela('controles'); }}
+          >
+            🎮 Configurar Gamepads
+          </button>
+        </div>
+
       </div>
 
       {/* 2. TELA GERADOR IA */}
@@ -8416,16 +8409,111 @@ export default function App() {
           </div>
         </div>
 
-        <div id="ctrl-resumo" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center', fontSize: '0.85rem' }}>
-          <span style={{
-            padding: '8px 18px',
-            borderRadius: '20px',
-            background: ctrl[0].gpIdx !== null && ctrl[0].map.every(v => v !== null) ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.1)',
-            border: `1px solid ${ctrl[0].gpIdx !== null && ctrl[0].map.every(v => v !== null) ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.2)'}`,
-            color: ctrl[0].gpIdx !== null && ctrl[0].map.every(v => v !== null) ? '#4ade80' : '#fca5a5'
-          }}>
-            🎮 {ctrl[0].gpIdx !== null && ctrl[0].map.every(v => v !== null) ? 'Controle Compartilhado Pronto!' : 'Aviso: Configurar controle compartilhado no Menu é recomendado para jogar fisicamente'}
-          </span>
+        {dueloModoControle === 'fisico' && (
+          <div id="ctrl-resumo" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center', fontSize: '0.85rem' }}>
+            <span style={{
+              padding: '8px 18px',
+              borderRadius: '20px',
+              background: ctrl[0].gpIdx !== null && ctrl[0].map.every(v => v !== null) ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.1)',
+              border: `1px solid ${ctrl[0].gpIdx !== null && ctrl[0].map.every(v => v !== null) ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.2)'}`,
+              color: ctrl[0].gpIdx !== null && ctrl[0].map.every(v => v !== null) ? '#4ade80' : '#fca5a5'
+            }}>
+              🎮 {ctrl[0].gpIdx !== null && ctrl[0].map.every(v => v !== null) ? 'Controle Compartilhado Pronto!' : 'Aviso: Configurar controle compartilhado no Menu é recomendado para jogar fisicamente'}
+            </span>
+          </div>
+        )}
+
+        {/* SELETOR DE MODO DE CONTROLE (FISICO VS CELULAR) */}
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'left', border: '1px solid rgba(167, 139, 250, 0.25)', boxShadow: dueloModoControle === 'celular' ? '0 0 20px rgba(139, 92, 246, 0.15)' : 'none', transition: 'all 0.3s ease' }}>
+          <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#a78bfa', marginBottom: '10px', borderLeft: '3px solid #a78bfa', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: 'Outfit' }}>
+            🎮 Dispositivos de Resposta (Modo de Controle)
+          </div>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: dueloModoControle === 'celular' ? '14px' : '0' }}>
+            <button
+              type="button"
+              onClick={() => { playSound('click'); setDueloModoControle('fisico'); }}
+              style={{
+                flex: 1,
+                padding: '12px',
+                borderRadius: '12px',
+                background: dueloModoControle === 'fisico' ? 'linear-gradient(135deg, #4c1d95 0%, #1e1b4b 100%)' : 'rgba(255,255,255,0.03)',
+                border: `2px solid ${dueloModoControle === 'fisico' ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`,
+                color: '#fff',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <span style={{ fontSize: '1.4rem' }}>🎮</span>
+              <span style={{ fontSize: '0.85rem' }}>Gamepad Físico</span>
+              <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 'normal' }}>Teclado ou controles USB</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { playSound('click'); setDueloModoControle('celular'); }}
+              style={{
+                flex: 1,
+                padding: '12px',
+                borderRadius: '12px',
+                background: dueloModoControle === 'celular' ? 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)' : 'rgba(255,255,255,0.03)',
+                border: `2px solid ${dueloModoControle === 'celular' ? '#3b82f6' : 'rgba(255,255,255,0.1)'}`,
+                color: '#fff',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <span style={{ fontSize: '1.4rem' }}>📲</span>
+              <span style={{ fontSize: '0.85rem' }}>Celular (Online)</span>
+              <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 'normal' }}>Alunos respondem via QR Code</span>
+            </button>
+          </div>
+
+          {dueloModoControle === 'celular' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px', animation: 'fade 0.3s ease-out' }}>
+              <label style={{ fontSize: '0.82rem', color: '#3b82f6', fontWeight: 'bold' }}>CÓDIGO DE ACESSO DA SALA ONLINE</label>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input 
+                  type="text" 
+                  placeholder="Ex: DUELOSALA"
+                  value={codigoSalaOnline} 
+                  onChange={(e) => setCodigoSalaOnline(e.target.value.toUpperCase())} 
+                  style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '10px', padding: '10px 14px', color: '#fff', fontSize: '0.92rem', outline: 'none' }}
+                />
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    const num = Math.floor(1000 + Math.random() * 9000);
+                    setCodigoSalaOnline('DUEL' + num);
+                    playSound('click');
+                  }}
+                  style={{ 
+                    background: 'rgba(255,255,255,0.05)', 
+                    border: '1px solid rgba(255,255,255,0.1)', 
+                    borderRadius: '10px', 
+                    padding: '10px 16px', 
+                    color: '#60a5fa', 
+                    fontSize: '0.85rem', 
+                    fontWeight: 'bold', 
+                    cursor: 'pointer' 
+                  }}
+                >
+                  Gerar 🎲
+                </button>
+              </div>
+              <p style={{ color: '#9ca3af', fontSize: '0.75rem', margin: '4px 0 0 2px' }}>
+                Os alunos usarão esse código de acesso para conectar à sua partida e escolher um lado para jogar.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* PAINEL DE CONFIGURAÇÃO DE TEMPO GLOBAL */}
@@ -8464,28 +8552,34 @@ export default function App() {
         </div>
 
         {/* PAINEL DE CONFIGURAÇÃO DO MODO APOSTAS */}
-        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'left', border: '1px solid rgba(245, 158, 11, 0.15)', boxShadow: modoApostas ? '0 0 15px rgba(245, 158, 11, 0.08)' : 'none', transition: 'all 0.3s ease' }}>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#fb923c', marginBottom: '10px', borderLeft: '3px solid #fb923c', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            🎰 Variação: O Preço da Resposta (Modo Apostas)
+        {dueloModoControle === 'fisico' && (
+          <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'left', border: '1px solid rgba(245, 158, 11, 0.15)', boxShadow: modoApostas ? '0 0 15px rgba(245, 158, 11, 0.08)' : 'none', transition: 'all 0.3s ease' }}>
+            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#fb923c', marginBottom: '10px', borderLeft: '3px solid #fb923c', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              🎰 Variação: O Preço da Resposta (Modo Apostas)
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, cursor: 'pointer', textTransform: 'none', fontSize: '0.9rem', color: '#e5e7eb' }}>
+                <input 
+                  type="checkbox" 
+                  checked={modoApostas} 
+                  onChange={(e) => { playSound('click'); setModoApostas(e.target.checked); }} 
+                  style={{ width: 'auto' }}
+                />
+                Habilitar apostas estratégicas e multiplicadores de risco
+              </label>
+              <p style={{ color: '#9ca3af', fontSize: '0.78rem', margin: '4px 0 0 24px', lineHeight: '1.4' }}>
+                Os jogadores apostarão ocultamente (0.5x, 1x, 2x ou 3x) antes de cada pergunta baseado apenas na categoria. Acertos multiplicam os pontos, mas erros **subtraem** pontos proporcionalmente!
+              </p>
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, cursor: 'pointer', textTransform: 'none', fontSize: '0.9rem', color: '#e5e7eb' }}>
-              <input 
-                type="checkbox" 
-                checked={modoApostas} 
-                onChange={(e) => { playSound('click'); setModoApostas(e.target.checked); }} 
-                style={{ width: 'auto' }}
-              />
-              Habilitar apostas estratégicas e multiplicadores de risco
-            </label>
-            <p style={{ color: '#9ca3af', fontSize: '0.78rem', margin: '4px 0 0 24px', lineHeight: '1.4' }}>
-              Os jogadores apostarão ocultamente (0.5x, 1x, 2x ou 3x) antes de cada pergunta baseado apenas na categoria. Acertos multiplicam os pontos, mas erros **subtraem** pontos proporcionalmente!
-            </p>
-          </div>
-        </div>
+        )}
 
         <div style={{ textAlign: 'center', color: '#a78bfa', fontSize: '0.9rem', lineHeight: 1.6, maxWidth: '500px', margin: '8px auto' }}>
-          🏅 <strong>Pontuação Kahoot:</strong> Resposta correta = <strong style={{ color: '#fcd34d' }}>1.000 pts</strong> + até <strong style={{ color: '#fb923c' }}>+500 pts</strong> de bônus de velocidade para quem responder primeiro.
+          {dueloModoControle === 'fisico' ? (
+            <>🏅 <strong>Pontuação Kahoot:</strong> Resposta correta = <strong style={{ color: '#fcd34d' }}>1.000 pts</strong> + até <strong style={{ color: '#fb923c' }}>+500 pts</strong> de bônus de velocidade para quem responder primeiro.</>
+          ) : (
+            <>🏆 <strong>Modo Arena de Líquido:</strong> Alunos respondem pelo celular. A velocidade e os acertos do grupo enchem o tanque da sua equipe. Vence quem chegar a <strong style={{ color: '#60a5fa' }}>100%</strong> primeiro!</>
+          )}
         </div>
 
         <button className="btn-start" style={{ padding: '16px 64px' }} onClick={iniciarJogoDuelo}>
@@ -10752,846 +10846,954 @@ export default function App() {
         </div>
       </div>
 
-      {/* 20. TELA DE CONFIGURAÇÃO - BATALHA DO SABER */}
-      <div id="tela-batalha-setup" className={`tela ${tela === 'batalha-setup' ? 'ativa' : ''}`} style={{ display: tela === 'batalha-setup' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '30px', boxSizing: 'border-box', background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)' }}>
-        <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%', fontFamily: 'Outfit', color: '#fff', marginBottom: '8px' }}>⚙️ Configurar Partida (Batalha)</h2>
-        <p style={{ color: '#94a3b8', fontSize: '0.92rem', marginBottom: '20px', fontFamily: 'Outfit', textAlign: 'center' }}>Configure os parâmetros da Batalha do Saber</p>
-
-        <button 
-          className="btn-menu btn-outline" 
-          style={{ 
-            fontSize: '0.85rem', 
-            padding: '10px 18px', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            gap: '8px', 
-            margin: '0 auto 20px', 
-            width: 'auto', 
-            maxWidth: '300px',
-            background: 'rgba(124, 58, 237, 0.1)',
-            border: '1px solid rgba(124, 58, 237, 0.4)',
-            color: '#c4b5fd',
-            borderRadius: '20px',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
+      {/* 20. TELA DE LOBBY/QR CODE DO DUELO ONLINE */}
+      <div id="tela-duelo-qr" className={`tela ${tela === 'duelo-qr' ? 'ativa' : ''}`} style={{ display: tela === 'duelo-qr' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '20px', boxSizing: 'border-box' }}>
+        <style>{`
+          .duelo-card-lobby {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            flex: 1;
+            min-width: 280px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+          }
+          .duelo-card-lobby.blue {
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.05);
+          }
+          .duelo-card-lobby.pink {
+            border-color: rgba(236, 72, 153, 0.3);
+            box-shadow: 0 10px 30px rgba(236, 72, 153, 0.05);
+          }
+          .qr-img {
+            border-radius: 12px;
+            padding: 10px;
+            background: #fff;
+            margin: 15px auto;
+            display: block;
+            box-shadow: 0 0 15px rgba(255,255,255,0.2);
+            transition: transform 0.3s;
+          }
+          .qr-img:hover {
+            transform: scale(1.03);
+          }
+          .badge-aluno {
+            display: inline-block;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 20px;
+            padding: 6px 14px;
+            margin: 4px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #e2e8f0;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          }
+          .badge-aluno.blue {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: #93c5fd;
+          }
+          .badge-aluno.pink {
+            background: rgba(236, 72, 153, 0.15);
+            border-color: rgba(236, 72, 153, 0.3);
+            color: #f9a8d4;
+          }
+          @keyframes popIn {
+            0% { transform: scale(0.7); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+        `}</style>
+        <h2 style={{ fontFamily: 'Outfit', fontSize: '2.5rem', fontWeight: 900, marginBottom: '5px', background: 'linear-gradient(90deg, #3b82f6, #ec4899)', webkitBackgroundClip: 'text', webkitTextFillColor: 'transparent' }}>🎮 Duelo na Sala Online</h2>
+        
+        {firebaseErroMsg && (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid #ef4444',
+            borderRadius: '12px',
+            padding: '14px 20px',
+            margin: '0 auto 20px',
+            maxWidth: '650px',
+            color: '#fca5a5',
+            fontSize: '0.88rem',
             fontWeight: 'bold',
-            fontFamily: 'Outfit'
-          }} 
-          onClick={() => { 
-            setCadGerenciadorAba('duelo'); 
-            setCadTab('manual'); 
-            setOrigemConfig('batalha-setup'); 
-            irParaTela('cadastro'); 
+            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px'
+          }}>
+            <span>❌ Erro no Firestore: {firebaseErroMsg}</span>
+            <button style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.78rem' }} onClick={() => setFirebaseErroMsg(null)}>Ignorar</button>
+          </div>
+        )}
+
+        <p style={{ color: '#94a3b8', fontSize: '1rem', marginTop: 0, marginBottom: '20px' }}>
+          Dividam-se em equipes, escaneiem o QR Code correspondente e escolham um time!
+        </p>
+
+        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(0,0,0,0.4)', padding: '12px 28px', borderRadius: '30px', border: '1px solid rgba(139, 92, 246, 0.3)', marginBottom: '30px', boxShadow: '0 0 20px rgba(139, 92, 246, 0.15)' }}>
+          <span style={{ fontSize: '0.8rem', color: '#c4b5fd', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Código da Sala</span>
+          <span style={{ fontSize: '2.2rem', fontFamily: 'Outfit', fontWeight: 900, color: '#fff', letterSpacing: '1px', textShadow: '0 0 10px rgba(255,255,255,0.4)' }}>{codigoSalaOnline}</span>
+        </div>
+
+        {window.location.hostname === 'localhost' ? (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            borderRadius: '12px',
+            padding: '16px',
+            maxWidth: '650px',
+            margin: '0 auto 24px',
+            color: '#fca5a5',
+            fontSize: '0.88rem',
+            textAlign: 'left',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+            boxShadow: '0 0 15px rgba(239, 68, 68, 0.1)'
+          }}>
+            <span style={{ fontWeight: 'bold', color: '#f87171', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>⚠️ Atenção: Acesso via Localhost</span>
+            <span>Você está acessando este painel pelo endereço <strong>localhost</strong>. O link do QR Code gerado abaixo apontará para <code>localhost</code> e <strong>não funcionará</strong> no celular dos alunos.</span>
+            <span>Para jogar, abra este site no computador usando seu <strong>IP de rede local</strong> (ex: <code>http://192.168.x.x:5173</code>) para que os celulares consigam se conectar na mesma rede Wi-Fi.</span>
+          </div>
+        ) : (
+          (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') && (
+            <div style={{
+              background: 'rgba(245, 158, 11, 0.12)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              borderRadius: '12px',
+              padding: '16px',
+              maxWidth: '650px',
+              margin: '0 auto 24px',
+              color: '#fde047',
+              fontSize: '0.88rem',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              boxShadow: '0 0 15px rgba(245, 158, 11, 0.08)'
+            }}>
+              <span style={{ fontWeight: 'bold', color: '#fbbf24', fontSize: '0.98rem', display: 'flex', alignItems: 'center', gap: '6px' }}>ℹ️ Nota sobre Conexão Local (HTTP)</span>
+              <span>Como você está rodando o jogo localmente na rede local, o celular pode mostrar um aviso de <strong>"Conexão Não Segura"</strong> ao ler o QR Code (pois não há certificado SSL/HTTPS local).</span>
+              <strong>O que fazer?</strong> Os alunos podem avançar com total segurança tocando em <strong>"Configurações Avançadas"</strong> (ou "Mais informações") e depois em <strong>"Ir para o site assim mesmo"</strong> (ou "Ir para [IP]").
+              <span style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>Nota: Em produção (quando hospedado em servidores online com HTTPS como o Firebase Hosting), este aviso de segurança nunca aparecerá.</span>
+            </div>
+          )
+        )}
+
+        <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', width: '100%', maxWidth: '800px', flexWrap: 'wrap', marginBottom: '30px' }}>
+          {/* Lado Azul */}
+          <div className="duelo-card-lobby blue">
+            <h3 style={{ margin: 0, color: '#3b82f6', fontFamily: 'Outfit', fontSize: '1.4rem', fontWeight: 800 }}>🔵 {nomeJ1 || 'Equipe Azul'}</h3>
+            <p style={{ color: '#93c5fd', fontSize: '0.85rem', margin: '5px 0' }}>Escaneie para entrar na equipe Azul</p>
+            <img className="qr-img" src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?jogo=duelo&sala=${codigoSalaOnline}&equipe=0`)}`} alt="QR Code Azul" width={170} height={170} />
+            <div style={{ marginTop: '15px' }}>
+              <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#93c5fd', marginBottom: '8px' }}>👤 Conectados: {dueloConectados[0]}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', maxHeight: '100px', overflowY: 'auto', padding: '5px' }}>
+                {dueloRespostasRodada.filter(r => r.team === 0).length === 0 ? (
+                  <span style={{ color: '#64748b', fontSize: '0.8rem', fontStyle: 'italic' }}>Ninguém conectado ainda...</span>
+                ) : (
+                  dueloRespostasRodada.filter(r => r.team === 0).map((r, i) => (
+                    <span key={r.pid || i} className="badge-aluno blue">
+                      {r.nomeAluno || `Aluno #${(r.pid || '').substring(1, 5)}`}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Lado Rosa */}
+          <div className="duelo-card-lobby pink">
+            <h3 style={{ margin: 0, color: '#ec4899', fontFamily: 'Outfit', fontSize: '1.4rem', fontWeight: 800 }}>🩷 {nomeJ2 || 'Equipe Rosa'}</h3>
+            <p style={{ color: '#f9a8d4', fontSize: '0.85rem', margin: '5px 0' }}>Escaneie para entrar na equipe Rosa</p>
+            <img className="qr-img" src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?jogo=duelo&sala=${codigoSalaOnline}&equipe=1`)}`} alt="QR Code Rosa" width={170} height={170} />
+            <div style={{ marginTop: '15px' }}>
+              <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#f9a8d4', marginBottom: '8px' }}>👤 Conectados: {dueloConectados[1]}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', maxHeight: '100px', overflowY: 'auto', padding: '5px' }}>
+                {dueloRespostasRodada.filter(r => r.team === 1).length === 0 ? (
+                  <span style={{ color: '#64748b', fontSize: '0.8rem', fontStyle: 'italic' }}>Ninguém conectado ainda...</span>
+                ) : (
+                  dueloRespostasRodada.filter(r => r.team === 1).map((r, i) => (
+                    <span key={r.pid || i} className="badge-aluno pink">
+                      {r.nomeAluno || `Aluno #${(r.pid || '').substring(1, 5)}`}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #22c55e, #16a34a)', boxShadow: '0 8px 30px rgba(34, 197, 94, 0.4)', fontSize: '1.2rem', padding: '16px 36px' }} onClick={comecarJogoDueloOnline}>
+            🚀 Começar Duelo!
+          </button>
+          <button className="btn-start" style={{ background: 'rgba(255, 255, 255, 0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', boxShadow: 'none' }} onClick={() => {
             playSound('click');
-          }}
-        >
-          📝 Gerenciar Perguntas / Matérias
-        </button>
+            irParaTela('nomes');
+          }}>
+            Voltar
+          </button>
+        </div>
+      </div>
 
-        <div className="setup-card" style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1.5px solid rgba(245, 158, 11, 0.25)', borderRadius: '24px', padding: '30px', width: '100%', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)', boxSizing: 'border-box' }}>
+      {/* 21. TELA DA ARENA DO DUELO ONLINE (TANQUES DE LÍQUIDO) */}
+      <div id="tela-duelo-online-game" className={`tela ${tela === 'duelo-online-game' ? 'ativa' : ''}`} style={{ display: tela === 'duelo-online-game' ? 'flex' : 'none', flexDirection: 'column', minHeight: '100vh', padding: '20px', boxSizing: 'border-box', background: 'radial-gradient(circle at 50% 50%, #080415 0%, #020106 100%)' }}>
+        <style>{`
+          .duelo-online-layout {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            align-items: stretch;
+            justify-content: space-between;
+          }
+          .duelo-side {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 220px;
+            padding: 10px;
+          }
+          .duelo-tank-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+          }
+          .duelo-tank-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: center;
+            margin: 0;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+          }
+          .duelo-tank {
+            position: relative;
+            width: 150px;
+            height: 340px;
+            background: rgba(10, 10, 18, 0.7);
+            border: 4px solid #fff;
+            border-radius: 0 0 45px 45px;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+          }
+          .duelo-tank.blue {
+            border-color: #3b82f6;
+            box-shadow: 0 0 25px rgba(59, 130, 246, 0.4), inset 0 0 20px rgba(0,0,0,0.9);
+          }
+          .duelo-tank.pink {
+            border-color: #ec4899;
+            box-shadow: 0 0 25px rgba(236, 72, 153, 0.4), inset 0 0 20px rgba(0,0,0,0.9);
+          }
+          .duelo-liquid {
+            position: relative;
+            width: 100%;
+            transition: height 1.2s cubic-bezier(0.1, 0.8, 0.3, 1);
+            display: flex;
+            align-items: flex-end;
+          }
+          .duelo-liquid.blue {
+            background: linear-gradient(0deg, #1d4ed8 0%, #3b82f6 70%, #60a5fa 100%);
+            box-shadow: 0 0 35px rgba(59, 130, 246, 0.8);
+          }
+          .duelo-liquid.pink {
+            background: linear-gradient(0deg, #be185d 0%, #ec4899 70%, #f472b6 100%);
+            box-shadow: 0 0 35px rgba(236, 72, 153, 0.8);
+          }
+          .duelo-wave {
+            position: absolute;
+            width: 250px;
+            height: 250px;
+            top: 0;
+            left: -50px;
+            background: #080415;
+            border-radius: 43%;
+            animation: wave-rot 8s linear infinite;
+            transform: translateY(-94%);
+            pointer-events: none;
+            opacity: 0.95;
+          }
+          .duelo-wave-alt {
+            animation: wave-rot 11s linear infinite;
+            opacity: 0.4;
+            border-radius: 40%;
+            background: rgba(15, 10, 30, 0.8);
+          }
+          @keyframes wave-rot {
+            0% { transform: rotate(0deg) translateY(-94%); }
+            100% { transform: rotate(360deg) translateY(-94%); }
+          }
+          .tank-score-val {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 45%;
+            left: 0;
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.9), 0 0 15px rgba(255,255,255,0.4);
+            z-index: 10;
+          }
+          .last-gain-tag {
+            font-size: 0.85rem;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 12px;
+            margin-top: 5px;
+            animation: pulse-gain 1.5s infinite;
+          }
+          .last-gain-tag.blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+          .last-gain-tag.pink { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
+          @keyframes pulse-gain {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+          }
+          .duelo-center-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+          }
+          .duelo-qcard {
+            background: rgba(18, 12, 38, 0.7);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            box-sizing: border-box;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+            backdrop-filter: blur(12px);
+          }
+          .duelo-opt-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-top: 20px;
+          }
+          @media (min-width: 768px) {
+            .duelo-opt-row {
+              grid-template-columns: 1fr 1fr;
+            }
+          }
+          .duelo-opt-btn {
+            background: rgba(255,255,255,0.03);
+            border: 2px solid rgba(255,255,255,0.08);
+            color: #fff;
+            padding: 16px;
+            border-radius: 14px;
+            font-size: 1.05rem;
+            font-weight: bold;
+            text-align: left;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          .duelo-opt-btn.correct-reveal {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: #22c55e;
+            color: #4ade80;
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+          }
+          .duelo-opt-btn.wrong-reveal {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #f87171;
+            opacity: 0.6;
+          }
+          .duelo-hud {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto 15px;
+            align-items: center;
+            background: rgba(255,255,255,0.02);
+            padding: 10px 24px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.05);
+          }
+          .timer-ring-container {
+            position: relative;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .timer-val {
+            font-size: 1.5rem;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 8px rgba(255,255,255,0.4);
+          }
+        `}</style>
+
+        {/* HUD Superior */}
+        <div className="duelo-hud">
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.8rem', color: '#c4b5fd', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>RODADA</span>
+            <span style={{ fontSize: '1.4rem', fontFamily: 'Outfit', fontWeight: 900, color: '#fff' }}>{rodAtual} / {fila.length}</span>
+          </div>
           
-          {/* Nomes das Equipes */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '0.85rem', color: '#a78bfa', fontWeight: '800', fontFamily: 'Outfit', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Nomes das Equipes</label>
-            <div style={{ display: 'flex', gap: '14px' }}>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '0.72rem', color: '#60a5fa', fontWeight: 'bold' }}>🔵 Equipe 1</span>
-                <input 
-                  type="text" 
-                  value={batalhaEquipe1} 
-                  onChange={(e) => setBatalhaEquipe1(e.target.value)} 
-                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(96, 165, 250, 0.3)', borderRadius: '10px', padding: '10px 14px', color: '#fff', fontSize: '0.92rem', outline: 'none' }}
-                />
-              </div>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '0.72rem', color: '#f472b6', fontWeight: 'bold' }}>🩷 Equipe 2</span>
-                <input 
-                  type="text" 
-                  value={batalhaEquipe2} 
-                  onChange={(e) => setBatalhaEquipe2(e.target.value)} 
-                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(244, 114, 182, 0.3)', borderRadius: '10px', padding: '10px 14px', color: '#fff', fontSize: '0.92rem', outline: 'none' }}
-                />
-              </div>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '6px 16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }} />
+            <span style={{ fontSize: '0.85rem', color: '#cbd5e1', fontWeight: 'bold' }}>Sala: {codigoSalaOnline}</span>
           </div>
 
-          {/* Código da Sala Online */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '0.85rem', color: '#a78bfa', fontWeight: '800', fontFamily: 'Outfit', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Código da Sala Online</label>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <input 
-                type="text" 
-                placeholder="Ex: SALA10"
-                value={codigoSalaOnline} 
-                onChange={(e) => setCodigoSalaOnline(e.target.value.toUpperCase())} 
-                style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '10px', padding: '10px 14px', color: '#fff', fontSize: '0.92rem', outline: 'none' }}
-              />
-              <button 
-                type="button" 
-                onClick={() => {
-                  const num = Math.floor(1000 + Math.random() * 9000);
-                  setCodigoSalaOnline('BATA' + num);
-                  playSound('click');
-                }}
-                style={{ 
-                  background: 'rgba(255,255,255,0.05)', 
-                  border: '1px solid rgba(255,255,255,0.1)', 
-                  borderRadius: '10px', 
-                  padding: '10px 16px', 
-                  color: '#fbbf24', 
-                  fontSize: '0.85rem', 
-                  fontWeight: 'bold', 
-                  cursor: 'pointer' 
-                }}
-              >
-                Gerar 🎲
-              </button>
-            </div>
-          </div>
+          <button className="btn-volta" style={{ margin: 0, padding: '8px 16px', fontSize: '0.85rem' }} onClick={finalizarPartidaDueloOnline}>
+            ❌ Encerrar Duelo
+          </button>
+        </div>
 
-          {/* Tempo limite por Pergunta */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '0.85rem', color: '#a78bfa', fontWeight: '800', fontFamily: 'Outfit', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tempo por Pergunta (segundos)</label>
-            <input 
-              type="number" 
-              value={batalhaQTime} 
-              onChange={(e) => setBatalhaQTime(Math.max(10, Math.min(120, Number(e.target.value))))} 
-              min="10" 
-              max="120"
-              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px 14px', color: '#fff', fontSize: '0.92rem', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-            />
+        {firebaseErroMsg && (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid #ef4444',
+            borderRadius: '12px',
+            padding: '14px 20px',
+            margin: '0 auto 20px',
+            maxWidth: '650px',
+            color: '#fca5a5',
+            fontSize: '0.88rem',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px'
+          }}>
+            <span>❌ Erro no Firestore: {firebaseErroMsg}</span>
+            <button style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.78rem' }} onClick={() => setFirebaseErroMsg(null)}>Ignorar</button>
           </div>
+        )}
 
-          {/* Categorias / Matérias Ativas */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '0.85rem', color: '#a78bfa', fontWeight: '800', fontFamily: 'Outfit', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Categorias Ativas</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '140px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              {materias.length === 0 ? (
-                <div style={{ color: '#94a3b8', fontSize: '0.82rem', fontStyle: 'italic', padding: '10px', width: '100%', textAlign: 'center' }}>
-                  Nenhuma matéria cadastrada. Clique no botão "Gerenciar Perguntas" acima para cadastrar!
+        <div className="duelo-online-layout">
+          {/* Lado Azul (Tanque) */}
+          <div className="duelo-side">
+            <div className="duelo-tank-container">
+              <h3 className="duelo-tank-label" style={{ color: '#60a5fa' }}>🔵 {nomeJ1 || 'Equipe Azul'}</h3>
+              <div className="duelo-tank blue">
+                <div className="tank-score-val">{Math.round(dueloEstado?.teams?.[0]?.score || 0)}%</div>
+                <div className="duelo-liquid blue" style={{ height: `${dueloEstado?.teams?.[0]?.score || 0}%` }}>
+                  <div className="duelo-wave" />
+                  <div className="duelo-wave duelo-wave-alt" />
                 </div>
-              ) : (
-                materias.map((mat) => {
-                  const ativa = (batalhaCategoriasAtivas || []).includes(mat);
-                  return (
-                    <div 
-                      key={mat} 
-                      onClick={() => {
-                        if (ativa) {
-                          setBatalhaCategoriasAtivas(prev => (prev || []).filter(x => x !== mat));
-                        } else {
-                          setBatalhaCategoriasAtivas(prev => [...(prev || []), mat]);
-                        }
-                        playSound('click');
-                      }}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '8px', 
-                        background: ativa ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.02)', 
-                        border: `1.5px solid ${ativa ? '#f59e0b' : 'rgba(255,255,255,0.06)'}`, 
-                        padding: '6px 12px', 
-                        borderRadius: '8px', 
-                        cursor: 'pointer', 
-                        fontSize: '0.82rem', 
-                        color: ativa ? '#fbbf24' : '#cbd5e1', 
-                        fontFamily: 'Outfit',
-                        fontWeight: ativa ? 'bold' : 'normal',
-                        userSelect: 'none',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <span style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center' }}>
-                        {ativa ? '🟧' : '⬜'}
-                      </span>
-                      <span>{mat || 'Geral'}</span>
+              </div>
+              {dueloEstado?.teams?.[0]?.lastGain > 0 && (
+                <span className="last-gain-tag blue">+{dueloEstado.teams[0].lastGain}% líquido</span>
+              )}
+              <span style={{ fontSize: '0.8rem', color: '#93c5fd', marginTop: '5px' }}>
+                👤 {dueloRespostasRodada.filter(r => r.team === 0).length} de {dueloConectados[0]} prontos
+              </span>
+            </div>
+          </div>
+
+          {/* Painel Central (Perguntas e Controles) */}
+          <div className="duelo-center-pane">
+            <div className="duelo-qcard">
+              {dueloEstado?.currentQ ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+                    <span style={{ background: 'linear-gradient(90deg, #7c3aed, #4f46e5)', padding: '5px 12px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      {dueloEstado.currentQ.cat}
+                    </span>
+                    
+                    {dueloEstado.phase === 'question' && (
+                      <div className="timer-ring-container">
+                        <div className="timer-val">{dueloTempoRestante}s</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#fff', lineHeight: 1.4, margin: '0 0 20px', fontFamily: 'Outfit' }}>
+                    {dueloEstado.currentQ.q}
+                  </h2>
+
+                  <div className="duelo-opt-row">
+                    {dueloEstado.currentQ.opts.map((opt, oIdx) => {
+                      let btnClass = '';
+                      if (dueloEstado.phase === 'reveal') {
+                        btnClass = oIdx === dueloEstado.currentQ.correct ? 'correct-reveal' : 'wrong-reveal';
+                      }
+                      return (
+                        <div key={oIdx} className={`duelo-opt-btn ${btnClass}`}>
+                          <span style={{
+                            width: '26px',
+                            height: '26px',
+                            borderRadius: '50%',
+                            background: oIdx === 0 ? '#3b82f6' : oIdx === 1 ? '#ec4899' : oIdx === 2 ? '#eab308' : '#22c55e',
+                            color: '#fff',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.85rem',
+                            fontWeight: 'bold'
+                          }}>
+                            {String.fromCharCode(65 + oIdx)}
+                          </span>
+                          <span>{opt}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Resultados da rodada na revelação */}
+                  {dueloEstado.phase === 'reveal' && (
+                    <div style={{ marginTop: '25px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)', animation: 'popIn 0.4s' }}>
+                      <h4 style={{ margin: '0 0 10px', color: '#a78bfa', fontFamily: 'Outfit', fontWeight: 800, fontSize: '0.95rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>📊 Desempenho do Grupo:</h4>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: '10px', fontSize: '0.9rem' }}>
+                        <div>
+                          <span style={{ color: '#60a5fa', fontWeight: 'bold' }}>🔵 {nomeJ1 || 'Equipe Azul'}:</span>{' '}
+                          <span style={{ color: '#fff', fontWeight: 'bold' }}>
+                            {dueloRespostasRodada.filter(r => r.team === 0 && r.correct && r.optIdx !== -1).length} / {Math.max(1, dueloRespostasRodada.filter(r => r.team === 0 && r.optIdx !== -1).length)} acertos
+                          </span>
+                        </div>
+                        <div>
+                          <span style={{ color: '#f472b6', fontWeight: 'bold' }}>🩷 {nomeJ2 || 'Equipe Rosa'}:</span>{' '}
+                          <span style={{ color: '#fff', fontWeight: 'bold' }}>
+                            {dueloRespostasRodada.filter(r => r.team === 1 && r.correct && r.optIdx !== -1).length} / {Math.max(1, dueloRespostasRodada.filter(r => r.team === 1 && r.optIdx !== -1).length)} acertos
+                          </span>
+                        </div>
+                      </div>
+
+                      {dueloEstado.fastestStudent && (
+                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '12px', paddingTop: '10px', textAlign: 'center', color: '#e2e8f0', fontSize: '0.88rem' }}>
+                          ⚡ <span style={{ color: '#fb923c', fontWeight: 'black' }}>Aluno Mais Rápido:</span>{' '}
+                          <span style={{ fontWeight: 'bold', color: dueloEstado.fastestStudent.team === 0 ? '#60a5fa' : '#f472b6' }}>
+                            {dueloRespostasRodada.find(r => r.pid === dueloEstado.fastestStudent.pid)?.nomeAluno || 'Anônimo'}
+                          </span>{' '}
+                          (Equipe {dueloEstado.fastestStudent.team === 0 ? nomeJ1 || 'Azul' : nomeJ2 || 'Rosa'})!
+                        </div>
+                      )}
                     </div>
-                  );
-                })
+                  )}
+
+                  {/* Painel do Professor */}
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '30px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }}>
+                    {dueloEstado.phase === 'question' ? (
+                      <button className="btn-start" style={{ background: 'linear-gradient(90deg, #7c3aed, #5b21b6)', boxShadow: '0 6px 20px rgba(124, 58, 237, 0.45)', minWidth: '180px' }} onClick={revelarRespostaDueloOnline}>
+                        🔔 Revelar Resposta
+                      </button>
+                    ) : (
+                      <button className="btn-start" style={{ background: 'linear-gradient(90deg, #10b981, #047857)', boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)', minWidth: '180px' }} onClick={avancarPerguntaDueloOnline}>
+                        ➡️ Próxima Pergunta
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#cbd5e1', padding: '30px' }}>
+                  <h3>Inicializando arena...</h3>
+                </div>
               )}
             </div>
           </div>
 
-          {batalhaSetupFeedback && (
-            <div style={{ 
-              background: batalhaSetupFeedback.tipo === 'err' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-              border: `1px solid ${batalhaSetupFeedback.tipo === 'err' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
-              color: batalhaSetupFeedback.tipo === 'err' ? '#fca5a5' : '#86efac',
-              padding: '12px 16px',
-              borderRadius: '12px',
-              fontSize: '0.85rem',
-              textAlign: 'center',
-              fontFamily: 'Outfit',
-              lineHeight: '1.4',
-              width: '100%',
-              boxSizing: 'border-box'
-            }}>
-              {batalhaSetupFeedback.txt}
+          {/* Lado Rosa (Tanque) */}
+          <div className="duelo-side">
+            <div className="duelo-tank-container">
+              <h3 className="duelo-tank-label" style={{ color: '#f472b6' }}>🩷 {nomeJ2 || 'Equipe Rosa'}</h3>
+              <div className="duelo-tank pink">
+                <div className="tank-score-val">{Math.round(dueloEstado?.teams?.[1]?.score || 0)}%</div>
+                <div className="duelo-liquid pink" style={{ height: `${dueloEstado?.teams?.[1]?.score || 0}%` }}>
+                  <div className="duelo-wave" />
+                  <div className="duelo-wave duelo-wave-alt" />
+                </div>
+              </div>
+              {dueloEstado?.teams?.[1]?.lastGain > 0 && (
+                <span className="last-gain-tag pink">+{dueloEstado.teams[1].lastGain}% líquido</span>
+              )}
+              <span style={{ fontSize: '0.8rem', color: '#f9a8d4', marginTop: '5px' }}>
+                👤 {dueloRespostasRodada.filter(r => r.team === 1).length} de {dueloConectados[1]} prontos
+              </span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 22. TELA DE FIM DO DUELO ONLINE */}
+      <div id="tela-duelo-online-fim" className={`tela ${tela === 'duelo-online-fim' ? 'ativa' : ''}`} style={{ display: tela === 'duelo-online-fim' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '20px', boxSizing: 'border-box' }}>
+        <div className="trofeu" style={{ filter: 'drop-shadow(0 0 35px rgba(245, 158, 11, 0.6))', fontSize: '7rem', margin: '20px 0', animation: 'float 3s ease-in-out infinite' }}>🏆</div>
+        
+        <h2 style={{ fontFamily: 'Outfit', fontSize: '3rem', fontWeight: 900, textAlign: 'center', margin: '0 0 10px', background: 'linear-gradient(90deg, #3b82f6, #ec4899)', webkitBackgroundClip: 'text', webkitTextFillColor: 'transparent' }}>
+          Duelo Finalizado!
+        </h2>
+
+        <div style={{
+          fontSize: '2.2rem',
+          fontWeight: 900,
+          fontFamily: 'Outfit',
+          textAlign: 'center',
+          margin: '15px 0 30px',
+          color: dueloEstado?.winnerIndex === 0 ? '#60a5fa' : '#f472b6',
+          textShadow: dueloEstado?.winnerIndex === 0 ? '0 0 20px rgba(59, 130, 246, 0.6)' : '0 0 20px rgba(236, 72, 153, 0.6)',
+          animation: 'pulse 2s infinite'
+        }}>
+          {dueloEstado?.winnerIndex === 0 ? (
+            `🎉 ${nomeJ1 || 'Equipe Azul'} VENCEU! 🔵`
+          ) : (
+            `🎉 ${nomeJ2 || 'Equipe Rosa'} VENCEU! 🩷`
           )}
-
-          {/* Controles Setup */}
-          <div style={{ display: 'flex', gap: '14px', marginTop: '10px' }}>
-            <button className="btn-start" style={{ flex: 1.5, background: 'linear-gradient(90deg, #d97706, #f59e0b)', boxShadow: '0 8px 30px rgba(245, 158, 11, 0.4)' }} onClick={iniciarPartidaBatalha}>
-              Lobby de Espera 📱
-            </button>
-            <button className="btn-start" style={{ flex: 1, background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('menu')}>
-              ← Voltar
-            </button>
-          </div>
-
-        </div>
-      </div>
-
-      {/* 21. TELA LOBBY & QR CODE - BATALHA DO SABER */}
-      <div id="tela-batalha-qr" className={`tela ${tela === 'batalha-qr' ? 'ativa' : ''}`} style={{ display: tela === 'batalha-qr' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '30px', boxSizing: 'border-box', background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)' }}>
-        <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%', fontFamily: 'Outfit', color: '#fff', marginBottom: '8px' }}>📱 Alunos: Escaneiem o QR Code da sua equipe</h2>
-        <p style={{ color: '#a78bfa', fontSize: '1rem', fontWeight: 'bold', marginBottom: '28px', fontFamily: 'Outfit', textAlign: 'center' }}>Código da Sala Online: <span style={{ color: '#fff', background: 'rgba(245, 158, 11, 0.2)', border: '1px solid #f59e0b', padding: '4px 12px', borderRadius: '8px', marginLeft: '6px' }}>{codigoSalaOnline}</span></p>
-
-        <div style={{ display: 'flex', gap: '28px', flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: '820px', marginBottom: '28px' }}>
-          
-          {/* QR Card - Time 1 */}
-          <div style={{ flex: 1, minWidth: '260px', background: 'rgba(30, 58, 138, 0.3)', border: '2px solid rgba(59, 130, 246, 0.4)', borderRadius: '24px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', boxShadow: '0 8px 32px rgba(59, 130, 246, 0.08)' }}>
-            <h3 style={{ color: '#60a5fa', fontSize: '1.4rem', fontWeight: 900, fontFamily: 'Outfit' }}>{batalhaEquipe1}</h3>
-            <div style={{ background: '#fff', padding: '12px', borderRadius: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?jogo=batalha&sala=${codigoSalaOnline}&equipe=0`)}`} 
-                alt="QR Code Equipe 1" 
-                style={{ width: '160px', height: '160px' }}
-              />
-            </div>
-            <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '6px 12px', fontSize: '0.72rem', color: '#94a3b8', wordBreak: 'break-all', textAlign: 'center', maxWidth: '240px' }}>
-              {`${window.location.origin}${window.location.pathname}?jogo=batalha&sala=${codigoSalaOnline}&equipe=0`}
-            </div>
-            <div style={{ background: '#1e3a5f', borderRadius: '20px', padding: '5px 16px', fontSize: '0.85rem', color: '#93c5fd', fontWeight: 'bold' }}>
-              {batalhaConectados[0]} conectados
-            </div>
-          </div>
-
-          {/* QR Card - Time 2 */}
-          <div style={{ flex: 1, minWidth: '260px', background: 'rgba(131, 24, 67, 0.3)', border: '2px solid rgba(236, 72, 153, 0.4)', borderRadius: '24px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', boxShadow: '0 8px 32px rgba(236, 72, 153, 0.08)' }}>
-            <h3 style={{ color: '#f472b6', fontSize: '1.4rem', fontWeight: 900, fontFamily: 'Outfit' }}>{batalhaEquipe2}</h3>
-            <div style={{ background: '#fff', padding: '12px', borderRadius: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?jogo=batalha&sala=${codigoSalaOnline}&equipe=1`)}`} 
-                alt="QR Code Equipe 2" 
-                style={{ width: '160px', height: '160px' }}
-              />
-            </div>
-            <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '6px 12px', fontSize: '0.72rem', color: '#94a3b8', wordBreak: 'break-all', textAlign: 'center', maxWidth: '240px' }}>
-              {`${window.location.origin}${window.location.pathname}?jogo=batalha&sala=${codigoSalaOnline}&equipe=1`}
-            </div>
-            <div style={{ background: '#4a1942', borderRadius: '20px', padding: '5px 16px', fontSize: '0.85rem', color: '#f9a8d4', fontWeight: 'bold' }}>
-              {batalhaConectados[1]} conectados
-            </div>
-          </div>
-
         </div>
 
-        <p style={{ color: '#94a3b8', fontSize: '0.95rem', marginBottom: '24px', fontFamily: 'Outfit' }}>Total conectados: <strong style={{ color: '#fff', fontSize: '1.1rem' }}>{batalhaConectados[0] + batalhaConectados[1]}</strong></p>
-
-        <div style={{ display: 'flex', gap: '14px' }}>
-          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #d97706, #f59e0b)', boxShadow: '0 8px 30px rgba(245, 158, 11, 0.4)' }} onClick={comecarJogoBatalha}>
-            ▶ Iniciar Partida!
-          </button>
-          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('batalha-setup')}>
-            ← Voltar
-          </button>
-        </div>
-      </div>
-
-      {/* 22. TELA DE PARTIDA DO PROFESSOR - BATALHA DO SABER */}
-      <div id="tela-batalha-game" className={`tela ${tela === 'batalha-game' ? 'ativa' : ''}`} style={{ display: tela === 'batalha-game' ? 'flex' : 'none', flexDirection: 'column', height: '100vh', width: '100vw', padding: 0, boxSizing: 'border-box', background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)', overflow: 'hidden' }}>
-        
-        {/* Header Superior */}
-        <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '12px 24px', boxSizing: 'border-box', flexShrink: 0 }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 900, background: 'linear-gradient(90deg, #f59e0b, #e0a96d)', webkitBackgroundClip: 'text', webkitTextFillColor: 'transparent', margin: 0, fontFamily: 'Outfit' }}>⚡ Batalha do Saber</h1>
-          <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-            {batalhaEstado.currentQ && (
-              <span style={{ color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold' }}>Pergunta {batalhaEstado.qIndex + 1}</span>
-            )}
-            <button className="btn-del" style={{ padding: '6px 14px', fontSize: '0.8rem', borderRadius: '8px', cursor: 'pointer' }} onClick={finalizarPartidaBatalha}>
-              ✕ Encerrar Partida
-            </button>
-          </div>
-        </div>
-
-        {/* Corpo Principal */}
-        <div style={{ display: 'flex', flex: 1, width: '100%', overflow: 'hidden' }}>
-          
-          {/* Painel Esquerdo: Time 1 */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'linear-gradient(180deg, rgba(30, 58, 138, 0.15) 0%, rgba(0,0,0,0) 100%)', position: 'relative' }}>
-            <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#60a5fa', fontFamily: 'Outfit', letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'center', marginBottom: '18px' }}>
-              {batalhaEstado.teams?.[0]?.name || 'Meninos'}
-            </div>
-            
-            {/* Tanque de Pontuação */}
-            <div style={{ 
-              width: '140px', 
-              height: '380px', 
-              background: 'rgba(255,255,255,0.02)',
-              border: '3px solid rgba(59, 130, 246, 0.35)',
-              borderRadius: '32px 32px 20px 20px',
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: 'inset 0 10px 30px rgba(0,0,0,0.8), 0 12px 40px rgba(59, 130, 246, 0.15)',
-              display: 'flex',
-              alignItems: 'flex-end'
-            }}>
-              {/* Líquido do Tanque */}
-              <div style={{ 
-                width: '100%', 
-                height: `${batalhaEstado.teams?.[0]?.score || 0}%`, 
-                background: 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%)', 
-                boxShadow: '0 0 25px rgba(59, 130, 246, 0.6), inset 0 8px 12px rgba(255,255,255,0.4)', 
-                borderRadius: '0 0 16px 16px',
-                transition: 'height 1.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
-                position: 'relative'
-              }}>
-                {/* Efeito de Ondulação/Bolha no topo do líquido */}
-                <div style={{
-                  position: 'absolute',
-                  top: '-6px',
-                  left: 0,
-                  right: 0,
-                  height: '12px',
-                  background: 'rgba(255,255,255,0.4)',
-                  borderRadius: '50%',
-                  filter: 'blur(1px)',
-                  opacity: 0.8
-                }} />
-              </div>
-
-              {/* Placar Numérico Flutuante dentro do copo */}
-              <div style={{ 
-                position: 'absolute', 
-                top: '50%', 
-                left: '50%', 
-                transform: 'translate(-50%, -50%)', 
-                fontSize: '2.8rem', 
-                fontWeight: 900, 
-                color: '#fff', 
-                textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 10px rgba(255,255,255,0.2)', 
-                zIndex: 5, 
-                fontFamily: 'Outfit',
-                pointerEvents: 'none'
-              }}>
-                {Math.round(batalhaEstado.teams?.[0]?.score || 0)}%
-              </div>
-            </div>
-
-            {/* Ganho Recente de Pontos */}
-            {batalhaEstado.phase === 'reveal' && batalhaEstado.teams?.[0]?.lastGain > 0 && (
-              <div style={{ 
-                marginTop: '12px',
-                background: 'rgba(34, 197, 94, 0.2)', 
-                border: '1.5px solid #22c55e', 
-                borderRadius: '12px', 
-                padding: '6px 16px', 
-                color: '#4ade80',
-                fontSize: '0.9rem',
-                fontWeight: 'bold',
-                fontFamily: 'Outfit',
-                boxShadow: '0 4px 15px rgba(34, 197, 94, 0.2)'
-              }}>
-                +{batalhaEstado.teams[0].lastGain} pts ⚡
-              </div>
-            )}
-
-            <div style={{ marginTop: '20px', background: 'rgba(30, 58, 138, 0.25)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '10px 18px', textAlign: 'center', minWidth: '160px' }}>
-              <p style={{ fontSize: '0.78rem', color: '#93c5fd', margin: 0, fontWeight: 'bold' }}>Respostas / Conectados</p>
-              <span style={{ fontSize: '1.4rem', fontWeight: '900', color: '#60a5fa', fontFamily: 'Outfit' }}>
-                {batalhaRespostasRodada.filter(r => r.team === 0 && r.optIdx !== -1).length} / {batalhaConectados[0]}
-              </span>
-            </div>
-          </div>
-
-          {/* Painel Central: Pergunta & Gabarito */}
-          <div style={{ width: '440px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', borderLeft: '1px solid rgba(255,255,255,0.06)', borderRight: '1px solid rgba(255,255,255,0.06)', gap: '16px', boxSizing: 'border-box' }}>
-            
-            {batalhaEstado.currentQ ? (
-              <>
-                <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1.5px solid rgba(255,255,255,0.07)', borderRadius: '20px', padding: '20px', width: '100%', textAlign: 'center', boxSizing: 'border-box', position: 'relative' }}>
-                  <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#fbbf24', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}>
-                    {batalhaEstado.currentQ.cat}
-                  </div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff', lineHeight: '1.4', marginBottom: '14px', fontFamily: 'Outfit', wordBreak: 'break-word' }}>
-                    <MathText text={batalhaEstado.currentQ.q} />
-                  </div>
-                  
-                  {/* Cronômetro */}
-                  <div 
-                    className={`q-timer ${batalhaTempoRestante <= 5 ? 'urgent' : ''}`}
-                    style={{ 
-                      fontSize: '3rem', 
-                      fontWeight: '900', 
-                      color: batalhaTempoRestante <= 5 ? '#ef4444' : '#f59e0b',
-                      animation: batalhaTempoRestante <= 5 ? 'pulse 0.5s infinite alternate' : 'none'
-                    }}
-                  >
-                    {batalhaEstado.phase === 'reveal' ? 'FIM' : `${batalhaTempoRestante}s`}
-                  </div>
-                </div>
-
-                {/* Grid de Alternativas */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                  {batalhaEstado.currentQ.opts.map((opcao, idx) => {
-                    const letters = ['A', 'B', 'C', 'D'];
-                    const correta = idx === batalhaEstado.currentQ.correct;
-                    const reveal = batalhaEstado.phase === 'reveal';
-                    
-                    let bg = 'rgba(15, 23, 42, 0.5)';
-                    let border = '2px solid rgba(255,255,255,0.08)';
-                    let color = '#fff';
-
-                    if (reveal) {
-                      if (correta) {
-                        bg = 'rgba(20, 83, 45, 0.7)';
-                        border = '2px solid #22c55e';
-                        color = '#86efac';
-                      } else {
-                        bg = 'rgba(69, 10, 10, 0.4)';
-                        border = '2px solid rgba(239, 68, 68, 0.3)';
-                        color = '#fca5a5';
-                      }
-                    }
-
-                    return (
-                      <div 
-                        key={idx}
-                        style={{ 
-                          padding: '12px 16px', 
-                          borderRadius: '12px', 
-                          background: bg,
-                          border: border,
-                          color: color,
-                          fontSize: '0.88rem',
-                          fontWeight: 'bold',
-                          textAlign: 'left',
-                          transition: 'all 0.2s',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px'
-                        }}
-                      >
-                        <span style={{ color: reveal && correta ? '#86efac' : '#a78bfa' }}>{letters[idx]})</span>
-                        <span>{opcao}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Bônus de Velocidade Animado na revelação do Gabarito */}
-                {batalhaEstado.phase === 'reveal' && batalhaEstado.fastestStudent && (
-                  <div style={{
-                    width: '100%',
-                    background: 'rgba(245, 158, 11, 0.15)',
-                    border: '1px solid rgba(245, 158, 11, 0.4)',
-                    borderRadius: '12px',
-                    padding: '8px 14px',
-                    color: '#fbbf24',
-                    fontSize: '0.82rem',
-                    fontWeight: 'bold',
-                    textAlign: 'center',
-                    fontFamily: 'Outfit',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    animation: 'pulse 1s infinite alternate'
-                  }}>
-                    ⚡ Bônus de Velocidade: <strong>{batalhaEstado.fastestStudent.team === 0 ? (batalhaEstado.teams?.[0]?.name || 'Meninos') : (batalhaEstado.teams?.[1]?.name || 'Meninas')}</strong> respondeu correto mais rápido! (+1 pt)
-                  </div>
-                )}
-
-                {/* Controles do Professor na Pergunta */}
-                {batalhaEstado.phase === 'question' ? (
-                  <button className="btn-start" style={{ width: '100%', background: 'linear-gradient(90deg, #d97706, #fbbf24)', boxShadow: '0 6px 20px rgba(217, 119, 6, 0.3)' }} onClick={revelarRespostaBatalha}>
-                    👁️ Revelar Gabarito
-                  </button>
-                ) : (
-                  <button className="btn-start" style={{ width: '100%', background: 'linear-gradient(90deg, #7c3aed, #a78bfa)', boxShadow: '0 6px 20px rgba(124, 58, 237, 0.3)' }} onClick={avancarPerguntaBatalha}>
-                    Próxima Pergunta ➜
-                  </button>
-                )}
-
-                {/* Mini-Placar */}
-                <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '10px 14px', width: '100%', boxSizing: 'border-box' }}>
-                  <h4 style={{ fontSize: '0.7rem', color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'center', margin: '0 0 6px' }}>📊 PLACAR GERAL</h4>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px', marginBottom: '4px' }}>
-                    <span style={{ color: '#60a5fa', fontWeight: 'bold' }}>{batalhaEstado.teams?.[0]?.name}</span>
-                    <span style={{ color: '#60a5fa', fontWeight: '900' }}>{Math.round(batalhaEstado.teams?.[0]?.score || 0)}%</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
-                    <span style={{ color: '#f472b6', fontWeight: 'bold' }}>{batalhaEstado.teams?.[1]?.name}</span>
-                    <span style={{ color: '#f472b6', fontWeight: '900' }}>{Math.round(batalhaEstado.teams?.[1]?.score || 0)}%</span>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div style={{ textAlign: 'center', color: '#cbd5e1' }}>
-                <p>Nenhuma pergunta activa.</p>
-                <button className="btn-start" style={{ background: 'linear-gradient(90deg, #7c3aed, #a78bfa)' }} onClick={avancarPerguntaBatalha}>
-                  Começar Pergunta! ➜
-                </button>
-              </div>
-            )}
-
-          </div>
-
-          {/* Painel Direito: Time 2 */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'linear-gradient(180deg, rgba(236, 72, 153, 0.15) 0%, rgba(0,0,0,0) 100%)', position: 'relative' }}>
-            <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#f472b6', fontFamily: 'Outfit', letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'center', marginBottom: '18px' }}>
-              {batalhaEstado.teams?.[1]?.name || 'Meninas'}
-            </div>
-            
-            {/* Tanque de Pontuação */}
-            <div style={{ 
-              width: '140px', 
-              height: '380px', 
-              background: 'rgba(255,255,255,0.02)',
-              border: '3px solid rgba(236, 72, 153, 0.35)',
-              borderRadius: '32px 32px 20px 20px',
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: 'inset 0 10px 30px rgba(0,0,0,0.8), 0 12px 40px rgba(236, 72, 153, 0.15)',
-              display: 'flex',
-              alignItems: 'flex-end'
-            }}>
-              {/* Líquido do Tanque */}
-              <div style={{ 
-                width: '100%', 
-                height: `${batalhaEstado.teams?.[1]?.score || 0}%`, 
-                background: 'linear-gradient(180deg, #ec4899 0%, #be185d 100%)', 
-                boxShadow: '0 0 25px rgba(236, 72, 153, 0.6), inset 0 8px 12px rgba(255,255,255,0.4)', 
-                borderRadius: '0 0 16px 16px',
-                transition: 'height 1.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
-                position: 'relative'
-              }}>
-                {/* Efeito de Ondulação/Bolha no topo do líquido */}
-                <div style={{
-                  position: 'absolute',
-                  top: '-6px',
-                  left: 0,
-                  right: 0,
-                  height: '12px',
-                  background: 'rgba(255,255,255,0.4)',
-                  borderRadius: '50%',
-                  filter: 'blur(1px)',
-                  opacity: 0.8
-                }} />
-              </div>
-
-              {/* Placar Numérico Flutuante dentro do copo */}
-              <div style={{ 
-                position: 'absolute', 
-                top: '50%', 
-                left: '50%', 
-                transform: 'translate(-50%, -50%)', 
-                fontSize: '2.8rem', 
-                fontWeight: 900, 
-                color: '#fff', 
-                textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 10px rgba(255,255,255,0.2)', 
-                zIndex: 5, 
-                fontFamily: 'Outfit',
-                pointerEvents: 'none'
-              }}>
-                {Math.round(batalhaEstado.teams?.[1]?.score || 0)}%
-              </div>
-            </div>
-
-            {/* Ganho Recente de Pontos */}
-            {batalhaEstado.phase === 'reveal' && batalhaEstado.teams?.[1]?.lastGain > 0 && (
-              <div style={{ 
-                marginTop: '12px',
-                background: 'rgba(34, 197, 94, 0.2)', 
-                border: '1.5px solid #22c55e', 
-                borderRadius: '12px', 
-                padding: '6px 16px', 
-                color: '#4ade80',
-                fontSize: '0.9rem',
-                fontWeight: 'bold',
-                fontFamily: 'Outfit',
-                boxShadow: '0 4px 15px rgba(34, 197, 94, 0.2)'
-              }}>
-                +{batalhaEstado.teams[1].lastGain} pts ⚡
-              </div>
-            )}
-
-            <div style={{ marginTop: '20px', background: 'rgba(131, 24, 67, 0.25)', border: '1px solid rgba(236, 72, 153, 0.3)', borderRadius: '12px', padding: '10px 18px', textAlign: 'center', minWidth: '160px' }}>
-              <p style={{ fontSize: '0.78rem', color: '#f9a8d4', margin: 0, fontWeight: 'bold' }}>Respostas / Conectados</p>
-              <span style={{ fontSize: '1.4rem', fontWeight: '900', color: '#f472b6', fontFamily: 'Outfit' }}>
-                {batalhaRespostasRodada.filter(r => r.team === 1 && r.optIdx !== -1).length} / {batalhaConectados[1]}
-              </span>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      {/* 23. TELA DE FIM DE PARTIDA - BATALHA DO SABER */}
-      <div id="tela-batalha-fim" className={`tela ${tela === 'batalha-fim' ? 'ativa' : ''}`} style={{ display: tela === 'batalha-fim' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '20px', boxSizing: 'border-box', background: 'radial-gradient(circle at 50% 50%, #0c0824 0%, #020108 100%)' }}>
-        <div className="trofeu" style={{ filter: 'drop-shadow(0 0 35px rgba(245, 158, 11, 0.6))', fontSize: '7rem', margin: '12px 0', animation: 'pulse 0.8s infinite alternate' }}>🏆</div>
-        
-        {batalhaEstado.winnerIndex !== null && (
-          <>
-            <h2 style={{ fontSize: '2.6rem', fontWeight: 900, fontFamily: 'Outfit', background: 'linear-gradient(90deg, #fbbf24, #f59e0b)', webkitBackgroundClip: 'text', webkitTextFillColor: 'transparent', margin: '0 0 10px', letterSpacing: '-0.5px' }}>
-              VENCEDOR: {batalhaEstado.teams?.[batalhaEstado.winnerIndex]?.name}!
-            </h2>
-            <p style={{ color: '#cbd5e1', fontSize: '1.2rem', marginBottom: '24px' }}>
-              Parabéns! A equipe dominou o saber com {Math.round(batalhaEstado.teams?.[batalhaEstado.winnerIndex]?.score || 100)}% de energia!
-            </p>
-          </>
-        )}
-
-        <div className="placar-final" style={{ display: 'flex', gap: '24px', alignItems: 'center', margin: '20px 0', background: 'rgba(255,255,255,0.02)', padding: '20px 45px', borderRadius: '20px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+        <div style={{ display: 'flex', gap: '30px', alignItems: 'center', margin: '20px 0', background: 'rgba(255,255,255,0.02)', padding: '24px 48px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ color: '#60a5fa', fontSize: '1.15rem', fontWeight: 'bold' }}>🔵 {batalhaEstado.teams?.[0]?.name}</div>
-            <div style={{ color: '#60a5fa', fontSize: '1.8rem', fontWeight: 900 }}>{Math.round(batalhaEstado.teams?.[0]?.score || 0)}%</div>
+            <div style={{ color: '#60a5fa', fontSize: '1.2rem', fontWeight: 'bold' }}>🔵 {nomeJ1 || 'Equipe Azul'}</div>
+            <div style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 900 }}>{Math.round(dueloEstado?.teams?.[0]?.score || 0)}%</div>
+            <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Tanque cheio</div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', color: '#f59e0b', fontSize: '2rem', fontWeight: 800 }}>×</div>
+          <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#a78bfa' }}>×</div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ color: '#f472b6', fontSize: '1.15rem', fontWeight: 'bold' }}>🩷 {batalhaEstado.teams?.[1]?.name}</div>
-            <div style={{ color: '#f472b6', fontSize: '1.8rem', fontWeight: 900 }}>{Math.round(batalhaEstado.teams?.[1]?.score || 0)}%</div>
+            <div style={{ color: '#f472b6', fontSize: '1.2rem', fontWeight: 'bold' }}>🩷 {nomeJ2 || 'Equipe Rosa'}</div>
+            <div style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 900 }}>{Math.round(dueloEstado?.teams?.[1]?.score || 0)}%</div>
+            <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Tanque cheio</div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '20px' }}>
-          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #d97706, #f59e0b)', boxShadow: '0 8px 30px rgba(245, 158, 11, 0.4)' }} onClick={iniciarPartidaBatalha}>
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '25px' }}>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #7c3aed, #4f46e5)', boxShadow: '0 8px 30px rgba(124, 58, 237, 0.45)' }} onClick={() => iniciarJogoDuelo()}>
             Jogar Novamente 🔄
           </button>
-          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={finalizarPartidaBatalha}>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={finalizarPartidaDueloOnline}>
             Voltar ao Menu 🏠
           </button>
         </div>
       </div>
 
-      {/* 24. TELA DO ALUNO (CELULAR) - BATALHA DO SABER */}
-      <div id="tela-batalha-aluno" className={`tela ${tela === 'batalha-aluno' ? 'ativa' : ''}`} style={{ display: tela === 'batalha-aluno' ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', width: '100%', padding: '24px', boxSizing: 'border-box', background: '#0a0b10', color: '#fff', textAlign: 'center' }}>
-        
-        {/* Equipe Badge do Aluno */}
-        <h2 style={{ fontSize: '1.8rem', fontWeight: 900, color: batalhaMeuTime === 0 ? '#60a5fa' : '#f472b6', fontFamily: 'Outfit', margin: '0 0 4px' }}>
-          {batalhaEstado.teams?.[batalhaMeuTime]?.name || (batalhaMeuTime === 0 ? 'Meninos' : 'Meninas')}
-        </h2>
-        <div 
-          style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '6px', 
-            background: batalhaMeuTime === 0 ? 'rgba(59,130,246,0.15)' : 'rgba(236,72,153,0.15)', 
-            border: `1.5px solid ${batalhaMeuTime === 0 ? '#3b82f6' : '#ec4899'}`, 
-            borderRadius: '20px', 
-            padding: '5px 16px', 
-            fontSize: '0.85rem', 
-            color: batalhaMeuTime === 0 ? '#93c5fd' : '#f9a8d4', 
-            fontWeight: 'bold',
-            marginBottom: '24px'
-          }}
-        >
-          {batalhaMeuTime === 0 ? '💙 Equipe Azul' : 'pink Equipe Rosa'}
-        </div>
-
-        {/* Lógica das fases do jogo na tela do aluno */}
-        {(() => {
-          if (!batalhaEstado || batalhaEstado.phase === 'waiting') {
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                <p className="waiting" style={{ color: '#94a3b8', fontSize: '0.95rem', animation: 'fade 1.5s infinite alternate' }}>
-                  Aguardando o professor iniciar a próxima rodada...
-                </p>
-                <span style={{ fontSize: '2.5rem', animation: 'pulse 1s infinite alternate' }}>⏳</span>
-              </div>
-            );
+      {/* 23. TELA DO ALUNO (DISPOSITIVO CELULAR) */}
+      <div id="tela-duelo-aluno" className={`tela ${tela === 'duelo-aluno' ? 'ativa' : ''}`} style={{ display: tela === 'duelo-aluno' ? 'flex' : 'none', flexDirection: 'column', minHeight: '100vh', padding: '16px', boxSizing: 'border-box', background: '#090714', color: '#fff' }}>
+        <style>{`
+          .aluno-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            font-weight: bold;
           }
+          .aluno-header.blue { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #93c5fd; }
+          .aluno-header.pink { background: rgba(236, 72, 153, 0.15); border: 1px solid rgba(236, 72, 153, 0.3); color: #f9a8d4; }
+          
+          .aluno-content-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            box-sizing: border-box;
+          }
+          .aluno-opt-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            width: 100%;
+            margin-top: 15px;
+          }
+          .aluno-opt-card-btn {
+            width: 100%;
+            padding: 20px;
+            border-radius: 14px;
+            border: 2px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
+            color: #fff;
+            font-size: 1.25rem;
+            font-weight: bold;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+          }
+          .aluno-opt-card-btn:active {
+            transform: scale(0.97);
+            background: rgba(255,255,255,0.1);
+          }
+          
+          .pulse-bubble {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(139, 92, 246, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            animation: pulse-aluno 2s infinite;
+            margin-bottom: 20px;
+          }
+          @keyframes pulse-aluno {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(139, 92, 246, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+          }
+          .feedback-circle {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            margin-bottom: 20px;
+            box-shadow: 0 0 25px currentColor;
+          }
+        `}</style>
 
-          if (batalhaEstado.phase === 'question' && batalhaEstado.currentQ) {
-            const letters = ['A', 'B', 'C', 'D'];
-            return (
-              <div style={{ width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px', boxSizing: 'border-box' }}>
+        {firebaseErroMsg && (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid #ef4444',
+            borderRadius: '12px',
+            padding: '12px 18px',
+            margin: '0 auto 16px',
+            maxWidth: '100%',
+            color: '#fca5a5',
+            fontSize: '0.85rem',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            boxSizing: 'border-box'
+          }}>
+            <span>❌ Erro de Conexão: {firebaseErroMsg}</span>
+            <button style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '3px 6px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }} onClick={() => setFirebaseErroMsg(null)}>Ignorar</button>
+          </div>
+        )}
+
+        {/* CADASTRO DE APELIDO DO ALUNO */}
+        {!dueloApelidoAluno ? (
+          <div className="aluno-content-card" style={{ padding: '30px' }}>
+            <div style={{ fontSize: '3.5rem', marginBottom: '15px' }}>🎒</div>
+            <h3 style={{ fontFamily: 'Outfit', fontWeight: 900, fontSize: '1.6rem', margin: '0 0 10px' }}>Identifique-se!</h3>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: '0 0 20px' }}>Digite seu nome ou apelido para o professor ver sua participação no painel.</p>
+            
+            <input 
+              type="text" 
+              maxLength={15}
+              placeholder="Ex: Lucas" 
+              id="input-apelido-aluno"
+              style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '2px solid rgba(139, 92, 246, 0.4)', borderRadius: '12px', padding: '14px 18px', color: '#fff', fontSize: '1.1rem', outline: 'none', textAlign: 'center', marginBottom: '20px', boxSizing: 'border-box' }}
+            />
+            
+            <button 
+              className="btn-start" 
+              style={{ width: '100%', background: 'linear-gradient(90deg, #7c3aed, #4f46e5)', padding: '14px', borderRadius: '12px', fontSize: '1.05rem' }}
+              onClick={() => {
+                const val = document.getElementById('input-apelido-aluno')?.value?.trim();
+                if (!val) {
+                  alert('Por favor, digite um apelido válido!');
+                  return;
+                }
+                localStorage.setItem('duelo_apelido', val);
+                setDueloApelidoAluno(val);
+                playSound('click');
                 
-                {/* Timer do aluno */}
-                <div 
-                  className={`timer ${batalhaTempoRestante <= 5 ? 'urgent' : ''}`}
-                  style={{ 
-                    fontSize: '2.8rem', 
-                    fontWeight: 900, 
-                    color: batalhaTempoRestante <= 5 ? '#ef4444' : '#f59e0b',
-                    animation: batalhaTempoRestante <= 5 ? 'pulse 0.5s infinite alternate' : 'none'
+                // Envia a presença de forma assíncrona imediatamente com o apelido válido
+                enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, val)
+                  .catch(err => console.error('Erro de presença no clique:', err));
+              }}
+            >
+              Entrar no Duelo 🎮
+            </button>
+          </div>
+        ) : (
+          /* JOGO DO ALUNO CONECTADO */
+          <>
+            {/* Header do Aluno */}
+            <div className={`aluno-header ${dueloMeuTime === 0 ? 'blue' : 'pink'}`}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '1.2rem' }}>{dueloMeuTime === 0 ? '🔵' : '🩷'}</span>
+                <div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>EQUIPE</div>
+                  <div style={{ fontSize: '1rem', fontFamily: 'Outfit', fontWeight: 900 }}>{dueloMeuTime === 0 ? nomeJ1 || 'Azul' : nomeJ2 || 'Rosa'}</div>
+                </div>
+              </div>
+              
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ color: '#cbd5e1', fontSize: '0.85rem' }}>{dueloApelidoAluno}</span>
+                <button 
+                  style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.75rem', textDecoration: 'underline', padding: '0 0 0 8px', cursor: 'pointer' }}
+                  onClick={() => {
+                    if (confirm('Deseja mudar seu apelido?')) {
+                      localStorage.removeItem('duelo_apelido');
+                      setDueloApelidoAluno('');
+                    }
                   }}
                 >
-                  {batalhaTempoRestante}s
-                </div>
-
-                {/* Card de Pergunta */}
-                <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '20px', width: '100%', textAlign: 'left', boxSizing: 'border-box' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 'bold' }}>
-                    {batalhaEstado.currentQ.cat}
-                  </div>
-                  <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#fff', lineHeight: '1.4', fontFamily: 'Outfit' }}>
-                    <MathText text={batalhaEstado.currentQ.q} />
-                  </div>
-                </div>
-
-                {/* Alternativas de Resposta */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
-                  {batalhaEstado.currentQ.opts.map((opcao, idx) => {
-                    const respondida = batalhaRespondida;
-                    const selecionada = idx === batalhaOpcaoSelecionada;
-                    
-                    let bg = '#1e293b';
-                    let border = '2px solid #334155';
-                    let scale = 'scale(1)';
-
-                    if (respondida) {
-                      if (selecionada) {
-                        border = '2px solid #f59e0b';
-                        bg = 'rgba(245, 158, 11, 0.1)';
-                      } else {
-                        bg = 'rgba(30, 41, 59, 0.4)';
-                        border = '2px solid rgba(255, 255, 255, 0.04)';
-                      }
-                    }
-
-                    return (
-                      <button 
-                        key={idx}
-                        disabled={respondida}
-                        onClick={() => submeterRespostaAlunoBatalha(idx)}
-                        style={{ 
-                          padding: '16px 20px', 
-                          borderRadius: '16px', 
-                          background: bg,
-                          border: border,
-                          color: respondida && !selecionada ? '#64748b' : '#fff',
-                          fontSize: '0.95rem',
-                          fontWeight: 'bold',
-                          textAlign: 'left',
-                          cursor: respondida ? 'default' : 'pointer',
-                          transition: 'all 0.2s',
-                          width: '100%',
-                          outline: 'none',
-                          transform: scale
-                        }}
-                      >
-                        <span style={{ respondida: respondida && !selecionada ? '#475569' : '#a78bfa', marginRight: '6px' }}>{letters[idx]})</span>
-                        {opcao}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {batalhaRespondida && (
-                  <p className="waiting" style={{ color: '#a78bfa', fontSize: '0.85rem', fontWeight: 'bold', marginTop: '6px' }}>
-                    Sua resposta foi enviada! Aguardando os outros alunos... ⏳
-                  </p>
-                )}
-
+                  Editar
+                </button>
               </div>
-            );
-          }
+            </div>
 
-          if (batalhaEstado.phase === 'reveal' && batalhaEstado.currentQ) {
-            const letters = ['A', 'B', 'C', 'D'];
-            return (
-              <div style={{ width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px', boxSizing: 'border-box' }}>
-                
-                {/* Gabarito Local do Aluno */}
-                {batalhaOpcaoSelecionada !== null ? (
-                  <div style={{ fontSize: '2rem', fontWeight: '900', color: batalhaRespostaCorreta ? '#22c55e' : '#ef4444', fontFamily: 'Outfit' }}>
-                    {batalhaRespostaCorreta ? '✅ Você Acertou!' : '❌ Você Errou!'}
-                  </div>
+            {/* Fase de Espera por Pergunta */}
+            {(!dueloEstado || dueloEstado.phase === 'waiting') && (
+              <div className="aluno-content-card">
+                <div className="pulse-bubble">⏳</div>
+                <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.3rem', margin: '0 0 8px' }}>Aguardando Partida</h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>O professor vai iniciar o duelo em breve. Prepare-se!</p>
+              </div>
+            )}
+
+            {/* Fase de Pergunta Ativa */}
+            {dueloEstado?.phase === 'question' && dueloEstado?.currentQ && (
+              <div className="aluno-content-card">
+                {dueloRespondida ? (
+                  <>
+                    <div className="pulse-bubble" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>🚀</div>
+                    <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.3rem', margin: '0 0 8px' }}>Resposta Enviada!</h3>
+                    <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>Você respondeu a alternativa <b>{String.fromCharCode(65 + dueloOpcaoSelecionada)}</b>. Aguarde a revelação do gabarito!</p>
+                  </>
                 ) : (
-                  <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#f59e0b', fontFamily: 'Outfit' }}>
-                    ⏰ Tempo Esgotado!
-                  </div>
+                  <>
+                    <span style={{ fontSize: '0.8rem', background: '#3b82f6', color: '#fff', padding: '4px 10px', borderRadius: '10px', fontWeight: 'bold', marginBottom: '10px' }}>
+                      {dueloEstado.currentQ.cat}
+                    </span>
+                    <h4 style={{ margin: '0 0 10px', color: '#a78bfa', fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase' }}>⏱️ Responda rápido!</h4>
+                    <h2 style={{ fontSize: '1.3rem', fontWeight: 800, margin: '0 0 20px', fontFamily: 'Outfit', color: '#fff' }}>
+                      {dueloEstado.currentQ.q}
+                    </h2>
+                    
+                    <div className="aluno-opt-grid">
+                      {dueloEstado.currentQ.opts.map((opt, oIdx) => (
+                        <button 
+                          key={oIdx} 
+                          className="aluno-opt-card-btn"
+                          onClick={() => submeterRespostaAlunoDueloOnline(oIdx)}
+                        >
+                          <span style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            background: oIdx === 0 ? '#3b82f6' : oIdx === 1 ? '#ec4899' : oIdx === 2 ? '#eab308' : '#22c55e',
+                            color: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1rem',
+                            fontWeight: 'bold',
+                            flexShrink: 0
+                          }}>
+                            {String.fromCharCode(65 + oIdx)}
+                          </span>
+                          <span>{opt}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Fase de Revelação do Gabarito */}
+            {dueloEstado?.phase === 'reveal' && dueloEstado?.currentQ && (
+              <div className="aluno-content-card" style={{
+                background: dueloRespondida 
+                  ? (dueloRespostaCorreta ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.05)') 
+                  : 'rgba(255,255,255,0.02)',
+                borderColor: dueloRespondida 
+                  ? (dueloRespostaCorreta ? 'rgba(34, 197, 94, 0.25)' : 'rgba(239, 68, 68, 0.2)') 
+                  : 'rgba(255,255,255,0.08)'
+              }}>
+                {dueloRespondida ? (
+                  dueloRespostaCorreta ? (
+                    <>
+                      <div className="feedback-circle" style={{ color: '#4ade80' }}>🎉</div>
+                      <h3 style={{ color: '#4ade80', fontFamily: 'Outfit', fontWeight: 900, fontSize: '1.6rem', margin: '0 0 8px' }}>VOCÊ ACERTOU!</h3>
+                      <p style={{ color: '#cbd5e1', fontSize: '0.95rem', margin: 0 }}>Excelente trabalho! Você respondeu rápido e ajudou a encher o tanque do seu time!</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="feedback-circle" style={{ color: '#f87171' }}>😢</div>
+                      <h3 style={{ color: '#f87171', fontFamily: 'Outfit', fontWeight: 900, fontSize: '1.6rem', margin: '0 0 8px' }}>VOCÊ ERROU</h3>
+                      <p style={{ color: '#cbd5e1', fontSize: '0.95rem', margin: 0 }}>Não desanime! A resposta correta era a alternativa <b>{String.fromCharCode(65 + dueloEstado.currentQ.correct)}</b>. Foco na próxima!</p>
+                    </>
+                  )
+                ) : (
+                  <>
+                    <div className="feedback-circle" style={{ color: '#94a3b8' }}>⏱️</div>
+                    <h3 style={{ color: '#94a3b8', fontFamily: 'Outfit', fontWeight: 900, fontSize: '1.6rem', margin: '0 0 8px' }}>TEMPO ESGOTADO</h3>
+                    <p style={{ color: '#cbd5e1', fontSize: '0.95rem', margin: 0 }}>Você não respondeu a tempo nesta rodada! A resposta correta era a alternativa <b>{String.fromCharCode(65 + dueloEstado.currentQ.correct)}</b>.</p>
+                  </>
                 )}
 
-                <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '20px', width: '100%', textAlign: 'left', boxSizing: 'border-box' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 'bold' }}>
-                    {batalhaEstado.currentQ.cat}
-                  </div>
-                  <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#fff', lineHeight: '1.4', fontFamily: 'Outfit' }}>
-                    <MathText text={batalhaEstado.currentQ.q} />
+                <div style={{ marginTop: '25px', width: '100%', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '20px', textAlign: 'left' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#a78bfa', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Gabarito da Rodada</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px', background: 'rgba(34, 197, 94, 0.15)', padding: '12px 16px', borderRadius: '10px', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#4ade80', fontWeight: 'bold' }}>
+                    <span style={{
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      background: '#22c55e',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.95rem'
+                    }}>{String.fromCharCode(65 + dueloEstado.currentQ.correct)}</span>
+                    <span>{dueloEstado.currentQ.opts[dueloEstado.currentQ.correct]}</span>
                   </div>
                 </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
-                  {batalhaEstado.currentQ.opts.map((opcao, idx) => {
-                    const correta = idx === batalhaEstado.currentQ.correct;
-                    const selecionada = idx === batalhaOpcaoSelecionada;
-                    
-                    let bg = '#1e293b';
-                    let border = '2px solid #334155';
-                    let color = '#cbd5e1';
-
-                    if (correta) {
-                      bg = 'rgba(20, 83, 45, 0.7)';
-                      border = '2px solid #22c55e';
-                      color = '#86efac';
-                    } else if (selecionada) {
-                      bg = 'rgba(69, 10, 10, 0.4)';
-                      border = '2px solid #ef4444';
-                      color = '#fca5a5';
-                    } else {
-                      bg = 'rgba(30, 41, 59, 0.2)';
-                      border = '2px solid rgba(255, 255, 255, 0.02)';
-                      color = '#475569';
-                    }
-
-                    return (
-                      <button 
-                        key={idx}
-                        disabled
-                        style={{ 
-                          padding: '16px 20px', 
-                          borderRadius: '16px', 
-                          background: bg,
-                          border: border,
-                          color: color,
-                          fontSize: '0.95rem',
-                          fontWeight: 'bold',
-                          textAlign: 'left',
-                          width: '100%',
-                          transition: 'all 0.2s',
-                          outline: 'none'
-                        }}
-                      >
-                        <span style={{ marginRight: '6px', color: correta ? '#86efac' : '#e2e8f0' }}>{letters[idx]})</span>
-                        {opcao}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <p className="waiting" style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '10px' }}>
-                  Aguardando o professor avançar a rodada... ⏳
-                </p>
-
               </div>
-            );
-          }
+            )}
 
-          if (batalhaEstado.phase === 'winner') {
-            const souVencedor = batalhaEstado.winnerIndex === batalhaMeuTime;
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
-                <span style={{ fontSize: '6rem', filter: 'drop-shadow(0 0 25px rgba(245, 158, 11, 0.55))', animation: 'pulse 0.8s infinite alternate' }}>{souVencedor ? '👑' : '🤝'}</span>
-                <h3 style={{ fontSize: '2rem', fontWeight: 900, color: souVencedor ? '#fbbf24' : '#cbd5e1', fontFamily: 'Outfit' }}>
-                  {souVencedor ? 'Parabéns, Vocês Venceram! 🏆' : 'Bom Jogo! Valeu o Esforço! 🤝'}
-                </h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
-                  O professor finalizará a sala no computador.
-                </p>
+            {/* Fase de Vencedor / Fim da Partida */}
+            {dueloEstado?.phase === 'winner' && (
+              <div className="aluno-content-card">
+                {dueloEstado.winnerIndex === dueloMeuTime ? (
+                  <>
+                    <div className="feedback-circle" style={{ color: '#eab308' }}>👑</div>
+                    <h3 style={{ color: '#fbbf24', fontFamily: 'Outfit', fontWeight: 900, fontSize: '1.7rem', margin: '0 0 8px' }}>VITÓRIA! 🏆</h3>
+                    <p style={{ color: '#cbd5e1', fontSize: '0.95rem', margin: 0 }}>Sensacional! Seu time encheu o tanque de líquido colorido primeiro e venceu o duelo!</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="feedback-circle" style={{ color: '#94a3b8' }}>🤝</div>
+                    <h3 style={{ color: '#cbd5e1', fontFamily: 'Outfit', fontWeight: 900, fontSize: '1.7rem', margin: '0 0 8px' }}>BOM JOGO!</h3>
+                    <p style={{ color: '#94a3b8', fontSize: '0.95rem', margin: 0 }}>Seu time jogou muito bem, mas a outra equipe encheu o tanque primeiro desta vez.</p>
+                  </>
+                )}
               </div>
-            );
-          }
-
-          return null;
-        })()}
-
+            )}
+          </>
+        )}
       </div>
-
 
     </div>
   );

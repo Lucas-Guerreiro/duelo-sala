@@ -114,28 +114,28 @@ export async function obterBancoNuvem(codigoSala) {
 }
 
 /**
- * Publica o estado principal da Batalha do Saber.
+ * Publica o estado principal do Duelo Online.
  */
-export async function publicarEstadoBatalha(codigoSala, state) {
+export async function publicarEstadoDueloOnline(codigoSala, state) {
   if (!firebaseInitializado || !db) return false;
   try {
     const chave = codigoSala.trim().toUpperCase();
-    const ref = doc(db, 'salas', chave, 'batalha', 'estado');
+    const ref = doc(db, 'salas', chave, 'duelo', 'estado');
     await setDoc(ref, { ...state, _updatedAt: new Date().toISOString() });
     return true;
   } catch (e) {
-    console.error('[Firebase] Erro ao publicar estado da batalha:', e);
+    console.error('[Firebase] Erro ao publicar estado do duelo:', e);
     throw e;
   }
 }
 
 /**
- * Escuta o estado principal da Batalha do Saber em tempo real.
+ * Escuta o estado principal do Duelo Online em tempo real.
  */
-export function ouvirEstadoBatalha(codigoSala, callback) {
+export function ouvirEstadoDueloOnline(codigoSala, callback, errorCallback = null) {
   if (!firebaseInitializado || !db) return () => {};
   const chave = codigoSala.trim().toUpperCase();
-  const ref = doc(db, 'salas', chave, 'batalha', 'estado');
+  const ref = doc(db, 'salas', chave, 'duelo', 'estado');
   return onSnapshot(ref, (snap) => {
     if (snap.exists()) {
       callback(snap.data());
@@ -143,24 +143,26 @@ export function ouvirEstadoBatalha(codigoSala, callback) {
       callback(null);
     }
   }, (err) => {
-    console.error('[Firebase] Erro ao ouvir estado da batalha:', err);
+    console.error('[Firebase] Erro ao ouvir estado do duelo:', err);
+    if (errorCallback) errorCallback(err);
   });
 }
 
 /**
  * Envia a resposta individual de um aluno para o Firestore.
  */
-export async function enviarRespostaBatalha(codigoSala, pid, equipe, optIdx, correct, speedBonus) {
+export async function enviarRespostaDueloOnline(codigoSala, pid, equipe, optIdx, correct, speedBonus, nomeAluno = '') {
   if (!firebaseInitializado || !db) return false;
   try {
     const chave = codigoSala.trim().toUpperCase();
-    const ref = doc(db, 'salas', chave, 'batalha_respostas', pid);
+    const ref = doc(db, 'salas', chave, 'duelo_respostas', pid);
     await setDoc(ref, {
       team: equipe,
       pid: pid,
       optIdx: optIdx,
       correct: correct,
       speedBonus: speedBonus,
+      nomeAluno: nomeAluno,
       timestamp: new Date().toISOString()
     });
     return true;
@@ -173,27 +175,28 @@ export async function enviarRespostaBatalha(codigoSala, pid, equipe, optIdx, cor
 /**
  * Escuta em tempo real as respostas dos alunos na rodada ativa.
  */
-export function ouvirRespostasBatalha(codigoSala, callback) {
+export function ouvirRespostasDueloOnline(codigoSala, callback, errorCallback = null) {
   if (!firebaseInitializado || !db) return () => {};
   const chave = codigoSala.trim().toUpperCase();
-  const ref = collection(db, 'salas', chave, 'batalha_respostas');
+  const ref = collection(db, 'salas', chave, 'duelo_respostas');
   return onSnapshot(ref, (snap) => {
     const respostas = [];
     snap.forEach(d => respostas.push(d.data()));
     callback(respostas);
   }, (err) => {
-    console.error('[Firebase] Erro ao ouvir respostas da batalha:', err);
+    console.error('[Firebase] Erro ao ouvir respostas do duelo:', err);
+    if (errorCallback) errorCallback(err);
   });
 }
 
 /**
- * Limpa todas as respostas enviadas na subcoleção batalha_respostas.
+ * Limpa todas as respostas enviadas na subcoleção duelo_respostas.
  */
-export async function limparRespostasBatalha(codigoSala) {
+export async function limparRespostasDueloOnline(codigoSala) {
   if (!firebaseInitializado || !db) return false;
   try {
     const chave = codigoSala.trim().toUpperCase();
-    const colRef = collection(db, 'salas', chave, 'batalha_respostas');
+    const colRef = collection(db, 'salas', chave, 'duelo_respostas');
     const snap = await getDocs(colRef);
     const promessas = [];
     snap.forEach(d => {
@@ -202,7 +205,7 @@ export async function limparRespostasBatalha(codigoSala) {
     await Promise.all(promessas);
     return true;
   } catch (e) {
-    console.error('[Firebase] Erro ao limpar respostas da batalha:', e);
+    console.error('[Firebase] Erro ao limpar respostas do duelo:', e);
     throw e;
   }
 }
