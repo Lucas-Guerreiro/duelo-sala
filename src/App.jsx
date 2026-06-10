@@ -615,6 +615,10 @@ export default function App() {
         clearInterval(imAcaoTimerIntRef.current);
         imAcaoTimerIntRef.current = null;
       }
+      if (avancoAutoTimerRef.current) {
+        clearTimeout(avancoAutoTimerRef.current);
+        avancoAutoTimerRef.current = null;
+      }
 
       // Resetar Duelo
       setRodAtual(0);
@@ -655,6 +659,28 @@ export default function App() {
     }
   };
 
+  const programarAvancoAutomatico = () => {
+    if (!dueloAvancoAuto) return;
+    
+    if (avancoAutoTimerRef.current) clearTimeout(avancoAutoTimerRef.current);
+    
+    avancoAutoTimerRef.current = setTimeout(() => {
+      avancoAutoTimerRef.current = null;
+      // Verificar de forma segura se o jogo ainda está na tela e em descanso
+      setTela(currentTela => {
+        if (currentTela === 'jogo') {
+          setRodDescanso(descanso => {
+            if (descanso) {
+              avancarPergunta();
+            }
+            return descanso;
+          });
+        }
+        return currentTela;
+      });
+    }, dueloAvancoAutoSeg * 1000);
+  };
+
   // Persistir tela atual para reinício seguro (apenas se não for modo projetor)
   useEffect(() => {
     if (isProjetorMode) return;
@@ -677,6 +703,32 @@ export default function App() {
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(() => {
     try { return localStorage.getItem('dm_auto_backup') === '1'; } catch (e) { return false; }
   });
+
+  // --- ESTADOS DO AVANÇO AUTOMÁTICO DE PERGUNTAS ---
+  const [dueloAvancoAuto, setDueloAvancoAuto] = useState(() => {
+    try {
+      return localStorage.getItem('dm_duelo_avanco_auto') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+  const [dueloAvancoAutoSeg, setDueloAvancoAutoSeg] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dm_duelo_avanco_auto_seg');
+      return saved ? Number(saved) : 5;
+    } catch (e) {
+      return 5;
+    }
+  });
+
+  const avancoAutoTimerRef = useRef(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('dm_duelo_avanco_auto', dueloAvancoAuto);
+      localStorage.setItem('dm_duelo_avanco_auto_seg', dueloAvancoAutoSeg);
+    } catch (e) { /* noop */ }
+  }, [dueloAvancoAuto, dueloAvancoAutoSeg]);
 
   const imAcaoChannelRef = useRef(null);
   const imAcaoTimerIntRef = useRef(null);
@@ -4933,6 +4985,7 @@ export default function App() {
       pontos: [...novasPontuacoes]
     };
     setHistorico(h => [...h, histItem]);
+    programarAvancoAutomatico();
   };
 
   // --- FUNÇÃO PARA ACIONAR CARTAS DE PODER ---
@@ -5083,6 +5136,7 @@ export default function App() {
       pontos: [...novasPontuacoes]
     };
     setHistorico(h => [...h, histItem]);
+    programarAvancoAutomatico();
   };
 
   const fecharRodadaImediato = (respostasFinais, ordemFinal) => {
@@ -5149,9 +5203,14 @@ export default function App() {
       pontos: [...novasPontuacoes]
     };
     setHistorico(h => [...h, histItem]);
+    programarAvancoAutomatico();
   };
 
   const avancarPergunta = () => {
+    if (avancoAutoTimerRef.current) {
+      clearTimeout(avancoAutoTimerRef.current);
+      avancoAutoTimerRef.current = null;
+    }
     if (rodAtual >= fila.length) {
       playSound('victory');
       setTela('fim');
@@ -8667,6 +8726,44 @@ export default function App() {
                 />
               </div>
             )}
+          </div>
+        </div>
+
+        {/* PAINEL DE CONFIGURAÇÃO DO AVANÇO AUTOMÁTICO */}
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '14px auto', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'left', border: '1px solid rgba(34, 197, 94, 0.15)', boxShadow: dueloAvancoAuto ? '0 0 15px rgba(34, 197, 94, 0.08)' : 'none', transition: 'all 0.3s ease' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#4ade80', marginBottom: '10px', borderLeft: '3px solid #22c55e', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            ⏩ Avanço Automático de Rodadas
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, cursor: 'pointer', textTransform: 'none', fontSize: '0.9rem', color: '#e5e7eb' }}>
+              <input 
+                type="checkbox" 
+                checked={dueloAvancoAuto} 
+                onChange={(e) => { playSound('click'); setDueloAvancoAuto(e.target.checked); }} 
+                style={{ width: 'auto' }}
+              />
+              Avançar automaticamente para a próxima pergunta
+            </label>
+
+            {dueloAvancoAuto && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
+                <span style={{ fontSize: '0.85rem', color: '#86efac', fontWeight: 'bold' }}>
+                  Tempo de exibição do gabarito: <span style={{ color: '#34d399', fontSize: '1rem' }}>{dueloAvancoAutoSeg} segundos</span>
+                </span>
+                <input 
+                  type="range" 
+                  min="2" 
+                  max="15" 
+                  step="1"
+                  value={dueloAvancoAutoSeg}
+                  onChange={(e) => setDueloAvancoAutoSeg(Number(e.target.value))}
+                  style={{ accentColor: '#22c55e', height: '6px', background: 'rgba(255, 255, 255, 0.1)', border: 'none' }}
+                />
+              </div>
+            )}
+            <p style={{ color: '#9ca3af', fontSize: '0.78rem', margin: '4px 0 0 24px', lineHeight: '1.4' }}>
+              Após o encerramento do tempo ou resposta dos dois jogadores, o jogo revelará o gabarito e avançará de rodada sozinho após o tempo configurado.
+            </p>
           </div>
         </div>
 
