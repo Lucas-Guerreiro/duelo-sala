@@ -29,11 +29,11 @@ let firebaseInitializado = false;
  * Se as credenciais estiverem vazias, opera em modo offline silencioso.
  */
 export function initFirebase() {
+  if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+    console.warn('[Firebase] Credenciais não configuradas. Sincronização com nuvem desativada.');
+    return;
+  }
   try {
-    if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-      console.warn('[Firebase] Credenciais não configuradas. Sincronização com nuvem desativada.');
-      return;
-    }
     if (getApps().length === 0) {
       const app = initializeApp(firebaseConfig);
       db = getFirestore(app);
@@ -44,6 +44,7 @@ export function initFirebase() {
     console.log('[Firebase] Inicializado com sucesso.');
   } catch (e) {
     console.error('[Firebase] Erro ao inicializar:', e);
+    throw e;
   }
 }
 
@@ -54,8 +55,7 @@ export function initFirebase() {
  */
 export async function salvarBackupImAcao(payload) {
   if (!firebaseInitializado || !db) {
-    console.warn('[Firebase] Backup ignorado: Firebase não inicializado.');
-    return false;
+    throw new Error("Firebase não inicializado ou sem conexão com o banco de dados.");
   }
   try {
     const ref = doc(db, 'backups', 'imacao');
@@ -75,8 +75,7 @@ export async function salvarBackupImAcao(payload) {
  */
 export async function publicarBancoNuvem(codigoSala, payload) {
   if (!firebaseInitializado || !db) {
-    console.warn('[Firebase] Publicação ignorada: Firebase não inicializado.');
-    return false;
+    throw new Error("Firebase não inicializado ou sem conexão com o banco de dados.");
   }
   try {
     const chave = codigoSala.trim().toUpperCase();
@@ -96,8 +95,7 @@ export async function publicarBancoNuvem(codigoSala, payload) {
  */
 export async function obterBancoNuvem(codigoSala) {
   if (!firebaseInitializado || !db) {
-    console.warn('[Firebase] Busca ignorada: Firebase não inicializado.');
-    return null;
+    throw new Error("Firebase não inicializado ou sem conexão com o banco de dados.");
   }
   try {
     const chave = codigoSala.trim().toUpperCase();
@@ -117,7 +115,9 @@ export async function obterBancoNuvem(codigoSala) {
  * Publica o estado principal do Duelo Online.
  */
 export async function publicarEstadoDueloOnline(codigoSala, state) {
-  if (!firebaseInitializado || !db) return false;
+  if (!firebaseInitializado || !db) {
+    throw new Error("Firebase não inicializado ou sem conexão com o banco de dados.");
+  }
   try {
     const chave = codigoSala.trim().toUpperCase();
     const ref = doc(db, 'salas', chave, 'duelo', 'estado');
@@ -133,7 +133,10 @@ export async function publicarEstadoDueloOnline(codigoSala, state) {
  * Escuta o estado principal do Duelo Online em tempo real.
  */
 export function ouvirEstadoDueloOnline(codigoSala, callback, errorCallback = null) {
-  if (!firebaseInitializado || !db) return () => {};
+  if (!firebaseInitializado || !db) {
+    if (errorCallback) errorCallback(new Error("Firebase não inicializado ou sem conexão com o banco de dados."));
+    return () => {};
+  }
   const chave = codigoSala.trim().toUpperCase();
   const ref = doc(db, 'salas', chave, 'duelo', 'estado');
   return onSnapshot(ref, (snap) => {
@@ -152,7 +155,9 @@ export function ouvirEstadoDueloOnline(codigoSala, callback, errorCallback = nul
  * Envia a resposta individual de um aluno para o Firestore.
  */
 export async function enviarRespostaDueloOnline(codigoSala, pid, equipe, optIdx, correct, speedBonus, nomeAluno = '') {
-  if (!firebaseInitializado || !db) return false;
+  if (!firebaseInitializado || !db) {
+    throw new Error("Firebase não inicializado ou sem conexão com o banco de dados.");
+  }
   try {
     const chave = codigoSala.trim().toUpperCase();
     const ref = doc(db, 'salas', chave, 'duelo_respostas', pid);
@@ -176,7 +181,10 @@ export async function enviarRespostaDueloOnline(codigoSala, pid, equipe, optIdx,
  * Escuta em tempo real as respostas dos alunos na rodada ativa.
  */
 export function ouvirRespostasDueloOnline(codigoSala, callback, errorCallback = null) {
-  if (!firebaseInitializado || !db) return () => {};
+  if (!firebaseInitializado || !db) {
+    if (errorCallback) errorCallback(new Error("Firebase não inicializado ou sem conexão com o banco de dados."));
+    return () => {};
+  }
   const chave = codigoSala.trim().toUpperCase();
   const ref = collection(db, 'salas', chave, 'duelo_respostas');
   return onSnapshot(ref, (snap) => {
@@ -193,7 +201,9 @@ export function ouvirRespostasDueloOnline(codigoSala, callback, errorCallback = 
  * Limpa todas as respostas enviadas na subcoleção duelo_respostas.
  */
 export async function limparRespostasDueloOnline(codigoSala) {
-  if (!firebaseInitializado || !db) return false;
+  if (!firebaseInitializado || !db) {
+    throw new Error("Firebase não inicializado ou sem conexão com o banco de dados.");
+  }
   try {
     const chave = codigoSala.trim().toUpperCase();
     const colRef = collection(db, 'salas', chave, 'duelo_respostas');

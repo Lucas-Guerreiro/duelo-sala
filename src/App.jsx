@@ -920,7 +920,12 @@ export default function App() {
   }, [cartasImAcao]);
 
   useEffect(() => {
-    initFirebase();
+    try {
+      initFirebase();
+    } catch (err) {
+      console.error('Falha ao inicializar Firebase:', err);
+      setFirebaseErroMsg('Falha ao inicializar Banco de Dados: ' + (err.message || String(err)));
+    }
   }, []);
 
   // Captura global de erros para diagnosticar tela em branco
@@ -2886,8 +2891,8 @@ export default function App() {
 
     const unsub = ouvirRespostasDueloOnline(codigoSalaOnline, (respostas) => {
       setDueloRespostasRodada(respostas);
-      const time0Conectados = respostas.filter(r => r.team === 0).length;
-      const time1Conectados = respostas.filter(r => r.team === 1).length;
+      const time0Conectados = respostas.filter(r => Number(r.team) === 0).length;
+      const time1Conectados = respostas.filter(r => Number(r.team) === 1).length;
       setDueloConectados([time0Conectados, time1Conectados]);
     }, (err) => {
       setFirebaseErroMsg('Escuta do Professor: ' + (err.message || String(err)));
@@ -11530,6 +11535,26 @@ export default function App() {
           )
         )}
 
+        <div style={{
+          background: 'rgba(124, 58, 237, 0.08)',
+          border: '1px solid rgba(124, 58, 237, 0.25)',
+          borderRadius: '12px',
+          padding: '14px 18px',
+          maxWidth: '650px',
+          margin: '0 auto 24px',
+          color: '#ddd6fe',
+          fontSize: '0.85rem',
+          textAlign: 'left',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+          boxShadow: '0 4px 15px rgba(124, 58, 237, 0.05)'
+        }}>
+          <span style={{ fontWeight: 'bold', color: '#a78bfa', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '6px' }}>🛡️ Dica de Conexão: Brave / Bloqueadores de Anúncios</span>
+          <span>Navegadores com bloqueio ativo (especialmente o **Brave** no celular dos alunos) bloqueiam o banco de dados do Firebase por privacidade.</span>
+          <span>Se o aluno conectar no celular e não aparecer na lista abaixo, peça para ele **desativar o Brave Shields** (ícone de leão ao lado da URL no celular) ou pausar bloqueadores de anúncios (AdBlock) na página do jogo.</span>
+        </div>
+
         <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', width: '100%', maxWidth: '800px', flexWrap: 'wrap', marginBottom: '30px' }}>
           {/* Lado Azul */}
           <div className="duelo-card-lobby blue">
@@ -11539,10 +11564,10 @@ export default function App() {
             <div style={{ marginTop: '15px' }}>
               <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#93c5fd', marginBottom: '8px' }}>👤 Conectados: {dueloConectados[0]}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', maxHeight: '100px', overflowY: 'auto', padding: '5px' }}>
-                {dueloRespostasRodada.filter(r => r.team === 0).length === 0 ? (
+                {dueloRespostasRodada.filter(r => Number(r.team) === 0).length === 0 ? (
                   <span style={{ color: '#64748b', fontSize: '0.8rem', fontStyle: 'italic' }}>Ninguém conectado ainda...</span>
                 ) : (
-                  dueloRespostasRodada.filter(r => r.team === 0).map((r, i) => (
+                  dueloRespostasRodada.filter(r => Number(r.team) === 0).map((r, i) => (
                     <span key={r.pid || i} className="badge-aluno blue">
                       {r.nomeAluno || `Aluno #${(r.pid || '').substring(1, 5)}`}
                     </span>
@@ -11560,10 +11585,10 @@ export default function App() {
             <div style={{ marginTop: '15px' }}>
               <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#f9a8d4', marginBottom: '8px' }}>👤 Conectados: {dueloConectados[1]}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', maxHeight: '100px', overflowY: 'auto', padding: '5px' }}>
-                {dueloRespostasRodada.filter(r => r.team === 1).length === 0 ? (
+                {dueloRespostasRodada.filter(r => Number(r.team) === 1).length === 0 ? (
                   <span style={{ color: '#64748b', fontSize: '0.8rem', fontStyle: 'italic' }}>Ninguém conectado ainda...</span>
                 ) : (
-                  dueloRespostasRodada.filter(r => r.team === 1).map((r, i) => (
+                  dueloRespostasRodada.filter(r => Number(r.team) === 1).map((r, i) => (
                     <span key={r.pid || i} className="badge-aluno pink">
                       {r.nomeAluno || `Aluno #${(r.pid || '').substring(1, 5)}`}
                     </span>
@@ -11857,7 +11882,7 @@ export default function App() {
                   <span className="last-gain-tag blue">+{dueloEstado.teams[0].lastGain}% líquido</span>
                 )}
                 <span style={{ fontSize: '0.8rem', color: '#93c5fd', marginTop: '5px' }}>
-                  👤 {dueloRespostasRodada.filter(r => r.team === 0).length} de {dueloConectados[0]} prontos
+                  👤 {dueloRespostasRodada.filter(r => Number(r.team) === 0).length} de {dueloConectados[0]} prontos
                 </span>
               </div>
             </div>
@@ -11921,13 +11946,13 @@ export default function App() {
                         <div>
                           <span style={{ color: '#60a5fa', fontWeight: 'bold' }}>🔵 {nomeJ1 || 'Equipe Azul'}:</span>{' '}
                           <span style={{ color: '#fff', fontWeight: 'bold' }}>
-                            {dueloRespostasRodada.filter(r => r.team === 0 && r.correct && r.optIdx !== -1).length} / {Math.max(1, dueloRespostasRodada.filter(r => r.team === 0 && r.optIdx !== -1).length)} acertos
+                            {dueloRespostasRodada.filter(r => Number(r.team) === 0 && r.correct && r.optIdx !== -1).length} / {Math.max(1, dueloRespostasRodada.filter(r => Number(r.team) === 0 && r.optIdx !== -1).length)} acertos
                           </span>
                         </div>
                         <div>
                           <span style={{ color: '#f472b6', fontWeight: 'bold' }}>🩷 {nomeJ2 || 'Equipe Rosa'}:</span>{' '}
                           <span style={{ color: '#fff', fontWeight: 'bold' }}>
-                            {dueloRespostasRodada.filter(r => r.team === 1 && r.correct && r.optIdx !== -1).length} / {Math.max(1, dueloRespostasRodada.filter(r => r.team === 1 && r.optIdx !== -1).length)} acertos
+                            {dueloRespostasRodada.filter(r => Number(r.team) === 1 && r.correct && r.optIdx !== -1).length} / {Math.max(1, dueloRespostasRodada.filter(r => Number(r.team) === 1 && r.optIdx !== -1).length)} acertos
                           </span>
                         </div>
                       </div>
@@ -11935,10 +11960,10 @@ export default function App() {
                       {dueloEstado.fastestStudent && (
                         <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '12px', paddingTop: '10px', textAlign: 'center', color: '#e2e8f0', fontSize: '0.88rem' }}>
                           ⚡ <span style={{ color: '#fb923c', fontWeight: 'black' }}>Aluno Mais Rápido:</span>{' '}
-                          <span style={{ fontWeight: 'bold', color: dueloEstado.fastestStudent.team === 0 ? '#60a5fa' : '#f472b6' }}>
+                          <span style={{ fontWeight: 'bold', color: Number(dueloEstado.fastestStudent.team) === 0 ? '#60a5fa' : '#f472b6' }}>
                             {dueloRespostasRodada.find(r => r.pid === dueloEstado.fastestStudent.pid)?.nomeAluno || 'Anônimo'}
                           </span>{' '}
-                          (Equipe {dueloEstado.fastestStudent.team === 0 ? nomeJ1 || 'Azul' : nomeJ2 || 'Rosa'})!
+                          (Equipe {Number(dueloEstado.fastestStudent.team) === 0 ? nomeJ1 || 'Azul' : nomeJ2 || 'Rosa'})!
                         </div>
                       )}
                     </div>
@@ -11981,7 +12006,7 @@ export default function App() {
                   <span className="last-gain-tag pink">+{dueloEstado.teams[1].lastGain}% líquido</span>
                 )}
                 <span style={{ fontSize: '0.8rem', color: '#f9a8d4', marginTop: '5px' }}>
-                  👤 {dueloRespostasRodada.filter(r => r.team === 1).length} de {dueloConectados[1]} prontos
+                  👤 {dueloRespostasRodada.filter(r => Number(r.team) === 1).length} de {dueloConectados[1]} prontos
                 </span>
               </div>
             </div>
@@ -12377,6 +12402,9 @@ export default function App() {
             >
               Entrar no Duelo 🎮
             </button>
+            <p style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '18px', lineHeight: '1.4', textAlign: 'center' }}>
+              🛡️ <strong>Nota de privacidade:</strong> Se você estiver usando o navegador <strong>Brave</strong> ou outro bloqueador de anúncios no celular e não aparecer no painel do professor, desative o <strong>Brave Shields</strong> (ícone do leão ao lado da URL) para liberar a conexão.
+            </p>
           </div>
         ) : (
           /* JOGO DO ALUNO CONECTADO */
