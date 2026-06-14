@@ -2884,11 +2884,13 @@ export default function App() {
     if (!codigoSalaOnline.trim()) return;
 
     const unsub = ouvirRespostasDueloOnline(codigoSalaOnline, (respostas) => {
-      setDueloRespostasRodada(respostas);
+      console.log("Snapshot recebido. Total de jogadores:", respostas.length, respostas);
+      setDueloRespostasRodada([...respostas]);
       const time0Conectados = respostas.filter(r => Number(r.team) === 0).length;
       const time1Conectados = respostas.filter(r => Number(r.team) === 1).length;
       setDueloConectados([time0Conectados, time1Conectados]);
     }, (err) => {
+      console.error('[Host] Erro no listener do Firestore:', err);
       setFirebaseErroMsg('Escuta do Professor: ' + (err.message || String(err)));
     });
 
@@ -2903,6 +2905,9 @@ export default function App() {
     // Envia presença inicial do aluno (como optIdx = -1) se ele tiver apelido cadastrado
     if (dueloApelidoAluno) {
       enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, dueloApelidoAluno)
+        .then(() => {
+          console.log("Presença inicial confirmada no banco com o apelido:", dueloApelidoAluno);
+        })
         .catch(err => {
           console.error('Erro de presença:', err);
           setFirebaseErroMsg('Presença inicial: ' + (err.message || String(err)));
@@ -2917,6 +2922,9 @@ export default function App() {
       // para garantir que ele apareça no painel do professor caso o painel tenha sido limpo/reiniciado.
       if (estado.phase === 'waiting' && dueloApelidoAluno) {
         enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, dueloApelidoAluno)
+          .then(() => {
+            console.log("Reenvio de presença no lobby confirmado no banco com:", dueloApelidoAluno);
+          })
           .catch(err => {
             console.error('Erro de reenvio de presença no lobby:', err);
             setFirebaseErroMsg('Reenvio de presença: ' + (err.message || String(err)));
@@ -12446,6 +12454,9 @@ export default function App() {
                 
                 // Envia a presença de forma assíncrona imediatamente com o apelido válido
                 enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, val)
+                  .then(() => {
+                    console.log("Entrada confirmada no banco com o apelido:", val);
+                  })
                   .catch(err => {
                     console.error('Erro de presença no clique:', err);
                     setFirebaseErroMsg('Erro ao Entrar no Duelo: ' + (err.message || String(err)));
