@@ -2904,6 +2904,7 @@ export default function App() {
 
     // Envia presença inicial do aluno (como optIdx = -1) se ele tiver apelido cadastrado
     if (dueloApelidoAluno) {
+      console.log("Tentando gravar no caminho (presença inicial): salas/" + codigoSalaOnline + "/duelo_respostas/" + dueloMeuPid);
       enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, dueloApelidoAluno)
         .then(() => {
           console.log("Presença inicial confirmada no banco com o apelido:", dueloApelidoAluno);
@@ -2921,6 +2922,7 @@ export default function App() {
       // Se a fase for 'waiting' (lobby de QR Code) e o aluno tem apelido, reenvia a presença para o Firestore
       // para garantir que ele apareça no painel do professor caso o painel tenha sido limpo/reiniciado.
       if (estado.phase === 'waiting' && dueloApelidoAluno) {
+        console.log("Tentando gravar no caminho (lobby reenvio): salas/" + codigoSalaOnline + "/duelo_respostas/" + dueloMeuPid);
         enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, dueloApelidoAluno)
           .then(() => {
             console.log("Reenvio de presença no lobby confirmado no banco com:", dueloApelidoAluno);
@@ -11565,7 +11567,7 @@ export default function App() {
             <img className="qr-img" src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?jogo=duelo&sala=${codigoSalaOnline}&equipe=0`)}`} alt="QR Code Azul" width={170} height={170} />
             <div style={{ marginTop: '15px' }}>
               <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#93c5fd', marginBottom: '8px' }}>👤 Conectados: {dueloConectados[0]}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', maxHeight: '100px', overflowY: 'auto', padding: '5px' }}>
+              <div key={`conectados-blue-${dueloRespostasRodada.filter(r => Number(r.team) === 0).length}`} style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', maxHeight: '100px', overflowY: 'auto', padding: '5px' }}>
                 {dueloRespostasRodada.filter(r => Number(r.team) === 0).length === 0 ? (
                   <span style={{ color: '#64748b', fontSize: '0.8rem', fontStyle: 'italic' }}>Ninguém conectado ainda...</span>
                 ) : (
@@ -11586,7 +11588,7 @@ export default function App() {
             <img className="qr-img" src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?jogo=duelo&sala=${codigoSalaOnline}&equipe=1`)}`} alt="QR Code Rosa" width={170} height={170} />
             <div style={{ marginTop: '15px' }}>
               <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#f9a8d4', marginBottom: '8px' }}>👤 Conectados: {dueloConectados[1]}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', maxHeight: '100px', overflowY: 'auto', padding: '5px' }}>
+              <div key={`conectados-pink-${dueloRespostasRodada.filter(r => Number(r.team) === 1).length}`} style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', maxHeight: '100px', overflowY: 'auto', padding: '5px' }}>
                 {dueloRespostasRodada.filter(r => Number(r.team) === 1).length === 0 ? (
                   <span style={{ color: '#64748b', fontSize: '0.8rem', fontStyle: 'italic' }}>Ninguém conectado ainda...</span>
                 ) : (
@@ -12104,7 +12106,7 @@ export default function App() {
               </div>
 
               {/* Alunos da Equipe Azul (Puxadores na Esquerda) */}
-              <div style={{
+              <div key={`arena-puxadores-blue-${dueloRespostasRodada.filter(r => Number(r.team) === 0).length}`} style={{
                 position: 'absolute',
                 left: '20px',
                 bottom: '10px',
@@ -12198,7 +12200,7 @@ export default function App() {
               </div>
 
               {/* Alunos da Equipe Rosa (Puxadores na Direita) */}
-              <div style={{
+              <div key={`arena-puxadores-pink-${dueloRespostasRodada.filter(r => Number(r.team) === 1).length}`} style={{
                 position: 'absolute',
                 right: '20px',
                 bottom: '10px',
@@ -12448,14 +12450,16 @@ export default function App() {
                   alert('Por favor, digite um apelido válido!');
                   return;
                 }
-                localStorage.setItem('duelo_apelido', val);
-                setDueloApelidoAluno(val);
                 playSound('click');
                 
-                // Envia a presença de forma assíncrona imediatamente com o apelido válido
+                // Log de depuração do caminho da gravação
+                console.log("Tentando gravar no caminho: salas/" + codigoSalaOnline + "/duelo_respostas/" + dueloMeuPid);
+                
                 enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, val)
                   .then(() => {
                     console.log("Entrada confirmada no banco com o apelido:", val);
+                    localStorage.setItem('duelo_apelido', val);
+                    setDueloApelidoAluno(val);
                   })
                   .catch(err => {
                     console.error('Erro de presença no clique:', err);

@@ -172,7 +172,8 @@ export async function enviarRespostaDueloOnline(codigoSala, pid, equipe, optIdx,
     });
     return true;
   } catch (e) {
-    console.error('[Firebase] Erro ao enviar resposta do aluno:', e);
+    console.error("Erro ao gravar aluno no Firestore:", e);
+    alert("Falha de conexão com o servidor do jogo! Não foi possível salvar seu jogador no banco de dados.\n\nDetalhes: " + (e.message || String(e)));
     throw e;
   }
 }
