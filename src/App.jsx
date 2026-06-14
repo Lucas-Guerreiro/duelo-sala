@@ -2901,16 +2901,25 @@ export default function App() {
     if (tela !== 'duelo-aluno') return;
     if (!codigoSalaOnline.trim()) return;
 
-    // Envia presença inicial do aluno (como optIdx = -1)
-    enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, dueloApelidoAluno)
-      .catch(err => {
-        console.error('Erro de presença:', err);
-        setFirebaseErroMsg('Presença inicial: ' + (err.message || String(err)));
-      });
+    // Envia presença inicial do aluno (como optIdx = -1) se ele tiver apelido cadastrado
+    if (dueloApelidoAluno) {
+      enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, dueloApelidoAluno)
+        .catch(err => {
+          console.error('Erro de presença:', err);
+          setFirebaseErroMsg('Presença inicial: ' + (err.message || String(err)));
+        });
+    }
 
     const unsub = ouvirEstadoDueloOnline(codigoSalaOnline, (estado) => {
       if (!estado) return;
       setDueloEstado(estado);
+
+      // Se a fase for 'waiting' (lobby de QR Code) e o aluno tem apelido, reenvia a presença para o Firestore
+      // para garantir que ele apareça no painel do professor caso o painel tenha sido limpo/reiniciado.
+      if (estado.phase === 'waiting' && dueloApelidoAluno) {
+        enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, dueloApelidoAluno)
+          .catch(err => console.error('Erro de reenvio de presença no lobby:', err));
+      }
 
       // Se virou pergunta, reseta estado local do aluno
       if (estado.phase === 'question' && estado.currentQ) {
@@ -2930,7 +2939,7 @@ export default function App() {
     });
 
     return () => unsub();
-  }, [tela, codigoSalaOnline, dueloMeuTime, dueloApelidoAluno]);
+  }, [tela, codigoSalaOnline, dueloMeuTime, dueloApelidoAluno, dueloMeuPid]);
 
   // --- ESTADOS DO GAMEPAD E DETECÇÃO ---
   const [gamepadsConectados, setGamepadsConectados] = useState([]);
