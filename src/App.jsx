@@ -1440,12 +1440,27 @@ export default function App() {
     const salaParam = params.get('sala');
     const equipeParam = params.get('equipe');
 
-    if (jogoParam === 'duelo' && salaParam && equipeParam) {
-      setCodigoSalaOnline(salaParam);
-      const eq = parseInt(equipeParam, 10);
-      setDueloMeuTime(isNaN(eq) ? 0 : eq);
-      setDueloModoControle('celular');
-      setTela('duelo-aluno');
+    if (jogoParam === 'duelo') {
+      if (!salaParam || !salaParam.trim()) {
+        const erroMsg = "Erro: Parâmetro 'sala' ausente ou inválido na URL!";
+        console.error(erroMsg);
+        alert(erroMsg);
+        setFirebaseErroMsg(erroMsg);
+        setTela('menu');
+      } else if (!equipeParam || isNaN(parseInt(equipeParam, 10))) {
+        const erroMsg = "Erro: Parâmetro 'equipe' ausente ou inválido na URL!";
+        console.error(erroMsg);
+        alert(erroMsg);
+        setFirebaseErroMsg(erroMsg);
+        setTela('menu');
+      } else {
+        const salaLimpa = salaParam.trim();
+        setCodigoSalaOnline(salaLimpa);
+        const eq = parseInt(equipeParam, 10);
+        setDueloMeuTime(eq);
+        setDueloModoControle('celular');
+        setTela('duelo-aluno');
+      }
     }
 
     if (params.get('projetor') === 'true') {
@@ -2882,6 +2897,8 @@ export default function App() {
   useEffect(() => {
     if (tela !== 'duelo-qr' && tela !== 'duelo-online-game') return;
     if (!codigoSalaOnline.trim()) return;
+
+    console.log("Monitorando agora a sala: ", codigoSalaOnline);
 
     const unsub = ouvirRespostasDueloOnline(codigoSalaOnline, (respostas) => {
       console.log("Snapshot recebido. Total de jogadores:", respostas.length, respostas);
