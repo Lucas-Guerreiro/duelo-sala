@@ -2918,7 +2918,10 @@ export default function App() {
       // para garantir que ele apareça no painel do professor caso o painel tenha sido limpo/reiniciado.
       if (estado.phase === 'waiting' && dueloApelidoAluno) {
         enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, dueloApelidoAluno)
-          .catch(err => console.error('Erro de reenvio de presença no lobby:', err));
+          .catch(err => {
+            console.error('Erro de reenvio de presença no lobby:', err);
+            setFirebaseErroMsg('Reenvio de presença: ' + (err.message || String(err)));
+          });
       }
 
       // Se virou pergunta, reseta estado local do aluno
@@ -5111,7 +5114,10 @@ export default function App() {
 
       publicarEstadoDueloOnline(codigoSalaOnline, novoEstado)
         .then(() => limparRespostasDueloOnline(codigoSalaOnline))
-        .catch(err => console.error('Erro de inicialização no Firebase:', err));
+        .catch(err => {
+          console.error('Erro de inicialização no Firebase:', err);
+          setFirebaseErroMsg('Inicialização de Sala: ' + (err.message || String(err)));
+        });
 
       irParaTela('duelo-qr');
       playSound('click');
@@ -11452,14 +11458,21 @@ export default function App() {
             color: '#fca5a5',
             fontSize: '0.88rem',
             fontWeight: 'bold',
-            textAlign: 'center',
+            textAlign: 'left',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '12px'
           }}>
-            <span>❌ Erro no Firestore: {firebaseErroMsg}</span>
-            <button style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.78rem' }} onClick={() => setFirebaseErroMsg(null)}>Ignorar</button>
+            <div style={{ flex: 1 }}>
+              <div>❌ Erro no Firestore: {firebaseErroMsg}</div>
+              {(String(firebaseErroMsg).toLowerCase().includes('permission') || String(firebaseErroMsg).toLowerCase().includes('insufficient')) && (
+                <div style={{ fontSize: '0.78rem', color: '#fca5a5', marginTop: '6px', fontWeight: 'normal', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '6px' }}>
+                  💡 <strong>Como resolver:</strong> Suas regras do Firestore expiraram ou estão bloqueando acesso. No painel do Firebase Console do seu projeto, vá em <strong>Cloud Firestore → Rules (Regras)</strong> e mude para permitir leituras/escritas (ex: <code>allow read, write: if true;</code>).
+                </div>
+              )}
+            </div>
+            <button style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => setFirebaseErroMsg(null)}>Ignorar</button>
           </div>
         )}
 
@@ -12307,15 +12320,22 @@ export default function App() {
             color: '#fca5a5',
             fontSize: '0.85rem',
             fontWeight: 'bold',
-            textAlign: 'center',
+            textAlign: 'left',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '8px',
             boxSizing: 'border-box'
           }}>
-            <span>❌ Erro de Conexão: {firebaseErroMsg}</span>
-            <button style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '3px 6px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }} onClick={() => setFirebaseErroMsg(null)}>Ignorar</button>
+            <div style={{ flex: 1 }}>
+              <div>❌ Erro de Conexão: {firebaseErroMsg}</div>
+              {(String(firebaseErroMsg).toLowerCase().includes('permission') || String(firebaseErroMsg).toLowerCase().includes('insufficient')) && (
+                <div style={{ fontSize: '0.75rem', color: '#fca5a5', marginTop: '6px', fontWeight: 'normal', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '6px' }}>
+                  💡 <strong>Como resolver:</strong> Avise o professor que as regras de segurança do Firestore no Firebase precisam ser configuradas para liberar acesso de leitura/escrita no Console do Firebase.
+                </div>
+              )}
+            </div>
+            <button style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '3px 6px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', flexShrink: 0 }} onClick={() => setFirebaseErroMsg(null)}>Ignorar</button>
           </div>
         )}
 
@@ -12349,7 +12369,10 @@ export default function App() {
                 
                 // Envia a presença de forma assíncrona imediatamente com o apelido válido
                 enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, val)
-                  .catch(err => console.error('Erro de presença no clique:', err));
+                  .catch(err => {
+                    console.error('Erro de presença no clique:', err);
+                    setFirebaseErroMsg('Erro ao Entrar no Duelo: ' + (err.message || String(err)));
+                  });
               }}
             >
               Entrar no Duelo 🎮
