@@ -161,7 +161,10 @@ export async function enviarRespostaDueloOnline(codigoSala, pid, equipe, optIdx,
   try {
     const chave = codigoSala.trim().toUpperCase();
     const ref = doc(db, 'salas', chave, 'duelo_respostas', pid);
-    await setDoc(ref, {
+    
+    console.log(`[Firebase] Iniciando setDoc no caminho: salas/${chave}/duelo_respostas/${pid} para o aluno "${nomeAluno}"`);
+
+    const gravarPromise = setDoc(ref, {
       team: equipe,
       pid: pid,
       optIdx: optIdx,
@@ -169,11 +172,21 @@ export async function enviarRespostaDueloOnline(codigoSala, pid, equipe, optIdx,
       speedBonus: speedBonus,
       nomeAluno: nomeAluno,
       timestamp: new Date().toISOString()
+    }).then(() => {
+      console.log(`[Firebase] setDoc gravado com sucesso para o aluno "${nomeAluno}"`);
+      return true;
     });
+
+    // Timeout de 6 segundos para não travar a interface do aluno se o Firestore estiver sem resposta
+    await Promise.race([
+      gravarPromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("O servidor do Firebase não respondeu à tentativa de gravação (Timeout de 6 segundos). Verifique se as Regras de Segurança do Firestore no Console do Firebase permitem escrita pública ou se há algum bloqueador ativo.")), 6000))
+    ]);
+
     return true;
   } catch (e) {
     console.error("Erro ao gravar aluno no Firestore:", e);
-    alert("Falha de conexão com o servidor do jogo! Não foi possível salvar seu jogador no banco de dados.\n\nDetalhes: " + (e.message || String(e)));
+    alert("Falha de conexão com o servidor do jogo!\nNão foi possível salvar seu jogador no banco de dados.\n\nDetalhes do erro: " + (e.message || String(e)));
     throw e;
   }
 }
