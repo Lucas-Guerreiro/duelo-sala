@@ -799,13 +799,7 @@ export default function App() {
       return 'p' + Math.random().toString(36).substring(2, 10);
     }
   });
-  const [dueloApelidoAluno, setDueloApelidoAluno] = useState(() => {
-    try {
-      return localStorage.getItem('duelo_apelido') || '';
-    } catch (e) {
-      return '';
-    }
-  });
+  const [dueloApelidoAluno, setDueloApelidoAluno] = useState('');
   const [dueloRespondida, setDueloRespondida] = useState(false);
   const [dueloOpcaoSelecionada, setDueloOpcaoSelecionada] = useState(null);
   const [dueloRespostaCorreta, setDueloRespostaCorreta] = useState(null);
@@ -12376,6 +12370,7 @@ export default function App() {
               maxLength={15}
               placeholder="Ex: Lucas" 
               id="input-apelido-aluno"
+              defaultValue={localStorage.getItem('duelo_apelido') || ''}
               style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '2px solid rgba(139, 92, 246, 0.4)', borderRadius: '12px', padding: '14px 18px', color: '#fff', fontSize: '1.1rem', outline: 'none', textAlign: 'center', marginBottom: '20px', boxSizing: 'border-box' }}
             />
             
