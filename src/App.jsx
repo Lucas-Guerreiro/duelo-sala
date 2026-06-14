@@ -2736,8 +2736,8 @@ export default function App() {
     };
 
     // Respostas válidas de cada time
-    const equipe1Ans = dueloRespostasRodada.filter(r => r.team === 0 && r.optIdx !== -1);
-    const equipe2Ans = dueloRespostasRodada.filter(r => r.team === 1 && r.optIdx !== -1);
+    const equipe1Ans = dueloRespostasRodada.filter(r => Number(r.team) === 0 && r.optIdx !== -1);
+    const equipe2Ans = dueloRespostasRodada.filter(r => Number(r.team) === 1 && r.optIdx !== -1);
 
     // Calcular quem respondeu correto mais rápido globalmente para o bônus de velocidade de rodada
     let maisRapidoAcertou = null;
@@ -2746,7 +2746,7 @@ export default function App() {
       todasRespostasCorretas.sort((a, b) => b.speedBonus - a.speedBonus);
       maisRapidoAcertou = todasRespostasCorretas[0];
       novoEstado.fastestStudent = {
-        team: maisRapidoAcertou.team,
+        team: Number(maisRapidoAcertou.team),
         pid: maisRapidoAcertou.pid
       };
     }
@@ -12028,7 +12028,7 @@ export default function App() {
               <div style={{ textAlign: 'left' }}>
                 <span style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 'black', textTransform: 'uppercase' }}>🔵 {nomeJ1 || 'Equipe Azul'}</span>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                  👤 {dueloRespostasRodada.filter(r => r.team === 0).length} de {dueloConectados[0]} prontos
+                  👤 {dueloRespostasRodada.filter(r => Number(r.team) === 0).length} de {dueloConectados[0]} prontos
                 </div>
               </div>
               
@@ -12051,7 +12051,7 @@ export default function App() {
               <div style={{ textAlign: 'right' }}>
                 <span style={{ fontSize: '0.8rem', color: '#f472b6', fontWeight: 'black', textTransform: 'uppercase' }}>🩷 {nomeJ2 || 'Equipe Rosa'}</span>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                  👤 {dueloRespostasRodada.filter(r => r.team === 1).length} de {dueloConectados[1]} prontos
+                  👤 {dueloRespostasRodada.filter(r => Number(r.team) === 1).length} de {dueloConectados[1]} prontos
                 </div>
               </div>
             </div>
@@ -12093,6 +12093,34 @@ export default function App() {
               }}>
                 <span style={{ fontSize: '3rem', filter: 'drop-shadow(0 0 10px rgba(59, 130, 246, 0.5))' }}>🏃‍♂️🔵</span>
                 <span style={{ fontSize: '2rem', opacity: 0.6, transform: 'scaleX(-1)' }}>🧑‍🤝‍🧑</span>
+              </div>
+
+              {/* Alunos da Equipe Azul (Puxadores na Esquerda) */}
+              <div style={{
+                position: 'absolute',
+                left: '20px',
+                bottom: '10px',
+                display: 'flex',
+                gap: '4px',
+                flexWrap: 'wrap',
+                maxWidth: '40%',
+                zIndex: 3
+              }}>
+                {dueloRespostasRodada.filter(r => Number(r.team) === 0).map((r, i) => (
+                  <span key={r.pid || i} style={{
+                    fontSize: '0.68rem',
+                    background: 'rgba(59, 130, 246, 0.25)',
+                    border: '1px solid rgba(59, 130, 246, 0.4)',
+                    padding: '1px 6px',
+                    borderRadius: '6px',
+                    color: '#93c5fd',
+                    fontWeight: 'bold',
+                    textShadow: '0 0 4px rgba(59, 130, 246, 0.3)',
+                    animation: 'popIn 0.3s ease-out'
+                  }}>
+                    {r.nomeAluno || 'Anônimo'}
+                  </span>
+                ))}
               </div>
 
               {/* A CORDA DE NEON */}
@@ -12159,6 +12187,35 @@ export default function App() {
               }}>
                 <span style={{ fontSize: '2rem', opacity: 0.6 }}>🧑‍🤝‍🧑</span>
                 <span style={{ fontSize: '3rem', filter: 'drop-shadow(0 0 10px rgba(236, 72, 153, 0.5))' }}>🩷🏃‍♀️</span>
+              </div>
+
+              {/* Alunos da Equipe Rosa (Puxadores na Direita) */}
+              <div style={{
+                position: 'absolute',
+                right: '20px',
+                bottom: '10px',
+                display: 'flex',
+                gap: '4px',
+                flexWrap: 'wrap',
+                maxWidth: '40%',
+                justifyContent: 'flex-end',
+                zIndex: 3
+              }}>
+                {dueloRespostasRodada.filter(r => Number(r.team) === 1).map((r, i) => (
+                  <span key={r.pid || i} style={{
+                    fontSize: '0.68rem',
+                    background: 'rgba(236, 72, 153, 0.25)',
+                    border: '1px solid rgba(236, 72, 153, 0.4)',
+                    padding: '1px 6px',
+                    borderRadius: '6px',
+                    color: '#f9a8d4',
+                    fontWeight: 'bold',
+                    textShadow: '0 0 4px rgba(236, 72, 153, 0.3)',
+                    animation: 'popIn 0.3s ease-out'
+                  }}>
+                    {r.nomeAluno || 'Anônimo'}
+                  </span>
+                ))}
               </div>
             </div>
 
