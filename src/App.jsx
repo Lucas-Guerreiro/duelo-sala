@@ -586,7 +586,7 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('projetor') === 'true') return 'ia-projetor';
       const last = localStorage.getItem('dm_last_tela');
-      if (last === 'ia-projetor' || last === 'ia-projetor-fim') return 'menu';
+      if (last === 'ia-projetor' || last === 'ia-projetor-fim' || last === 'duelo-aluno') return 'menu';
       return last || 'menu';
     } catch (e) {
       return 'menu';
@@ -684,6 +684,7 @@ export default function App() {
   // Persistir tela atual para reinício seguro (apenas se não for modo projetor)
   useEffect(() => {
     if (isProjetorMode) return;
+    if (tela === 'duelo-aluno') return;
     try { localStorage.setItem('dm_last_tela', tela); } catch (e) { /* noop */ }
   }, [tela, isProjetorMode]);
 
