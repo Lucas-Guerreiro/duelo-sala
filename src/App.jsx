@@ -773,6 +773,7 @@ export default function App() {
 
   // --- ESTADOS DO DUELO ONLINE (CELULAR) ---
   const [dueloModoControle, setDueloModoControle] = useState('fisico'); // 'fisico' ou 'celular'
+  const [dueloModoJogo, setDueloModoJogo] = useState('normal'); // 'normal' ou 'cabodeguerra'
   const [dueloEstado, setDueloEstado] = useState({
     teams: [{ name: 'Meninos', score: 0 }, { name: 'Meninas', score: 0 }],
     qtime: 30,
@@ -2768,28 +2769,63 @@ export default function App() {
     const ganhoTime1 = calcularGanho(equipe1Ans, 0);
     const ganhoTime2 = calcularGanho(equipe2Ans, 1);
 
-    const novoScore1 = Math.min(100, (dueloEstado.teams[0].score || 0) + ganhoTime1);
-    const novoScore2 = Math.min(100, (dueloEstado.teams[1].score || 0) + ganhoTime2);
+    if (dueloModoJogo === 'cabodeguerra') {
+      const forcaAzul = ganhoTime1 * 1.5;
+      const forcaRosa = ganhoTime2 * 1.5;
+      const delta = forcaRosa - forcaAzul;
+      
+      let cordaAtual = dueloEstado.cordaPos !== undefined ? dueloEstado.cordaPos : 50;
+      let novaCordaPos = Math.max(0, Math.min(100, cordaAtual + delta));
+      
+      novoEstado.cordaPos = novaCordaPos;
+      novoEstado.teams[0].lastGain = ganhoTime1;
+      novoEstado.teams[1].lastGain = ganhoTime2;
+      novoEstado.teams[0].score = Math.round(100 - novaCordaPos);
+      novoEstado.teams[1].score = Math.round(novaCordaPos);
+      
+      setRodAtual(prev => prev + 1);
+      setDueloEstado(novoEstado);
+      
+      publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
+        console.error('Erro ao salvar placar:', err);
+        setFirebaseErroMsg('Salvar placar: ' + (err.message || String(err)));
+      });
+      
+      if (novaCordaPos <= 0 || novaCordaPos >= 100) {
+        setTimeout(() => {
+          exibirVencedorDueloOnline(novaCordaPos <= 0 ? 0 : 1);
+        }, 3500);
+      } else if (rodAtual >= fila.length) {
+        setTimeout(() => {
+          if (novaCordaPos === 50) {
+            exibirVencedorDueloOnline(0);
+          } else {
+            exibirVencedorDueloOnline(novaCordaPos < 50 ? 0 : 1);
+          }
+        }, 3500);
+      }
+    } else {
+      const novoScore1 = Math.min(100, (dueloEstado.teams[0].score || 0) + ganhoTime1);
+      const novoScore2 = Math.min(100, (dueloEstado.teams[1].score || 0) + ganhoTime2);
 
-    novoEstado.teams[0].score = novoScore1;
-    novoEstado.teams[0].lastGain = ganhoTime1;
-    novoEstado.teams[1].score = novoScore2;
-    novoEstado.teams[1].lastGain = ganhoTime2;
+      novoEstado.teams[0].score = novoScore1;
+      novoEstado.teams[0].lastGain = ganhoTime1;
+      novoEstado.teams[1].score = novoScore2;
+      novoEstado.teams[1].lastGain = ganhoTime2;
 
-    // Avança o contador de rodadas local
-    setRodAtual(prev => prev + 1);
+      setRodAtual(prev => prev + 1);
+      setDueloEstado(novoEstado);
+      
+      publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
+        console.error('Erro ao salvar placar:', err);
+        setFirebaseErroMsg('Salvar placar: ' + (err.message || String(err)));
+      });
 
-    setDueloEstado(novoEstado);
-    publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
-      console.error('Erro ao salvar placar:', err);
-      setFirebaseErroMsg('Salvar placar: ' + (err.message || String(err)));
-    });
-
-    // Se alguma equipe encheu o copo (100%), finaliza após 3.5 segundos
-    if (novoScore1 >= 100 || novoScore2 >= 100) {
-      setTimeout(() => {
-        exibirVencedorDueloOnline(novoScore1 >= 100 && novoScore2 >= 100 ? (novoScore1 >= novoScore2 ? 0 : 1) : (novoScore1 >= 100 ? 0 : 1));
-      }, 3500);
+      if (novoScore1 >= 100 || novoScore2 >= 100) {
+        setTimeout(() => {
+          exibirVencedorDueloOnline(novoScore1 >= 100 && novoScore2 >= 100 ? (novoScore1 >= novoScore2 ? 0 : 1) : (novoScore1 >= 100 ? 0 : 1));
+        }, 3500);
+      }
     }
   };
 
@@ -5047,8 +5083,8 @@ export default function App() {
       
       const novoEstado = {
         teams: [
-          { name: nomeJ1 || 'Meninos', score: 0 },
-          { name: nomeJ2 || 'Meninas', score: 0 }
+          { name: nomeJ1 || 'Meninos', score: dueloModoJogo === 'cabodeguerra' ? 50 : 0 },
+          { name: nomeJ2 || 'Meninas', score: dueloModoJogo === 'cabodeguerra' ? 50 : 0 }
         ],
         qtime: globalTimerEnabled ? globalTempo : 30,
         usedQs: [],
@@ -5056,7 +5092,8 @@ export default function App() {
         currentQ: null,
         phase: 'waiting',
         timerEnd: null,
-        winnerIndex: null
+        winnerIndex: null,
+        ...(dueloModoJogo === 'cabodeguerra' && { cordaPos: 50 })
       };
 
       setDueloEstado(novoEstado);
@@ -6233,7 +6270,7 @@ export default function App() {
             }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                 <div style={{ fontSize: '2.6rem', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(124, 58, 237, 0.3))' }}>⚔️</div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#fff', marginBottom: '10px', fontFamily: 'Outfit' }}>Duelo na Sala</h3>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#fff', marginBottom: '10px', fontFamily: 'Outfit' }}>Duelo Tradicional</h3>
                 <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 16px', minHeight: '66px' }}>
                   Responda rápido, ganhe pontos e use poderes (Bloqueio, 50/50, Pontos Duplos) usando o Gamepad ou controles na tela!
                 </p>
@@ -6257,11 +6294,60 @@ export default function App() {
                   gap: '6px',
                   margin: 0
                 }} 
-                onClick={() => { setMateriasSelecionadas([]); irParaTela('selecao'); }}
+                onClick={() => { playSound('click'); setDueloModoJogo('normal'); setMateriasSelecionadas([]); irParaTela('selecao'); }}
               >
                 ▶ Jogar Duelo
               </button>
             </div>
+
+            {/* Card Cabo de Guerra */}
+            <div className="card" style={{ 
+              flex: 1, 
+              minWidth: '280px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              textAlign: 'center', 
+              padding: '24px 20px', 
+              justifyContent: 'space-between', 
+              background: 'rgba(15, 23, 42, 0.45)',
+              border: '1.5px solid rgba(245, 158, 11, 0.3)', 
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(245, 158, 11, 0.12)',
+              margin: 0
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                <div style={{ fontSize: '2.6rem', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(245, 158, 11, 0.3))' }}>💪🏼💥</div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#fbbf24', marginBottom: '10px', fontFamily: 'Outfit' }}>Cabo de Guerra</h3>
+                <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 16px', minHeight: '66px' }}>
+                  Uma disputa de força virtual! Cada acerto de equipe puxa a corda de neon para o seu lado. A equipe que puxar a corda até o limite vence!
+                </p>
+              </div>
+              <button 
+                className="btn-menu btn-play" 
+                style={{ 
+                  background: 'linear-gradient(90deg, #fbbf24, #d97706)', 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: '10px', 
+                  padding: '10px 24px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 'bold', 
+                  cursor: 'pointer', 
+                  width: '100%', 
+                  height: '42px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  margin: 0
+                }} 
+                onClick={() => { playSound('click'); setDueloModoJogo('cabodeguerra'); setMateriasSelecionadas([]); irParaTela('selecao'); }}
+              >
+                ▶ Jogar Cabo de Guerra
+              </button>
+            </div>
+
 
             {/* Card Três Pistas */}
             <div className="card" style={{ 
@@ -11727,29 +11813,36 @@ export default function App() {
           </div>
         )}
 
-        <div className="duelo-online-layout">
-          {/* Lado Azul (Tanque) */}
-          <div className="duelo-side">
-            <div className="duelo-tank-container">
-              <h3 className="duelo-tank-label" style={{ color: '#60a5fa' }}>🔵 {nomeJ1 || 'Equipe Azul'}</h3>
-              <div className="duelo-tank blue">
-                <div className="tank-score-val">{Math.round(dueloEstado?.teams?.[0]?.score || 0)}%</div>
-                <div className="duelo-liquid blue" style={{ height: `${dueloEstado?.teams?.[0]?.score || 0}%` }}>
-                  <div className="duelo-wave" />
-                  <div className="duelo-wave duelo-wave-alt" />
+        <div className="duelo-online-layout" style={{ 
+          flexDirection: dueloModoJogo === 'cabodeguerra' ? 'column' : 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '20px'
+        }}>
+          {/* Lado Azul (Tanque) - Apenas se NÃO for Cabo de Guerra */}
+          {dueloModoJogo !== 'cabodeguerra' && (
+            <div className="duelo-side">
+              <div className="duelo-tank-container">
+                <h3 className="duelo-tank-label" style={{ color: '#60a5fa' }}>🔵 {nomeJ1 || 'Equipe Azul'}</h3>
+                <div className="duelo-tank blue">
+                  <div className="tank-score-val">{Math.round(dueloEstado?.teams?.[0]?.score || 0)}%</div>
+                  <div className="duelo-liquid blue" style={{ height: `${dueloEstado?.teams?.[0]?.score || 0}%` }}>
+                    <div className="duelo-wave" />
+                    <div className="duelo-wave duelo-wave-alt" />
+                  </div>
                 </div>
+                {dueloEstado?.teams?.[0]?.lastGain > 0 && (
+                  <span className="last-gain-tag blue">+{dueloEstado.teams[0].lastGain}% líquido</span>
+                )}
+                <span style={{ fontSize: '0.8rem', color: '#93c5fd', marginTop: '5px' }}>
+                  👤 {dueloRespostasRodada.filter(r => r.team === 0).length} de {dueloConectados[0]} prontos
+                </span>
               </div>
-              {dueloEstado?.teams?.[0]?.lastGain > 0 && (
-                <span className="last-gain-tag blue">+{dueloEstado.teams[0].lastGain}% líquido</span>
-              )}
-              <span style={{ fontSize: '0.8rem', color: '#93c5fd', marginTop: '5px' }}>
-                👤 {dueloRespostasRodada.filter(r => r.team === 0).length} de {dueloConectados[0]} prontos
-              </span>
             </div>
-          </div>
+          )}
 
           {/* Painel Central (Perguntas e Controles) */}
-          <div className="duelo-center-pane">
+          <div className="duelo-center-pane" style={{ width: '100%', maxWidth: dueloModoJogo === 'cabodeguerra' ? '900px' : 'none' }}>
             <div className="duelo-qcard">
               {dueloEstado?.currentQ ? (
                 <>
@@ -11850,26 +11943,198 @@ export default function App() {
             </div>
           </div>
 
-          {/* Lado Rosa (Tanque) */}
-          <div className="duelo-side">
-            <div className="duelo-tank-container">
-              <h3 className="duelo-tank-label" style={{ color: '#f472b6' }}>🩷 {nomeJ2 || 'Equipe Rosa'}</h3>
-              <div className="duelo-tank pink">
-                <div className="tank-score-val">{Math.round(dueloEstado?.teams?.[1]?.score || 0)}%</div>
-                <div className="duelo-liquid pink" style={{ height: `${dueloEstado?.teams?.[1]?.score || 0}%` }}>
-                  <div className="duelo-wave" />
-                  <div className="duelo-wave duelo-wave-alt" />
+          {/* Lado Rosa (Tanque) - Apenas se NÃO for Cabo de Guerra */}
+          {dueloModoJogo !== 'cabodeguerra' && (
+            <div className="duelo-side">
+              <div className="duelo-tank-container">
+                <h3 className="duelo-tank-label" style={{ color: '#f472b6' }}>🩷 {nomeJ2 || 'Equipe Rosa'}</h3>
+                <div className="duelo-tank pink">
+                  <div className="tank-score-val">{Math.round(dueloEstado?.teams?.[1]?.score || 0)}%</div>
+                  <div className="duelo-liquid pink" style={{ height: `${dueloEstado?.teams?.[1]?.score || 0}%` }}>
+                    <div className="duelo-wave" />
+                    <div className="duelo-wave duelo-wave-alt" />
+                  </div>
+                </div>
+                {dueloEstado?.teams?.[1]?.lastGain > 0 && (
+                  <span className="last-gain-tag pink">+{dueloEstado.teams[1].lastGain}% líquido</span>
+                )}
+                <span style={{ fontSize: '0.8rem', color: '#f9a8d4', marginTop: '5px' }}>
+                  👤 {dueloRespostasRodada.filter(r => r.team === 1).length} de {dueloConectados[1]} prontos
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Arena de Cabo de Guerra */}
+        {dueloModoJogo === 'cabodeguerra' && (
+          <div className="card" style={{ 
+            width: '100%', 
+            maxWidth: '900px', 
+            margin: '20px auto 0', 
+            padding: '24px', 
+            background: 'rgba(15, 23, 42, 0.55)', 
+            border: '1.5px solid rgba(251, 191, 36, 0.2)', 
+            borderRadius: '20px',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px'
+          }}>
+            {/* Header / Indicador de Forças */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <div style={{ textAlign: 'left' }}>
+                <span style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 'black', textTransform: 'uppercase' }}>🔵 {nomeJ1 || 'Equipe Azul'}</span>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                  👤 {dueloRespostasRodada.filter(r => r.team === 0).length} de {dueloConectados[0]} prontos
                 </div>
               </div>
-              {dueloEstado?.teams?.[1]?.lastGain > 0 && (
-                <span className="last-gain-tag pink">+{dueloEstado.teams[1].lastGain}% líquido</span>
-              )}
-              <span style={{ fontSize: '0.8rem', color: '#f9a8d4', marginTop: '5px' }}>
-                👤 {dueloRespostasRodada.filter(r => r.team === 1).length} de {dueloConectados[1]} prontos
+              
+              <div style={{ textAlign: 'center' }}>
+                <span style={{ 
+                  background: 'rgba(251, 191, 36, 0.1)', 
+                  border: '1px solid #fbbf24', 
+                  color: '#fbbf24', 
+                  padding: '4px 14px', 
+                  borderRadius: '20px', 
+                  fontSize: '0.8rem', 
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  💪 Disputa de Força 💪
+                </span>
+              </div>
+
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '0.8rem', color: '#f472b6', fontWeight: 'black', textTransform: 'uppercase' }}>🩷 {nomeJ2 || 'Equipe Rosa'}</span>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                  👤 {dueloRespostasRodada.filter(r => r.team === 1).length} de {dueloConectados[1]} prontos
+                </div>
+              </div>
+            </div>
+
+            {/* A Arena do Cabo de Guerra Física */}
+            <div style={{ 
+              position: 'relative', 
+              width: '100%', 
+              height: '140px', 
+              background: 'rgba(5, 5, 10, 0.6)', 
+              borderRadius: '16px', 
+              border: '2px solid rgba(255,255,255,0.06)',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              boxShadow: 'inset 0 0 20px rgba(0,0,0,0.8)'
+            }}>
+              {/* Marcação Central de Campo */}
+              <div style={{ 
+                position: 'absolute', 
+                left: '50%', 
+                top: 0, 
+                bottom: 0, 
+                width: '2px', 
+                background: 'rgba(255,255,255,0.15)', 
+                borderLeft: '1px dashed rgba(255,255,255,0.3)',
+                zIndex: 1
+              }} />
+
+              {/* Bonecos Puxando do lado Azul (Esquerda) */}
+              <div style={{ 
+                position: 'absolute', 
+                left: '20px', 
+                display: 'flex', 
+                gap: '8px', 
+                alignItems: 'center',
+                zIndex: 2,
+                opacity: 0.85
+              }}>
+                <span style={{ fontSize: '3rem', filter: 'drop-shadow(0 0 10px rgba(59, 130, 246, 0.5))' }}>🏃‍♂️🔵</span>
+                <span style={{ fontSize: '2rem', opacity: 0.6, transform: 'scaleX(-1)' }}>🧑‍🤝‍🧑</span>
+              </div>
+
+              {/* A CORDA DE NEON */}
+              <div style={{ 
+                position: 'absolute', 
+                left: '10%', 
+                right: '10%', 
+                height: '6px', 
+                background: 'linear-gradient(90deg, #3b82f6 0%, #a78bfa 50%, #ec4899 100%)', 
+                borderRadius: '3px',
+                boxShadow: '0 0 15px rgba(167, 139, 250, 0.6)',
+                zIndex: 2
+              }} />
+
+              {/* O Lenço/Marcador Central que se move */}
+              <div style={{ 
+                position: 'absolute', 
+                left: `${dueloEstado?.cordaPos !== undefined ? dueloEstado.cordaPos : 50}%`, 
+                transform: 'translateX(-50%)',
+                transition: 'left 1.2s cubic-bezier(0.1, 0.8, 0.3, 1)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 5
+              }}>
+                {/* O lenço de neon vermelho/laranja pendurado */}
+                <div style={{ 
+                  width: '18px', 
+                  height: '18px', 
+                  background: '#f97316', 
+                  border: '3px solid #fff',
+                  borderRadius: '50%',
+                  boxShadow: '0 0 20px #f97316, 0 0 30px #f97316',
+                  animation: 'pulse 1s infinite alternate'
+                }} />
+                
+                {/* Placar de porcentagem central flutuante */}
+                <span style={{ 
+                  fontSize: '0.8rem', 
+                  fontWeight: 900, 
+                  color: '#fff', 
+                  background: 'rgba(15, 23, 42, 0.95)', 
+                  border: '1.5px solid #fbbf24',
+                  padding: '2px 8px', 
+                  borderRadius: '6px',
+                  marginTop: '6px',
+                  whiteSpace: 'nowrap',
+                  fontFamily: 'Outfit, sans-serif'
+                }}>
+                  {Math.round(dueloEstado?.cordaPos !== undefined ? dueloEstado.cordaPos : 50)}%
+                </span>
+              </div>
+
+              {/* Bonecos Puxando do lado Rosa (Direita) */}
+              <div style={{ 
+                position: 'absolute', 
+                right: '20px', 
+                display: 'flex', 
+                gap: '8px', 
+                alignItems: 'center',
+                zIndex: 2,
+                opacity: 0.85
+              }}>
+                <span style={{ fontSize: '2rem', opacity: 0.6 }}>🧑‍🤝‍🧑</span>
+                <span style={{ fontSize: '3rem', filter: 'drop-shadow(0 0 10px rgba(236, 72, 153, 0.5))' }}>🩷🏃‍♀️</span>
+              </div>
+            </div>
+
+            {/* Informações Auxiliares */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#94a3b8', padding: '0 4px' }}>
+              <span>⬅️ Puxe até <strong style={{ color: '#60a5fa' }}>0%</strong> para vencer</span>
+              <span style={{ fontStyle: 'italic' }}>
+                {dueloEstado?.cordaPos < 50 
+                  ? `Vantagem: ${nomeJ1 || 'Azul'}` 
+                  : dueloEstado?.cordaPos > 50 
+                    ? `Vantagem: ${nomeJ2 || 'Rosa'}` 
+                    : 'Equilíbrio total'}
               </span>
+              <span>Puxe até <strong style={{ color: '#f472b6' }}>100%</strong> para vencer ➡️</span>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* 22. TELA DE FIM DO DUELO ONLINE */}
@@ -11897,19 +12162,31 @@ export default function App() {
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: '30px', alignItems: 'center', margin: '20px 0', background: 'rgba(255,255,255,0.02)', padding: '24px 48px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ color: '#60a5fa', fontSize: '1.2rem', fontWeight: 'bold' }}>🔵 {nomeJ1 || 'Equipe Azul'}</div>
-            <div style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 900 }}>{Math.round(dueloEstado?.teams?.[0]?.score || 0)}%</div>
-            <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Tanque cheio</div>
+        {dueloModoJogo === 'cabodeguerra' ? (
+          <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: '24px 48px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)', margin: '20px 0' }}>
+            <div style={{ fontSize: '1.2rem', color: '#a78bfa', fontWeight: 'bold', marginBottom: '8px' }}>Posição Final da Corda:</div>
+            <div style={{ fontSize: '3rem', fontWeight: 900, color: '#fbbf24', textShadow: '0 0 20px rgba(251, 191, 36, 0.4)' }}>
+              {Math.round(dueloEstado?.cordaPos !== undefined ? dueloEstado.cordaPos : 50)}%
+            </div>
+            <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '6px', fontFamily: 'Outfit' }}>
+              {dueloEstado?.cordaPos < 50 ? 'Puxada em direção à Equipe Azul 🔵' : dueloEstado?.cordaPos > 50 ? 'Puxada em direção à Equipe Rosa 🩷' : 'Empate perfeito no centro! 🤝'}
+            </div>
           </div>
-          <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#a78bfa' }}>×</div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ color: '#f472b6', fontSize: '1.2rem', fontWeight: 'bold' }}>🩷 {nomeJ2 || 'Equipe Rosa'}</div>
-            <div style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 900 }}>{Math.round(dueloEstado?.teams?.[1]?.score || 0)}%</div>
-            <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Tanque cheio</div>
+        ) : (
+          <div style={{ display: 'flex', gap: '30px', alignItems: 'center', margin: '20px 0', background: 'rgba(255,255,255,0.02)', padding: '24px 48px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ color: '#60a5fa', fontSize: '1.2rem', fontWeight: 'bold' }}>🔵 {nomeJ1 || 'Equipe Azul'}</div>
+              <div style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 900 }}>{Math.round(dueloEstado?.teams?.[0]?.score || 0)}%</div>
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Tanque cheio</div>
+            </div>
+            <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#a78bfa' }}>×</div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ color: '#f472b6', fontSize: '1.2rem', fontWeight: 'bold' }}>🩷 {nomeJ2 || 'Equipe Rosa'}</div>
+              <div style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 900 }}>{Math.round(dueloEstado?.teams?.[1]?.score || 0)}%</div>
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Tanque cheio</div>
+            </div>
           </div>
-        </div>
+        )}
 
         <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '25px' }}>
           <button className="btn-start" style={{ background: 'linear-gradient(90deg, #7c3aed, #4f46e5)', boxShadow: '0 8px 30px rgba(124, 58, 237, 0.45)' }} onClick={() => iniciarJogoDuelo()}>
