@@ -1438,7 +1438,7 @@ export default function App() {
     let projetor = false;
     
     const jogoParam = params.get('jogo');
-    const salaParam = params.get('sala');
+    const salaParam = params.get('sala')?.toUpperCase();
     const equipeParam = params.get('equipe');
 
     if (jogoParam === 'duelo') {
@@ -2887,7 +2887,7 @@ export default function App() {
     const speedBonus = correct ? Math.round((tempoRestante / limite) * 5 * 10) / 10 : 0;
 
     try {
-      await enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, optIdx, correct, speedBonus, dueloApelidoAluno);
+      await enviarRespostaDueloOnline(codigoSalaOnline.trim().toUpperCase(), dueloMeuPid, dueloMeuTime, optIdx, correct, speedBonus, dueloApelidoAluno);
     } catch (e) {
       console.error('Erro ao enviar resposta do aluno:', e);
       setFirebaseErroMsg('Enviar resposta: ' + (e.message || String(e)));
@@ -2899,9 +2899,10 @@ export default function App() {
     if (tela !== 'duelo-qr' && tela !== 'duelo-online-game') return;
     if (!codigoSalaOnline.trim()) return;
 
-    console.log("Monitorando agora a sala: ", codigoSalaOnline);
+    const salaNormalizada = codigoSalaOnline.trim().toUpperCase();
+    console.log("Monitorando agora a sala: ", salaNormalizada);
 
-    const unsub = ouvirRespostasDueloOnline(codigoSalaOnline, (respostas) => {
+    const unsub = ouvirRespostasDueloOnline(salaNormalizada, (respostas) => {
       console.log("Snapshot recebido. Total de jogadores:", respostas.length, respostas);
       setDueloRespostasRodada([...respostas]);
       const time0Conectados = respostas.filter(r => Number(r.team) === 0).length;
@@ -2921,9 +2922,10 @@ export default function App() {
     if (!codigoSalaOnline.trim()) return;
 
     // Envia presença inicial do aluno (como optIdx = -1) se ele tiver apelido cadastrado
+    const salaUpper = codigoSalaOnline.trim().toUpperCase();
     if (dueloApelidoAluno) {
-      console.log("Tentando gravar no caminho (presença inicial): salas/" + codigoSalaOnline + "/duelo_respostas/" + dueloMeuPid);
-      enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, dueloApelidoAluno)
+      console.log("Tentando gravar no caminho (presença inicial): salas/" + salaUpper + "/duelo_respostas/" + dueloMeuPid);
+      enviarRespostaDueloOnline(salaUpper, dueloMeuPid, dueloMeuTime, -1, false, 0, dueloApelidoAluno)
         .then(() => {
           console.log("Presença inicial confirmada no banco com o apelido:", dueloApelidoAluno);
         })
@@ -2933,15 +2935,15 @@ export default function App() {
         });
     }
 
-    const unsub = ouvirEstadoDueloOnline(codigoSalaOnline, (estado) => {
+    const unsub = ouvirEstadoDueloOnline(salaUpper, (estado) => {
       if (!estado) return;
       setDueloEstado(estado);
 
       // Se a fase for 'waiting' (lobby de QR Code) e o aluno tem apelido, reenvia a presença para o Firestore
       // para garantir que ele apareça no painel do professor caso o painel tenha sido limpo/reiniciado.
       if (estado.phase === 'waiting' && dueloApelidoAluno) {
-        console.log("Tentando gravar no caminho (lobby reenvio): salas/" + codigoSalaOnline + "/duelo_respostas/" + dueloMeuPid);
-        enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, dueloApelidoAluno)
+        console.log("Tentando gravar no caminho (lobby reenvio): salas/" + salaUpper + "/duelo_respostas/" + dueloMeuPid);
+        enviarRespostaDueloOnline(salaUpper, dueloMeuPid, dueloMeuTime, -1, false, 0, dueloApelidoAluno)
           .then(() => {
             console.log("Reenvio de presença no lobby confirmado no banco com:", dueloApelidoAluno);
           })
@@ -11582,7 +11584,7 @@ export default function App() {
           <div className="duelo-card-lobby blue">
             <h3 style={{ margin: 0, color: '#3b82f6', fontFamily: 'Outfit', fontSize: '1.4rem', fontWeight: 800 }}>🔵 {nomeJ1 || 'Equipe Azul'}</h3>
             <p style={{ color: '#93c5fd', fontSize: '0.85rem', margin: '5px 0' }}>Escaneie para entrar na equipe Azul</p>
-            <img className="qr-img" src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?jogo=duelo&sala=${codigoSalaOnline}&equipe=0`)}`} alt="QR Code Azul" width={170} height={170} />
+            <img className="qr-img" src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?jogo=duelo&sala=${codigoSalaOnline.toUpperCase()}&equipe=0`)}`} alt="QR Code Azul" width={170} height={170} />
             <div style={{ marginTop: '15px' }}>
               <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#93c5fd', marginBottom: '8px' }}>👤 Conectados: {dueloConectados[0]}</div>
               <div key={`conectados-blue-${dueloRespostasRodada.filter(r => Number(r.team) === 0).length}`} style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', maxHeight: '100px', overflowY: 'auto', padding: '5px' }}>
@@ -11603,7 +11605,7 @@ export default function App() {
           <div className="duelo-card-lobby pink">
             <h3 style={{ margin: 0, color: '#ec4899', fontFamily: 'Outfit', fontSize: '1.4rem', fontWeight: 800 }}>🩷 {nomeJ2 || 'Equipe Rosa'}</h3>
             <p style={{ color: '#f9a8d4', fontSize: '0.85rem', margin: '5px 0' }}>Escaneie para entrar na equipe Rosa</p>
-            <img className="qr-img" src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?jogo=duelo&sala=${codigoSalaOnline}&equipe=1`)}`} alt="QR Code Rosa" width={170} height={170} />
+            <img className="qr-img" src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?jogo=duelo&sala=${codigoSalaOnline.toUpperCase()}&equipe=1`)}`} alt="QR Code Rosa" width={170} height={170} />
             <div style={{ marginTop: '15px' }}>
               <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#f9a8d4', marginBottom: '8px' }}>👤 Conectados: {dueloConectados[1]}</div>
               <div key={`conectados-pink-${dueloRespostasRodada.filter(r => Number(r.team) === 1).length}`} style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', maxHeight: '100px', overflowY: 'auto', padding: '5px' }}>
@@ -12471,9 +12473,10 @@ export default function App() {
                 playSound('click');
                 
                 // Log de depuração do caminho da gravação
-                console.log("Tentando gravar no caminho: salas/" + codigoSalaOnline + "/duelo_respostas/" + dueloMeuPid);
+                const salaUpper = codigoSalaOnline.trim().toUpperCase();
+                console.log("Tentando gravar no caminho: salas/" + salaUpper + "/duelo_respostas/" + dueloMeuPid);
                 
-                enviarRespostaDueloOnline(codigoSalaOnline, dueloMeuPid, dueloMeuTime, -1, false, 0, val)
+                enviarRespostaDueloOnline(salaUpper, dueloMeuPid, dueloMeuTime, -1, false, 0, val)
                   .then(() => {
                     console.log("Entrada confirmada no banco com o apelido:", val);
                     localStorage.setItem('duelo_apelido', val);
