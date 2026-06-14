@@ -2227,7 +2227,7 @@ export default function App() {
         });
 
         // 3. Re-embaralhamos as cartas fechadas (todas mudam de posição!)
-        const cartasFechadasEmbaralhadas = [...cartasFechadas].sort(() => Math.random() - 0.5);
+        const cartasFechadasEmbaralhadas = fisherYates(cartasFechadas);
         
         const cartasFinais = [...cartasComSuporte];
         indicesFechadas.forEach((originalIdx, i) => {
@@ -3199,7 +3199,6 @@ export default function App() {
     reader.readAsDataURL(file);
   };
 
-  // GERAÇÃO DE PERGUNTAS COM IA (Real + Fallback Inteligente Local)
   const gerarPerguntasIA = async () => {
     if (iaSourceMode === 'file' && !iaFileData) {
       setIaFeedback({ txt: '❌ Envie uma imagem ou arquivo PDF primeiro.', tipo: 'err' });
@@ -3223,480 +3222,683 @@ export default function App() {
     let conteudoUrlExtraido = '';
     let inlineDataObj = null;
 
-    if (iaSourceMode === 'url') {
-      const urlNormalizada = iaUrl.trim();
-      const isPDFUrl = urlNormalizada.toLowerCase().endsWith('.pdf');
-      const isImgUrl = /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(urlNormalizada);
+    try {
+      if (iaSourceMode === 'url') {
+        const urlNormalizada = iaUrl.trim();
+        const isPDFUrl = urlNormalizada.toLowerCase().endsWith('.pdf');
+        const isImgUrl = /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(urlNormalizada);
 
-      try {
-        if (isPDFUrl || isImgUrl) {
-          setIaFeedback({ txt: `⏳ Baixando arquivo da URL (${isPDFUrl ? 'PDF' : 'Imagem'})...`, tipo: 'warn' });
-          const res = await fetch(urlNormalizada);
-          if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
-          const blob = await res.blob();
-          
-          const b64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-          
-          inlineDataObj = {
-            mimeType: blob.type || (isPDFUrl ? 'application/pdf' : 'image/jpeg'),
-            data: b64
-          };
-        } else {
-          setIaFeedback({ txt: '⏳ Conectando ao link e extraindo texto...', tipo: 'warn' });
-          const res = await fetch(urlNormalizada);
-          if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
-          const html = await res.text();
-          
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          const tagsParaRemover = doc.querySelectorAll('script, style, iframe, noscript, svg, nav, footer, header, link');
-          tagsParaRemover.forEach(tag => tag.remove());
-          
-          const texto = doc.body ? doc.body.innerText : doc.documentElement.innerText;
-          conteudoUrlExtraido = texto
-            .replace(/\r\n/g, '\n')
-            .replace(/\n\s*\n/g, '\n\n')
-            .trim();
-            
-          if (!conteudoUrlExtraido) {
-            throw new Error('A página está vazia ou não contém texto legível.');
-          }
-        }
-      } catch (err) {
-        console.warn('[Gemini URL Parser] Erro ao extrair dados do link:', err.message);
-        setIaFeedback({ 
-          txt: `⚠️ Falha ao ler conteúdo da URL diretamente (CORS ou erro de rede). Enviando apenas o link para a IA: ${err.message}`, 
-          tipo: 'warn' 
-        });
-        await new Promise(r => setTimeout(r, 2000));
-      }
-    }
-
-    const tiposDisponiveis = [];
-    if (iaTipoMC) tiposDisponiveis.push('mc');
-    if (iaTipoVF) tiposDisponiveis.push('vf');
-    if (iaTipoVel) tiposDisponiveis.push('veloc');
-
-    // Prompt de Duelo
-    const promptBaseDuelo = `Analise o conteúdo fornecido e gere exatamente ${iaQtd} perguntas sobre o tema "${materia}".\n`
-      + `Utilize exclusivamente os seguintes tipos selecionados: ${tiposDisponiveis.join(', ')}.\n`
-      + `Distribua de forma variada entre os tipos selecionados.\n\n`
-      + (iaPromptInstrucao.trim() ? `INSTRUÇÃO DE PERSONALIZAÇÃO ADICIONAL DO USUÁRIO QUE DEVE SER SEGUIDA RIGOROSAMENTE:\n"${iaPromptInstrucao.trim()}"\n\n` : '')
-      + `REGRA MATEMÁTICA CRÍTICA: Se a pergunta ou as alternativas envolverem fórmulas matemáticas complexas (como frações, raízes, chaves, potências ou equações), represente-as utilizando a sintaxe padrão LaTeX delimitada por cifrões simples "$" para modo inline (ex: "$ \\frac{1}{3} - 7 $" ou "$ \\sqrt{121} $"). Nunca utilize parênteses planos para frações multinível se puder usar LaTeX, de modo a garantir uma renderização visualmente impecável.\n\n`
-      + `Responda unicamente no formato JSON estrito, sem markdown, sem textos adicionais, respeitando esta estrutura:\n`
-      + `[\n`
-      + `  {\n`
-      + `    "turma": "${iaTurma.trim() || 'Sem Turma'}",\n`
-      + `    "mat": "${materia}",\n`
-      + `    "tema": "${iaTema.trim() || 'Geral'}",\n`
-      + `    "tipo": "mc",\n`
-      + `    "txt": "Texto da pergunta?",\n`
-      + `    "alts": ["Opção A", "Opção B", "Opção C", "Opção D"],\n`
-      + `    "resp": 0\n`
-      + `  },\n`
-      + `  {\n`
-      + `    "turma": "${iaTurma.trim() || 'Sem Turma'}",\n`
-      + `    "mat": "${materia}",\n`
-      + `    "tema": "${iaTema.trim() || 'Geral'}",\n`
-      + `    "tipo": "vf",\n`
-      + `    "txt": "Fato ou afirmação?",\n`
-      + `    "resp": "v"\n`
-      + `  },\n`
-      + `  {\n`
-      + `    "turma": "${iaTurma.trim() || 'Sem Turma'}",\n`
-      + `    "mat": "${materia}",\n`
-      + `    "tema": "${iaTema.trim() || 'Geral'}",\n`
-      + `    "tipo": "veloc",\n`
-      + `    "txt": "Pergunta de resposta rápida?",\n`
-      + `    "resp": "Resposta correta curta"\n`
-      + `  }\n`
-      + `]`;
-
-    // Prompt de Três Pistas
-    const promptBasePistas = `Analise o conteúdo fornecido (ou o tema informado) e gere exatamente ${iaQtd} cartas de pistas estruturadas para o jogo de tabuleiro clássico Três Pistas (estilo Perfil) sobre o tema "${materia}".\n`
-      + `Cada carta deve possuir uma Categoria ampla (ex: Pessoa, Lugar, Animal, Coisa, Ano, Objeto, Evento), um Segredo/Resposta exata e exatamente 5 pistas textuais associadas, organizadas em ordem de dificuldade estritamente decrescente (a Pista 1 é muito difícil/misteriosa, a Pista 5 é muito fácil e quase entrega a resposta de bandeja).\n\n`
-      + (iaPromptInstrucao.trim() ? `INSTRUÇÃO DE PERSONALIZAÇÃO ADICIONAL DO USUÁRIO QUE DEVE SER SEGUIDA RIGOROSAMENTE:\n"${iaPromptInstrucao.trim()}"\n\n` : '')
-      + `Você também pode, opcionalmente, associar um efeito clássico de tabuleiro a algumas pistas normais da carta para criar pistas bônus ou penalidades surpresa! Os efeitos válidos em JSON são: "avance_1", "avance_2", "recue_1", "recue_2", "oponente_avance_1", "oponente_recue_1", "oponente_recue_2". Se uma pista for apenas dica normal sem efeito, defina-a com "efeito": null.\n\n`
-      + `Responda unicamente no formato JSON estrito, sem markdown, sem textos adicionais, respeitando esta estrutura exata:\n`
-      + `[\n`
-      + `  {\n`
-      + `    "cat": "Categoria",\n`
-      + `    "resp": "Segredo/Resposta",\n`
-      + `    "pistas": [\n`
-      + `      { "txt": "Pista 1 super difícil", "efeito": null },\n`
-      + `      { "txt": "Pista 2 difícil", "efeito": "avance_1" },\n`
-      + `      { "txt": "Pista 3 média", "efeito": null },\n`
-      + `      { "txt": "Pista 4 fácil", "efeito": "recue_1" },\n`
-      + `      { "txt": "Pista 5 muito óbvia", "efeito": null }\n`
-      + `    ]\n`
-      + `  }\n`
-      + `]`;
-
-    // Prompt de Imagem e Ação
-    const promptBaseImAcao = `Analise o conteúdo fornecido (ou o tema informado) e gere exatamente ${iaQtd} cartas de jogo para a modalidade Imagem e Ação sobre o tema "${materia}".\n`
-      + `Cada carta deve possuir exatamente 5 opções estruturadas correspondentes às seguintes categorias clássicas do jogo oficial:\n`
-      + `1. Ação (um verbo ou atividade representável fisicamente por gestos/mímica)\n`
-      + `2. Objeto (uma coisa física ou utensílio que pode ser desenhado no quadro)\n`
-      + `3. Lugar (uma cidade, país, espaço físico ou monumento)\n`
-      + `4. Pessoa/Animal (um personagem famoso, profissão, figura histórica ou animal)\n`
-      + `5. Difícil (um conceito abstrato, gíria ou termo complexo)\n\n`
-      + (iaPromptInstrucao.trim() ? `INSTRUÇÃO DE PERSONALIZAÇÃO ADICIONAL DO USUÁRIO QUE DEVE SER SEGUIDA RIGOROSAMENTE:\n"${iaPromptInstrucao.trim()}"\n\n` : '')
-      + `Responda unicamente no formato JSON estrito, sem markdown, sem textos adicionais, respeitando esta estrutura exata:\n`
-      + `[\n`
-      + `  {\n`
-      + `    "opcoes": [\n`
-      + `      { "num": 1, "cat": "Ação", "resp": "Palavra de Ação" },\n`
-      + `      { "num": 2, "cat": "Objeto", "resp": "Palavra de Objeto" },\n`
-      + `      { "num": 3, "cat": "Lugar", "resp": "Palavra de Lugar" },\n`
-      + `      { "num": 4, "cat": "Pessoa/Animal", "resp": "Palavra de Pessoa/Animal" },\n`
-      + `      { "num": 5, "cat": "Difícil", "resp": "Palavra Difícil" }\n`
-      + `    ]\n`
-      + `  }\n`
-      + `]`;
-
-    const promptBase = iaAba === 'pistas' 
-      ? promptBasePistas 
-      : iaAba === 'imacao' 
-        ? promptBaseImAcao 
-        : promptBaseDuelo;
-
-    const prompt = iaSourceMode === 'file' 
-      ? `Analise o conteúdo deste arquivo.\n\n${promptBase}`
-      : conteudoUrlExtraido
-        ? `Analise o conteúdo extraído da seguinte URL (${iaUrl.trim()}):\n\n--- INÍCIO DO CONTEÚDO ---\n${conteudoUrlExtraido}\n--- FIM DO CONTEÚDO ---\n\n${promptBase}`
-        : `Visite, leia e analise minuciosamente o conteúdo deste link de internet: ${iaUrl.trim()}.\n\n${promptBase}`;
-
-    // Se tivermos a chave do Gemini inserida pelo usuário, fazemos a chamada direta
-    if (geminiKey.trim()) {
-      // Tentamos modelos em ordem, do mais recente ao mais estável
-      const modelos = [
-        'gemini-2.0-flash',
-        'gemini-1.5-flash'
-      ];
-
-      for (const modelo of modelos) {
         try {
-          setIaFeedback({ txt: `⏳ Tentando modelo ${modelo}...`, tipo: 'warn' });
-
-          const reqBody = {
-            contents: [{
-              parts: inlineDataObj ? [
-                { inlineData: inlineDataObj },
-                { text: `Analise o conteúdo deste arquivo baixado da URL (${iaUrl.trim()}).\n\n${promptBase}` }
-              ] : iaSourceMode === 'file' ? [
-                { inlineData: { mimeType: iaFileMediaType, data: iaFileData } },
-                { text: prompt }
-              ] : [
-                { text: prompt }
-              ]
-            }],
-            generationConfig: {
-              responseMimeType: "application/json"
+          if (isPDFUrl || isImgUrl) {
+            setIaFeedback({ txt: `⏳ Baixando arquivo da URL (${isPDFUrl ? 'PDF' : 'Imagem'})...`, tipo: 'warn' });
+            const res = await fetch(urlNormalizada);
+            if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+            const blob = await res.blob();
+            
+            const b64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result.split(',')[1]);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            
+            inlineDataObj = {
+              mimeType: blob.type || (isPDFUrl ? 'application/pdf' : 'image/jpeg'),
+              data: b64
+            };
+          } else {
+            setIaFeedback({ txt: '⏳ Conectando ao link e extraindo texto...', tipo: 'warn' });
+            let html = '';
+            try {
+              const res = await fetch(urlNormalizada);
+              if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+              html = await res.text();
+            } catch (directErr) {
+              console.warn('[Gemini URL Parser] Falha no acesso direto, tentando via proxy CORS (AllOrigins):', directErr.message);
+              setIaFeedback({ txt: '⏳ Conectando ao link via proxy de compatibilidade (AllOrigins)...', tipo: 'warn' });
+              
+              const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(urlNormalizada)}`;
+              const proxyRes = await fetch(proxyUrl);
+              if (!proxyRes.ok) throw new Error(`Falha no proxy CORS: ${proxyRes.status}`);
+              const proxyData = await proxyRes.json();
+              html = proxyData.contents;
+              if (!html) throw new Error('Não foi possível obter o conteúdo do link via proxy.');
             }
-          };
-
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${geminiKey.trim()}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(reqBody)
+            
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const tagsParaRemover = doc.querySelectorAll('script, style, iframe, noscript, svg, nav, footer, header, link');
+            tagsParaRemover.forEach(tag => tag.remove());
+            
+            const texto = doc.body ? doc.body.innerText : doc.documentElement.innerText;
+            conteudoUrlExtraido = texto
+              .replace(/\r\n/g, '\n')
+              .replace(/\n\s*\n/g, '\n\n')
+              .trim();
+              
+            if (!conteudoUrlExtraido) {
+              throw new Error('A página está vazia ou não contém texto legível.');
+            }
+          }
+        } catch (err) {
+          console.warn('[Gemini URL Parser] Erro ao extrair dados do link:', err.message);
+          setIaFeedback({ 
+            txt: `⚠️ Falha ao ler conteúdo da URL diretamente (CORS ou erro de rede). Enviando apenas o link para a IA: ${err.message}`, 
+            tipo: 'warn' 
           });
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
 
-          if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            const errMsg = errData.error?.message || `Erro HTTP ${response.status}`;
-            console.warn(`[Gemini] Modelo ${modelo} falhou: ${errMsg}`);
-            // Só interrompe se for erro de credenciais (401/403) ou erro 400 explicitando problema com a chave
-            const isApiKeyError = response.status === 401 || response.status === 403 ||
-              (response.status === 400 && errMsg.toLowerCase().includes('key'));
-            if (isApiKeyError) {
-              setIaFeedback({ txt: `❌ Chave inválida ou sem permissão (${response.status}): ${errMsg}`, tipo: 'err' });
+      const tiposDisponiveis = [];
+      if (iaTipoMC) tiposDisponiveis.push('mc');
+      if (iaTipoVF) tiposDisponiveis.push('vf');
+      if (iaTipoVel) tiposDisponiveis.push('veloc');
+
+      // Prompt de Duelo
+      const promptBaseDuelo = `Analise o conteúdo fornecido e gere exatamente ${iaQtd} perguntas sobre o tema "${materia}".\n`
+        + `Utilize exclusivamente os seguintes tipos selecionados: ${tiposDisponiveis.join(', ')}.\n`
+        + `Distribua de forma variada entre os tipos selecionados.\n`
+        + `DISTRIBUIÇÃO DE RESPOSTAS: Para as perguntas de múltipla escolha ("mc"), certifique-se de distribuir a resposta correta de forma equilibrada entre as opções A, B, C e D (índices 0, 1, 2 e 3) para evitar qualquer viés de cor. Não coloque a resposta correta sempre na mesma alternativa.\n\n`
+        + (iaPromptInstrucao.trim() ? `INSTRUÇÃO DE PERSONALIZAÇÃO ADICIONAL DO USUÁRIO QUE DEVE SER SEGUIDA RIGOROSAMENTE:\n"${iaPromptInstrucao.trim()}"\n\n` : '')
+        + `REGRA MATEMÁTICA CRÍTICA: Se a pergunta ou as alternativas envolverem fórmulas matemáticas complexas (como frações, raízes, chaves, potências ou equações), represente-as utilizando a sintaxe padrão LaTeX delimitada por cifrões simples "$" para modo inline (ex: "$ \\frac{1}{3} - 7 $" ou "$ \\sqrt{121} $"). Nunca utilize parênteses planos para frações multinível se puder usar LaTeX, de modo a garantir uma renderização visualmente impecável.\n\n`
+        + `Responda unicamente no formato JSON estrito, sem markdown, sem textos adicionais, respeitando esta estrutura:\n`
+        + `[\n`
+        + `  {\n`
+        + `    "turma": "${iaTurma.trim() || 'Sem Turma'}",\n`
+        + `    "mat": "${materia}",\n`
+        + `    "tema": "${iaTema.trim() || 'Geral'}",\n`
+        + `    "tipo": "mc",\n`
+        + `    "txt": "Texto da pergunta?",\n`
+        + `    "alts": ["Opção A", "Opção B", "Opção C", "Opção D"],\n`
+        + `    "resp": 0\n`
+        + `  },\n`
+        + `  {\n`
+        + `    "turma": "${iaTurma.trim() || 'Sem Turma'}",\n`
+        + `    "mat": "${materia}",\n`
+        + `    "tema": "${iaTema.trim() || 'Geral'}",\n`
+        + `    "tipo": "vf",\n`
+        + `    "txt": "Fato ou afirmação?",\n`
+        + `    "resp": "v"\n`
+        + `  },\n`
+        + `  {\n`
+        + `    "turma": "${iaTurma.trim() || 'Sem Turma'}",\n`
+        + `    "mat": "${materia}",\n`
+        + `    "tema": "${iaTema.trim() || 'Geral'}",\n`
+        + `    "tipo": "veloc",\n`
+        + `    "txt": "Pergunta de resposta rápida?",\n`
+        + `    "resp": "Resposta correta curta"\n`
+        + `  }\n`
+        + `]`;
+
+      // Prompt de Três Pistas
+      const promptBasePistas = `Analise o conteúdo fornecido (ou o tema informado) e gere exatamente ${iaQtd} cartas de pistas estruturadas para o jogo de tabuleiro clássico Três Pistas (estilo Perfil) sobre o tema "${materia}".\n`
+        + `Cada carta deve possuir uma Categoria ampla (ex: Pessoa, Lugar, Animal, Coisa, Ano, Objeto, Evento), um Segredo/Resposta exata e exatamente 5 pistas textuais associadas, organizadas em ordem de dificuldade estritamente decrescente (a Pista 1 é muito difícil/misteriosa, a Pista 5 é muito fácil e quase entrega a resposta de bandeja).\n\n`
+        + (iaPromptInstrucao.trim() ? `INSTRUÇÃO DE PERSONALIZAÇÃO ADICIONAL DO USUÁRIO QUE DEVE SER SEGUIDA RIGOROSAMENTE:\n"${iaPromptInstrucao.trim()}"\n\n` : '')
+        + `Você também pode, opcionalmente, associar um efeito clássico de tabuleiro a algumas pistas normais da carta para criar pistas bônus ou penalidades surpresa! Os efeitos válidos em JSON são: "avance_1", "avance_2", "recue_1", "recue_2", "oponente_avance_1", "oponente_recue_1", "oponente_recue_2". Se uma pista for apenas dica normal sem efeito, defina-a com "efeito": null.\n\n`
+        + `Responda unicamente no formato JSON estrito, sem markdown, sem textos adicionais, respeitando esta estrutura exata:\n`
+        + `[\n`
+        + `  {\n`
+        + `    "cat": "Categoria",\n`
+        + `    "resp": "Segredo/Resposta",\n`
+        + `    "pistas": [\n`
+        + `      { "txt": "Pista 1 super difícil", "efeito": null },\n`
+        + `      { "txt": "Pista 2 difícil", "efeito": "avance_1" },\n`
+        + `      { "txt": "Pista 3 média", "efeito": null },\n`
+        + `      { "txt": "Pista 4 fácil", "efeito": "recue_1" },\n`
+        + `      { "txt": "Pista 5 muito óbvia", "efeito": null }\n`
+        + `    ]\n`
+        + `  }\n`
+        + `]`;
+
+      // Prompt de Imagem e Ação
+      const promptBaseImAcao = `Analise o conteúdo fornecido (ou o tema informado) e gere exatamente ${iaQtd} cartas de jogo para a modalidade Imagem e Ação sobre o tema "${materia}".\n`
+        + `Cada carta deve possuir exatamente 5 opções estruturadas correspondentes às seguintes categorias clássicas do jogo oficial:\n`
+        + `1. Ação (um verbo ou atividade representável fisicamente por gestos/mímica)\n`
+        + `2. Objeto (uma coisa física ou utensílio que pode ser desenhado no quadro)\n`
+        + `3. Lugar (uma cidade, país, espaço físico ou monumento)\n`
+        + `4. Pessoa/Animal (um personagem famoso, profissão, figura histórica ou animal)\n`
+        + `5. Difícil (um conceito abstrato, gíria ou termo complexo)\n\n`
+        + (iaPromptInstrucao.trim() ? `INSTRUÇÃO DE PERSONALIZAÇÃO ADICIONAL DO USUÁRIO QUE DEVE SER SEGUIDA RIGOROSAMENTE:\n"${iaPromptInstrucao.trim()}"\n\n` : '')
+        + `Responda unicamente no formato JSON estrito, sem markdown, sem textos adicionais, respeitando esta estrutura exata:\n`
+        + `[\n`
+        + `  {\n`
+        + `    "opcoes": [\n`
+        + `      { "num": 1, "cat": "Ação", "resp": "Palavra de Ação" },\n`
+        + `      { "num": 2, "cat": "Objeto", "resp": "Palavra de Objeto" },\n`
+        + `      { "num": 3, "cat": "Lugar", "resp": "Palavra de Lugar" },\n`
+        + `      { "num": 4, "cat": "Pessoa/Animal", "resp": "Palavra de Pessoa/Animal" },\n`
+        + `      { "num": 5, "cat": "Difícil", "resp": "Palavra Difícil" }\n`
+        + `    ]\n`
+        + `  }\n`
+        + `]`;
+
+      const promptBase = iaAba === 'pistas' 
+        ? promptBasePistas 
+        : iaAba === 'imacao' 
+          ? promptBaseImAcao 
+          : promptBaseDuelo;
+
+      const prompt = iaSourceMode === 'file' 
+        ? `Analise o conteúdo deste arquivo.\n\n${promptBase}`
+        : conteudoUrlExtraido
+          ? `Analise o conteúdo extraído da seguinte URL (${iaUrl.trim()}):\n\n--- INÍCIO DO CONTEÚDO ---\n${conteudoUrlExtraido}\n--- FIM DO CONTEÚDO ---\n\n${promptBase}`
+          : `Visite, leia e analise minuciosamente o conteúdo deste link de internet: ${iaUrl.trim()}.\n\n${promptBase}`;
+
+      // Se tivermos a chave do Gemini inserida pelo usuário, fazemos a chamada direta
+      if (geminiKey.trim()) {
+        // Esquemas de Resposta OpenAPI para garantir formato estruturado do Gemini
+        const dueloSchema = {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              turma: { type: "STRING" },
+              mat: { type: "STRING" },
+              tema: { type: "STRING" },
+              tipo: { type: "STRING" }, // mc | vf | veloc
+              txt: { type: "STRING" },
+              alts: {
+                type: "ARRAY",
+                items: { type: "STRING" }
+              },
+              resp: { type: "STRING" }
+            },
+            required: ["tipo", "txt", "resp"]
+          }
+        };
+
+        const pistasSchema = {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              cat: { type: "STRING" },
+              resp: { type: "STRING" },
+              pistas: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    txt: { type: "STRING" },
+                    efeito: { type: "STRING" }
+                  },
+                  required: ["txt"]
+                }
+              }
+            },
+            required: ["cat", "resp", "pistas"]
+          }
+        };
+
+        const imAcaoSchema = {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              opcoes: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    num: { type: "INTEGER" },
+                    cat: { type: "STRING" },
+                    resp: { type: "STRING" }
+                  },
+                  required: ["num", "cat", "resp"]
+                }
+              }
+            },
+            required: ["opcoes"]
+          }
+        };
+
+        // Tentamos modelos em ordem, do mais recente ao mais estável
+        const modelos = [
+          'gemini-2.5-flash',
+          'gemini-2.5-flash-preview-05-20',
+          'gemini-2.0-flash',
+          'gemini-1.5-flash'
+        ];
+
+        const errosAcumulados = [];
+
+        for (const modelo of modelos) {
+          try {
+            setIaFeedback({ txt: `⏳ Tentando modelo ${modelo}...`, tipo: 'warn' });
+
+            const reqBody = {
+              contents: [{
+                parts: inlineDataObj ? [
+                  { inlineData: inlineDataObj },
+                  { text: `Analise o conteúdo deste arquivo baixado da URL (${iaUrl.trim()}).\n\n${promptBase}` }
+                ] : iaSourceMode === 'file' ? [
+                  { inlineData: { mimeType: iaFileMediaType, data: iaFileData } },
+                  { text: prompt }
+                ] : [
+                  { text: prompt }
+                ]
+              }],
+              generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: iaAba === 'pistas' ? pistasSchema : iaAba === 'imacao' ? imAcaoSchema : dueloSchema
+              }
+            };
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 50000); // 50 segundos de limite
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${geminiKey.trim()}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(reqBody),
+              signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+              const errData = await response.json().catch(() => ({}));
+              const errMsg = errData.error?.message || `Erro HTTP ${response.status}`;
+              console.warn(`[Gemini] Modelo ${modelo} falhou: ${errMsg}`);
+              
+              // Só interrompe se for erro de credenciais (401/403) ou erro 400 explicitando problema com a chave
+              const isApiKeyError = response.status === 401 || response.status === 403 ||
+                (response.status === 400 && errMsg.toLowerCase().includes('key'));
+              if (isApiKeyError) {
+                setIaFeedback({ txt: `❌ Chave inválida ou sem permissão (${response.status}): ${errMsg}`, tipo: 'err' });
+                setIaLoading(false);
+                return;
+              }
+              errosAcumulados.push(`${modelo}: ${errMsg}`);
+              continue; // Tenta próximo modelo
+            }
+
+            const data = await response.json();
+            let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            text = text.trim();
+
+            // Limpa formatação markdown caso a IA retorne blocos de código com quebras adicionais
+            text = text.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+
+            const parsed = JSON.parse(text);
+            if (!Array.isArray(parsed) || !parsed.length) throw new Error('O retorno da IA não é um array válido.');
+
+            if (iaAba === 'pistas') {
+              const validadasPistas = parsed.map(c => {
+                if (!c.cat || !c.resp || !Array.isArray(c.pistas) || c.pistas.length < 3) return null;
+                
+                // Normaliza as pistas (devem ser pelo menos 3 válidas, idealmente 5)
+                const pistasNormalizadas = c.pistas.map(p => {
+                  if (!p || !p.txt) return null;
+                  return {
+                    txt: String(p.txt).trim(),
+                    efeito: p.efeito && p.efeito !== 'null' && p.efeito !== 'none' ? String(p.efeito).trim() : null
+                  };
+                }).filter(Boolean);
+
+                if (pistasNormalizadas.length < 3) return null;
+
+                // Preenche se tiver menos que 5 pistas
+                while (pistasNormalizadas.length < 5) {
+                  pistasNormalizadas.push({
+                    txt: `Dica extra sobre o segredo: ${c.resp}`,
+                    efeito: null
+                  });
+                }
+
+                return {
+                  cat: String(c.cat).trim(),
+                  resp: String(c.resp).trim(),
+                  pistas: pistasNormalizadas.slice(0, 5)
+                };
+              }).filter(Boolean);
+
+              if (!validadasPistas.length) throw new Error('Nenhuma carta de pistas gerada atendeu aos critérios de validação.');
+
+              setIaPistasGeradas(validadasPistas);
+              setIaFeedback({ txt: `✅ ${validadasPistas.length} cartas de Três Pistas geradas com sucesso pelo modelo ${modelo}!`, tipo: 'ok' });
+              setIaLoading(false);
+              return;
+            } else if (iaAba === 'imacao') {
+              const validadasImAcao = parsed.map(c => {
+                if (!Array.isArray(c.opcoes) || c.opcoes.length === 0) return null;
+                
+                const opcoesNormalizadas = c.opcoes.map((o, idx) => {
+                  if (!o || !o.cat || !o.resp) return null;
+                  return {
+                    num: Number(o.num) || (idx + 1),
+                    cat: String(o.cat).trim(),
+                    resp: String(o.resp).trim()
+                  };
+                }).filter(Boolean);
+
+                if (opcoesNormalizadas.length < 3) return null;
+
+                const catsDefault = ['Ação', 'Objeto', 'Lugar', 'Pessoa/Animal', 'Difícil'];
+                while (opcoesNormalizadas.length < 5) {
+                  const num = opcoesNormalizadas.length + 1;
+                  opcoesNormalizadas.push({
+                    num: num,
+                    cat: catsDefault[num - 1] || 'Geral',
+                    resp: `Desenhe/Mime algo relacionado a ${materia}`
+                  });
+                }
+
+                return {
+                  opcoes: opcoesNormalizadas.slice(0, 5)
+                };
+              }).filter(Boolean);
+
+              if (!validadasImAcao.length) throw new Error('Nenhuma carta de Imagem e Ação gerada atendeu aos critérios de validação.');
+
+              setIaImAcaoGeradas(validadasImAcao);
+              setIaFeedback({ txt: `✅ ${validadasImAcao.length} cartas de Imagem e Ação geradas com sucesso pelo modelo ${modelo}!`, tipo: 'ok' });
+              setIaLoading(false);
+              return;
+            } else {
+              // Aba Duelo
+              const validadas = parsed.map(p => {
+                if (!p.tipo || !p.txt) return null;
+                
+                const tipoNormalizado = String(p.tipo).toLowerCase().trim();
+                if (!['mc', 'vf', 'veloc'].includes(tipoNormalizado)) return null;
+
+                let respNormalizada = null;
+
+                if (tipoNormalizado === 'mc') {
+                  if (!Array.isArray(p.alts) || p.alts.length !== 4) return null;
+                  
+                  // Conversão de resposta múltipla escolha tolerante a tipos
+                  let rawResp = p.resp;
+                  let idx = -1;
+                  
+                  if (typeof rawResp === 'number') {
+                    idx = rawResp;
+                  } else if (rawResp !== undefined && rawResp !== null) {
+                    const cleanResp = String(rawResp).trim();
+                    const letraMap = { 'a': 0, 'b': 1, 'c': 2, 'd': 3, '0': 0, '1': 1, '2': 2, '3': 3 };
+                    if (cleanResp.toLowerCase() in letraMap) {
+                      idx = letraMap[cleanResp.toLowerCase()];
+                    } else {
+                      // Procura se a IA colocou o texto da resposta inteira
+                      idx = p.alts.findIndex(a => String(a).toLowerCase().trim() === cleanResp.toLowerCase());
+                    }
+                  }
+                  
+                  if (idx >= 0 && idx <= 3) {
+                    respNormalizada = idx;
+                  } else {
+                    return null; // descarte
+                  }
+                } else if (tipoNormalizado === 'vf') {
+                  let rawResp = p.resp;
+                  if (typeof rawResp === 'boolean') {
+                    respNormalizada = rawResp ? 'v' : 'f';
+                  } else if (rawResp !== undefined && rawResp !== null) {
+                    const cleanResp = String(rawResp).toLowerCase().trim();
+                    if (['v', 'true', 'verdadeiro', 'sim', 's', '1'].includes(cleanResp)) {
+                      respNormalizada = 'v';
+                    } else if (['f', 'false', 'falso', 'não', 'nao', 'n', '0'].includes(cleanResp)) {
+                      respNormalizada = 'f';
+                    }
+                  }
+                  
+                  if (!respNormalizada) return null;
+                } else if (tipoNormalizado === 'veloc') {
+                  if (p.resp === undefined || p.resp === null || String(p.resp).trim() === '') return null;
+                  respNormalizada = String(p.resp).trim();
+                }
+
+                return {
+                  tipo: tipoNormalizado,
+                  txt: String(p.txt).trim(),
+                  alts: tipoNormalizado === 'mc' ? p.alts.map(a => String(a).trim()) : undefined,
+                  resp: respNormalizada,
+                  turma: p.turma || iaTurma.trim() || 'Sem Turma',
+                  mat: p.mat || materia,
+                  tema: p.tema || iaTema.trim() || 'Geral'
+                };
+              }).filter(Boolean);
+
+              if (!validadas.length) throw new Error('Nenhuma pergunta gerada atendeu aos critérios de validação.');
+
+              setIaPergsGeradas(validadas);
+              setIaFeedback({ txt: `✅ ${validadas.length} perguntas de Duelo formuladas com sucesso pelo modelo ${modelo}!`, tipo: 'ok' });
               setIaLoading(false);
               return;
             }
-            continue; // Tenta próximo modelo
+          } catch (err) {
+            console.warn(`[Gemini] Erro com modelo ${modelo}:`, err.message);
+            errosAcumulados.push(`${modelo}: ${err.message}`);
           }
+        }
 
-          const data = await response.json();
-          let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          text = text.trim();
-
-          const parsed = JSON.parse(text);
-          if (!Array.isArray(parsed) || !parsed.length) throw new Error('O retorno da IA não é um array válido.');
-
-          if (iaAba === 'pistas') {
-            const validadasPistas = parsed.filter(c => {
-              return c.cat && c.resp && Array.isArray(c.pistas) && c.pistas.length === 5 && c.pistas.every(p => p.txt);
-            }).map(c => ({
-              cat: c.cat,
-              resp: c.resp,
-              pistas: c.pistas.map(p => ({
-                txt: p.txt,
-                efeito: p.efeito || null
-              }))
-            }));
-
-            if (!validadasPistas.length) throw new Error('Nenhuma carta de pistas gerada atendeu aos critérios de validação.');
-
-            setIaPistasGeradas(validadasPistas);
-            setIaFeedback({ txt: `✅ ${validadasPistas.length} cartas de Três Pistas geradas com sucesso pelo modelo ${modelo}!`, tipo: 'ok' });
-            setIaLoading(false);
-            return;
-          } else if (iaAba === 'imacao') {
-            const validadasImAcao = parsed.filter(c => {
-              return Array.isArray(c.opcoes) && c.opcoes.length === 5 && c.opcoes.every(o => o.num && o.cat && o.resp);
-            }).map(c => ({
-              opcoes: c.opcoes.map(o => ({
-                num: Number(o.num),
-                cat: o.cat,
-                resp: o.resp
-              }))
-            }));
-
-            if (!validadasImAcao.length) throw new Error('Nenhuma carta de Imagem e Ação gerada atendeu aos critérios de validação.');
-
-            setIaImAcaoGeradas(validadasImAcao);
-            setIaFeedback({ txt: `✅ ${validadasImAcao.length} cartas de Imagem e Ação geradas com sucesso pelo modelo ${modelo}!`, tipo: 'ok' });
-            setIaLoading(false);
-            return;
-          } else {
-            const validadas = parsed.filter(p => {
-              if (!p.tipo || !p.txt) return false;
-              if (p.tipo === 'mc') return Array.isArray(p.alts) && p.alts.length === 4 && p.resp >= 0 && p.resp <= 3;
-              if (p.tipo === 'vf') return p.resp === 'v' || p.resp === 'f';
-              if (p.tipo === 'veloc') return !!p.resp;
-              return false;
-            }).map(p => ({ 
-              ...p, 
-              turma: p.turma || iaTurma.trim() || 'Sem Turma', 
-              mat: p.mat || materia, 
-              tema: p.tema || iaTema.trim() || 'Geral' 
-            }));
-
-            if (!validadas.length) throw new Error('Nenhuma pergunta gerada atendeu aos critérios de validação.');
-
-            setIaPergsGeradas(validadas);
-            setIaFeedback({ txt: `✅ ${validadas.length} perguntas de Duelo formuladas com sucesso pelo modelo ${modelo}!`, tipo: 'ok' });
-            setIaLoading(false);
-            return;
-          }
-        } catch (err) {
-          console.warn(`[Gemini] Erro com modelo ${modelo}:`, err.message);
-          // Continua para o próximo modelo
+        // Todos os modelos falharam
+        if (errosAcumulados.length > 0) {
+          setIaFeedback({ 
+            txt: `⚠️ Todos os modelos Gemini falharam. Detalhes: ${errosAcumulados.join(' | ')}. Ativando simulação local...`, 
+            tipo: 'warn' 
+          });
+        } else {
+          setIaFeedback({ txt: `⚠️ Todos os modelos Gemini falharam. Verifique sua chave ou tente novamente. Ativando simulação local...`, tipo: 'warn' });
         }
       }
-
-      // Todos os modelos falharam
-      setIaFeedback({ txt: `⚠️ Todos os modelos Gemini falharam. Verifique sua chave ou tente novamente. Ativando simulação local...`, tipo: 'warn' });
+    } catch (globalErr) {
+      console.error('[Gemini Global Error] Erro inesperado na requisição:', globalErr);
+      setIaFeedback({ txt: `⚠️ Erro na comunicação com a IA (${globalErr.message}). Ativando simulação local...`, tipo: 'warn' });
     }
 
     // Fallback Local se a API não estiver configurada ou falhar
     setTimeout(() => {
-      if (iaAba === 'imacao') {
-        const mockImAcaoTema = [
-          {
-            opcoes: [
-              { num: 1, cat: 'Ação', resp: `Fazer Mímica de ${materia}` },
-              { num: 2, cat: 'Objeto', resp: `Escrever no Quadro de ${materia}` },
-              { num: 3, cat: 'Lugar', resp: 'Sala de Aula Divertida' },
-              { num: 4, cat: 'Pessoa/Animal', resp: 'Professor Inteligente' },
-              { num: 5, cat: 'Difícil', resp: 'Decifrar Equação' }
-            ]
-          },
-          {
-            opcoes: [
-              { num: 1, cat: 'Ação', resp: 'Desenhar no Quadro' },
-              { num: 2, cat: 'Objeto', resp: 'Projetor Digital' },
-              { num: 3, cat: 'Lugar', resp: 'Laboratório de Ciências' },
-              { num: 4, cat: 'Pessoa/Animal', resp: 'Cientista Famoso' },
-              { num: 5, cat: 'Difícil', resp: 'Entropia Térmica' }
-            ]
-          }
-        ];
-        
-        setIaImAcaoGeradas(mockImAcaoTema);
-        setIaFeedback({
-          txt: geminiKey.trim()
-            ? `✨ Modo Simulação Ativo: A API do Gemini falhou ou retornou inválido. Geramos cartas de Imagem e Ação simuladas para o tema "${materia}"!`
-            : `✨ Modo Simulação: Para ler PDFs reais, insira sua chave do Gemini. Geramos cartas de Imagem e Ação simuladas para o tema "${materia}"!`,
-          type: 'ok'
-        });
-        setIaLoading(false);
-        return;
-      }
-
-      if (iaAba === 'pistas') {
-        const bancoMockPistas = {
-          'História': [
+      try {
+        if (iaAba === 'imacao') {
+          const mockImAcaoTema = [
             {
-              cat: 'Pessoa',
-              resp: 'Dom Pedro II',
-              pistas: [
-                { txt: 'Fui o segundo e último imperador do Império do Brasil, reinando por 58 anos.', efeito: null },
-                { txt: 'Meu reinado foi marcado pela consolidação nacional e pela abolição da escravidão por minha filha.', efeito: 'avance_1' },
-                { txt: 'Subi ao trono com apenas 5 anos de idade após a abdicação de meu pai em 1831.', efeito: null },
-                { txt: 'Fui deposto em 1889 pela Proclamação da República e exilado na Europa.', efeito: 'recue_1' },
-                { txt: 'Sou conhecido pela alcunha de "O Magnânimo" e por meu amor às artes e ciências.', efeito: null }
+              opcoes: [
+                { num: 1, cat: 'Ação', resp: `Fazer Mímica de ${materia}` },
+                { num: 2, cat: 'Objeto', resp: `Escrever no Quadro de ${materia}` },
+                { num: 3, cat: 'Lugar', resp: 'Sala de Aula Divertida' },
+                { num: 4, cat: 'Pessoa/Animal', resp: 'Professor Inteligente' },
+                { num: 5, cat: 'Difícil', resp: 'Decifrar Equação' }
               ]
             },
             {
-              cat: 'Lugar',
-              resp: 'Brasília',
-              pistas: [
-                { txt: 'Sou uma cidade planejada construída a partir do zero no meio do Planalto Central brasileiro.', efeito: null },
-                { txt: 'Minha arquitetura inovadora e futurista foi desenhada por Oscar Niemeyer.', efeito: 'avance_2' },
-                { txt: 'Fui inaugurada em 1960 pelo então presidente Juscelino Kubitschek.', efeito: null },
-                { txt: 'Meu desenho urbano original assemelha-se ao formato de um avião (Plano Piloto).', efeito: 'oponente_recue_1' },
-                { txt: 'Substituí a cidade do Rio de Janeiro como capital federal do Brasil.', efeito: null }
-              ]
-            },
-            {
-              cat: 'Ano',
-              resp: '1500',
-              pistas: [
-                { txt: 'Sou o ano que marca o início do século XVI.', efeito: null },
-                { txt: 'Neste ano, uma expedição liderada por Pedro Álvares Cabral chegou às terras que hoje formam o Brasil.', efeito: 'avance_1' },
-                { txt: 'Foi o ano em que Pero Vaz de Caminha escreveu sua famosa carta relatando as belezas da nova terra.', efeito: null },
-                { txt: 'O rei de Portugal na época desta grande expedição era Dom Manuel I.', efeito: 'oponente_recue_1' },
-                { txt: 'Meu número é composto pelo algarismo 1 seguido de 5 e dois zeros.', efeito: null }
+              opcoes: [
+                { num: 1, cat: 'Ação', resp: 'Desenhar no Quadro' },
+                { num: 2, cat: 'Objeto', resp: 'Projetor Digital' },
+                { num: 3, cat: 'Lugar', resp: 'Laboratório de Ciências' },
+                { num: 4, cat: 'Pessoa/Animal', resp: 'Cientista Famoso' },
+                { num: 5, cat: 'Difícil', resp: 'Entropia Térmica' }
               ]
             }
+          ];
+          
+          setIaImAcaoGeradas(mockImAcaoTema);
+          setIaFeedback({
+            txt: geminiKey.trim()
+              ? `✨ Modo Simulação Ativo: A API do Gemini falhou ou retornou inválido. Geramos cartas de Imagem e Ação simuladas para o tema "${materia}"!`
+              : `✨ Modo Simulação: Para ler PDFs reais, insira sua chave do Gemini. Geramos cartas de Imagem e Ação simuladas para o tema "${materia}"!`,
+            tipo: 'ok'
+          });
+          setIaLoading(false);
+          return;
+        }
+
+        if (iaAba === 'pistas') {
+          const bancoMockPistas = {
+            'História': [
+              {
+                cat: 'Pessoa',
+                resp: 'Dom Pedro II',
+                pistas: [
+                  { txt: 'Fui o segundo e último imperador do Império do Brasil, reinando por 58 anos.', efeito: null },
+                  { txt: 'Meu reinado foi marcado pela consolidação nacional e pela abolição da escravidão por minha filha.', efeito: 'avance_1' },
+                  { txt: 'Subi ao trono com apenas 5 anos de idade após a abdicação de meu pai em 1831.', efeito: null },
+                  { txt: 'Fui deposto em 1889 pela Proclamação da República e exilado na Europa.', efeito: 'recue_1' },
+                  { txt: 'Sou conhecido pela alcunha de "O Magnânimo" e por meu amor às artes e ciências.', efeito: null }
+                ]
+              },
+              {
+                cat: 'Lugar',
+                resp: 'Brasília',
+                pistas: [
+                  { txt: 'Sou uma cidade planejada construída a partir do zero no meio do Planalto Central brasileiro.', efeito: null },
+                  { txt: 'Minha arquitetura inovadora e futurista foi desenhada por Oscar Niemeyer.', efeito: 'avance_2' },
+                  { txt: 'Fui inaugurada em 1960 pelo então presidente Juscelino Kubitschek.', efeito: null },
+                  { txt: 'Meu desenho urbano original assemelha-se ao formato de um avião (Plano Piloto).', efeito: 'oponente_recue_1' },
+                  { txt: 'Substituí a cidade do Rio de Janeiro como capital federal do Brasil.', efeito: null }
+                ]
+              },
+              {
+                cat: 'Ano',
+                resp: '1500',
+                pistas: [
+                  { txt: 'Sou o ano que marca o início do século XVI.', efeito: null },
+                  { txt: 'Neste ano, uma expedição liderada por Pedro Álvares Cabral chegou às terras que hoje formam o Brasil.', efeito: 'avance_1' },
+                  { txt: 'Foi o ano em que Pero Vaz de Caminha escreveu sua famosa carta relatando as belezas da nova terra.', efeito: null },
+                  { txt: 'O rei de Portugal na época desta grande expedição era Dom Manuel I.', efeito: 'oponente_recue_1' },
+                  { txt: 'Meu número é composto pelo algarismo 1 seguido de 5 e dois zeros.', efeito: null }
+                ]
+              }
+            ],
+            'Ciências': [
+              {
+                cat: 'Coisa',
+                resp: 'DNA',
+                pistas: [
+                  { txt: 'Sou a molécula que carrega as instruções genéticas para o desenvolvimento e funcionamento de todos os seres vivos.', efeito: null },
+                  { txt: 'Minha estrutura tridimensional característica em dupla hélice foi descoberta por Watson e Crick em 1953.', efeito: 'avance_1' },
+                  { txt: 'Sou composto por quatro bases nitrogenadas principais: Adenina, Timina, Citosina e Guanina.', efeito: null },
+                  { txt: 'Fico localizado principalmente no interior do núcleo das células eucarióticas.', efeito: 'recue_1' },
+                  { txt: 'Minha sigla em português significa Ácido Desoxirribonucleico.', efeito: null }
+                ]
+              },
+              {
+                cat: 'Animal',
+                resp: 'Dinossauro',
+                pistas: [
+                  { txt: 'Fomos um grupo diversificado de répteis que dominaram a Terra durante a Era Mesozoica.', efeito: null },
+                  { txt: 'Nossa extinção em massa ocorreu há aproximadamente 66 milhões de anos, provavelmente por impacto de asteroide.', efeito: 'avance_2' },
+                  { txt: 'O Tiranossauro Rex e o Tricerátops são algumas de nossas espécies mais célebres.', efeito: null },
+                  { txt: 'Nossos restos fossilizados são estudados com entusiasmo por paleontólogos no mundo todo.', efeito: 'recue_1' },
+                  { txt: 'Fomos popularizados na cultura moderna por franquias de ficção científica como "Jurassic Park".', efeito: null }
+                ]
+              }
+            ]
+          };
+
+          const temaEncontradoPistas = Object.keys(bancoMockPistas).find(k => k.toLowerCase() === materia.toLowerCase());
+          let poolPistas = temaEncontradoPistas ? bancoMockPistas[temaEncontradoPistas] : null;
+
+          if (!poolPistas) {
+            poolPistas = [];
+            Object.keys(bancoMockPistas).forEach(key => {
+              poolPistas = poolPistas.concat(bancoMockPistas[key]);
+            });
+          }
+
+          const embaralhadasPistas = fisherYates(poolPistas);
+          const selecionadasPistas = embaralhadasPistas.slice(0, Math.min(iaQtd, embaralhadasPistas.length));
+
+          setIaPistasGeradas(selecionadasPistas);
+          setIaFeedback({
+            txt: geminiKey.trim()
+              ? `✨ Modo Simulação Ativo: A API do Gemini falhou. Geramos cartas de pistas simuladas para o tema "${materia}"!`
+              : `✨ Modo Simulação: Para ler PDFs reais, insira sua chave do Gemini. Geramos cartas de pistas simuladas para o tema "${materia}"!`,
+            tipo: 'ok'
+          });
+          setIaLoading(false);
+          return;
+        }
+
+        const bancoMock = {
+          'História': [
+            { tipo: 'mc', txt: 'Quem assinou a abolição da escravidão no Brasil através da Lei Áurea?', alts: ['D. Pedro II', 'D. João VI', 'Princesa Isabel', 'José do Patrocínio'], resp: 2 },
+            { tipo: 'vf', txt: 'O Brasil proclamou sua independência de Portugal no dia 7 de Setembro de 1822.', resp: 'v' },
+            { tipo: 'mc', txt: 'Em qual ano teve início a Primeira Guerra Mundial?', alts: ['1912', '1914', '1918', '1939'], resp: 1 },
+            { tipo: 'vf', txt: 'A Revolução Francesa começou em 1789 com a queda da Bastilha.', resp: 'v' },
+            { tipo: 'veloc', txt: 'Quem foi o primeiro presidente da República no Brasil?', resp: 'Marechal Deodoro da Fonseca' },
+            { tipo: 'mc', txt: 'Qual civilização antiga construiu as famosas Pirâmides de Gizé?', alts: ['Maias', 'Romanos', 'Egípcios', 'Gregos'], resp: 2 }
+          ],
+          'Matemática': [
+            { tipo: 'mc', txt: 'Qual é o valor da raiz quadrada de 144?', alts: ['10', '12', '14', '16'], resp: 1 },
+            { tipo: 'vf', txt: 'A soma dos ângulos internos de um triângulo é sempre 180 graus.', resp: 'v' },
+            { tipo: 'mc', txt: 'Se x + 7 = 15, qual é o valor de x?', alts: ['6', '7', '8', '9'], resp: 2 },
+            { tipo: 'vf', txt: 'O número 1 é considerado um número primo.', resp: 'f' },
+            { tipo: 'veloc', txt: 'Quanto é a metade de 150 multiplicado por 2?', resp: '150' },
+            { tipo: 'mc', txt: 'Qual é a fórmula da área de um círculo?', alts: ['2 * pi * r', 'pi * r^2', 'pi * d', 'r^2'], resp: 1 }
+          ],
+          'Geografia': [
+            { tipo: 'mc', txt: 'Qual é a capital de Roraima?', alts: ['Porto Velho', 'Macapá', 'Boa Vista', 'Palmas'], resp: 2 },
+            { tipo: 'vf', txt: 'O maior país em extensão territorial do mundo é a Rússia.', resp: 'v' },
+            { tipo: 'mc', txt: 'Qual é o rio mais extenso do planeta?', alts: ['Rio Nilo', 'Rio Amazonas', 'Rio Mississippi', 'Rio Yangtzé'], resp: 1 },
+            { tipo: 'vf', txt: 'A linha do equador divide a Terra em Leste e Oeste.', resp: 'f' },
+            { tipo: 'veloc', txt: 'Qual é o país conhecido como a "Terra do Sol Nascente"?', resp: 'Japão' }
           ],
           'Ciências': [
-            {
-              cat: 'Coisa',
-              resp: 'DNA',
-              pistas: [
-                { txt: 'Sou a molécula que carrega as instruções genéticas para o desenvolvimento e funcionamento de todos os seres vivos.', efeito: null },
-                { txt: 'Minha estrutura tridimensional característica em dupla hélice foi descoberta por Watson e Crick em 1953.', efeito: 'avance_1' },
-                { txt: 'Sou composto por quatro bases nitrogenadas principais: Adenina, Timina, Citosina e Guanina.', efeito: null },
-                { txt: 'Fico localizado principalmente no interior do núcleo das células eucarióticas.', efeito: 'recue_1' },
-                { txt: 'Minha sigla em português significa Ácido Desoxirribonucleico.', efeito: null }
-              ]
-            },
-            {
-              cat: 'Animal',
-              resp: 'Dinossauro',
-              pistas: [
-                { txt: 'Fomos um grupo diversificado de répteis que dominaram a Terra durante a Era Mesozoica.', efeito: null },
-                { txt: 'Nossa extinção em massa ocorreu há aproximadamente 66 milhões de anos, provavelmente por impacto de asteroide.', efeito: 'avance_2' },
-                { txt: 'O Tiranossauro Rex e o Tricerátops são algumas de nossas espécies mais célebres.', efeito: null },
-                { txt: 'Nossos restos fossilizados são estudados com entusiasmo por paleontólogos no mundo todo.', efeito: 'recue_1' },
-                { txt: 'Fomos popularizados na cultura moderna por franquias de ficção científica como "Jurassic Park".', efeito: null }
-              ]
-            }
+            { tipo: 'mc', txt: 'Qual elemento químico é representado pela letra O na tabela periódica?', alts: ['Ouro', 'Oxigênio', 'Ósmio', 'Ozônio'], resp: 1 },
+            { tipo: 'vf', txt: 'A água congela a exatamente 0 graus Celsius ao nível do mar.', resp: 'v' },
+            { tipo: 'mc', txt: 'Qual planeta do sistema solar é conhecido como o Planeta Vermelho?', alts: ['Vênus', 'Marte', 'Júpiter', 'Saturno'], resp: 1 },
+            { tipo: 'vf', txt: 'O sol é um planeta gasoso gigante.', resp: 'f' },
+            { tipo: 'veloc', txt: 'Qual é a velocidade aproximada da luz no vácuo?', resp: '300.000 km/s' }
+          ],
+          'Cinema': [
+            { tipo: 'mc', txt: 'Quem dirigiu o aclamado filme "Titanic" (1997)?', alts: ['Steven Spielberg', 'Christopher Nolan', 'James Cameron', 'Quentin Tarantino'], resp: 2 },
+            { tipo: 'vf', txt: 'O filme "Parasita" foi o primeiro filme em língua estrangeira a ganhar o Oscar de Melhor Filme.', resp: 'v' },
+            { tipo: 'mc', txt: 'Quantos filmes compõem a trilogia original de Star Wars?', alts: ['3', '6', '9', '12'], resp: 0 },
+            { tipo: 'vf', txt: 'O ator Leonardo DiCaprio ganhou o Oscar de Melhor Ator por Titanic.', resp: 'f' },
+            { tipo: 'veloc', txt: 'Qual filme animado da Disney apresenta a música "Let It Go"?', resp: 'Frozen' }
+          ],
+          'Ensino Religioso': [
+            { tipo: 'mc', txt: 'Qual é o livro sagrado do Islã?', alts: ['A Bíblia', 'A Torá', 'O Alcorão', 'Os Vedas'], resp: 2 },
+            { tipo: 'vf', txt: 'O Budismo é uma tradição filosófico-religiosa que não prega a existência de um Deus criador pessoal.', resp: 'v' },
+            { tipo: 'mc', txt: 'No Hinduísmo, como é chamado o conceito que representa o ciclo de nascimento, morte e renascimento (reencarnação)?', alts: ['Dharma', 'Karma', 'Nirvana', 'Samsara'], resp: 3 },
+            { tipo: 'vf', txt: 'A Regra de Ouro ("trate os outros como gostaria de ser tratado") é um princípio ético universal presente em quase todas as grandes tradições de fé e filosofias.', resp: 'v' },
+            { tipo: 'veloc', txt: 'Qual é o nome da principal figura histórica e mestre espiritual cuja vida e ensinamentos fundaram o Cristianismo?', resp: 'Jesus Cristo' },
+            { tipo: 'mc', txt: 'Qual destas comemorações religiosas celebra a libertação do povo hebreu da escravidão no antigo Egito?', alts: ['Hanukkah', 'Pessach (Páscoa)', 'Yom Kippur', 'Rosh Hashaná'], resp: 1 }
           ]
         };
 
-        const temaEncontradoPistas = Object.keys(bancoMockPistas).find(k => k.toLowerCase() === materia.toLowerCase());
-        let poolPistas = temaEncontradoPistas ? bancoMockPistas[temaEncontradoPistas] : null;
+        const temaEncontrado = Object.keys(bancoMock).find(k => k.toLowerCase() === materia.toLowerCase());
+        let pool = temaEncontrado ? bancoMock[temaEncontrado] : null;
 
-        if (!poolPistas) {
-          poolPistas = [];
-          Object.keys(bancoMockPistas).forEach(key => {
-            poolPistas = poolPistas.concat(bancoMockPistas[key]);
+        if (!pool) {
+          pool = [];
+          Object.keys(bancoMock).forEach(key => {
+            pool = pool.concat(bancoMock[key]);
           });
         }
 
-        const embaralhadasPistas = [...poolPistas].sort(() => Math.random() - 0.5);
-        const selecionadasPistas = embaralhadasPistas.slice(0, Math.min(iaQtd, embaralhadasPistas.length));
+        const filtradasPorTipo = pool.filter(p => {
+          if (p.tipo === 'mc') return iaTipoMC;
+          if (p.tipo === 'vf') return iaTipoVF;
+          if (p.tipo === 'veloc') return iaTipoVel;
+          return false;
+        });
 
-        setIaPistasGeradas(selecionadasPistas);
+        const poolFinal = filtradasPorTipo.length ? filtradasPorTipo : pool;
+        const embaralhadas = fisherYates(poolFinal);
+        const selecionadas = embaralhadas.slice(0, Math.min(iaQtd, embaralhadas.length)).map(p => ({
+          ...p,
+          turma: iaTurma.trim() || 'Sem Turma',
+          mat: materia,
+          tema: iaTema.trim() || 'Geral'
+        }));
+
+        setIaPergsGeradas(selecionadas);
         setIaFeedback({
           txt: geminiKey.trim()
-            ? `✨ Modo Simulação Ativo: A API do Gemini falhou. Geramos cartas de pistas simuladas para o tema "${materia}"!`
-            : `✨ Modo Simulação: Para ler PDFs reais, insira sua chave do Gemini. Geramos cartas de pistas simuladas para o tema "${materia}"!`,
-          tipo: 'ok'
+            ? `⚠️ Simulação ativada: A API Gemini não respondeu corretamente. Geradas ${selecionadas.length} perguntas simuladas sobre "${materia}". Verifique sua chave de API.`
+            : `ℹ️ Sem chave de API: Geradas ${selecionadas.length} perguntas simuladas sobre "${materia}". Insira sua chave do Gemini para usar IA real.`,
+          tipo: geminiKey.trim() ? 'warn' : 'ok'
         });
         setIaLoading(false);
-        return;
+      } catch (err) {
+        console.error('[Gemini Fallback Error]', err);
+        setIaFeedback({ txt: `❌ Erro ao gerar simulados: ${err.message}`, tipo: 'err' });
+        setIaLoading(false);
       }
-
-      const bancoMock = {
-        'História': [
-          { tipo: 'mc', txt: 'Quem assinou a abolição da escravidão no Brasil através da Lei Áurea?', alts: ['D. Pedro II', 'D. João VI', 'Princesa Isabel', 'José do Patrocínio'], resp: 2 },
-          { tipo: 'vf', txt: 'O Brasil proclamou sua independência de Portugal no dia 7 de Setembro de 1822.', resp: 'v' },
-          { tipo: 'mc', txt: 'Em qual ano teve início a Primeira Guerra Mundial?', alts: ['1912', '1914', '1918', '1939'], resp: 1 },
-          { tipo: 'vf', txt: 'A Revolução Francesa começou em 1789 com a queda da Bastilha.', resp: 'v' },
-          { tipo: 'veloc', txt: 'Quem foi o primeiro presidente da República no Brasil?', resp: 'Marechal Deodoro da Fonseca' },
-          { tipo: 'mc', txt: 'Qual civilização antiga construiu as famosas Pirâmides de Gizé?', alts: ['Maias', 'Romanos', 'Egípcios', 'Gregos'], resp: 2 }
-        ],
-        'Matemática': [
-          { tipo: 'mc', txt: 'Qual é o valor da raiz quadrada de 144?', alts: ['10', '12', '14', '16'], resp: 1 },
-          { tipo: 'vf', txt: 'A soma dos ângulos internos de um triângulo é sempre 180 graus.', resp: 'v' },
-          { tipo: 'mc', txt: 'Se x + 7 = 15, qual é o valor de x?', alts: ['6', '7', '8', '9'], resp: 2 },
-          { tipo: 'vf', txt: 'O número 1 é considerado um número primo.', resp: 'f' },
-          { tipo: 'veloc', txt: 'Quanto é a metade de 150 multiplicado por 2?', resp: '150' },
-          { tipo: 'mc', txt: 'Qual é a fórmula da área de um círculo?', alts: ['2 * pi * r', 'pi * r^2', 'pi * d', 'r^2'], resp: 1 }
-        ],
-        'Geografia': [
-          { tipo: 'mc', txt: 'Qual é a capital de Roraima?', alts: ['Porto Velho', 'Macapá', 'Boa Vista', 'Palmas'], resp: 2 },
-          { tipo: 'vf', txt: 'O maior país em extensão territorial do mundo é a Rússia.', resp: 'v' },
-          { tipo: 'mc', txt: 'Qual é o rio mais extenso do planeta?', alts: ['Rio Nilo', 'Rio Amazonas', 'Rio Mississippi', 'Rio Yangtzé'], resp: 1 },
-          { tipo: 'vf', txt: 'A linha do equador divide a Terra em Leste e Oeste.', resp: 'f' },
-          { tipo: 'veloc', txt: 'Qual é o país conhecido como a "Terra do Sol Nascente"?', resp: 'Japão' }
-        ],
-        'Ciências': [
-          { tipo: 'mc', txt: 'Qual elemento químico é representado pela letra O na tabela periódica?', alts: ['Ouro', 'Oxigênio', 'Ósmio', 'Ozônio'], resp: 1 },
-          { tipo: 'vf', txt: 'A água congela a exatamente 0 graus Celsius ao nível do mar.', resp: 'v' },
-          { tipo: 'mc', txt: 'Qual planeta do sistema solar é conhecido como o Planeta Vermelho?', alts: ['Vênus', 'Marte', 'Júpiter', 'Saturno'], resp: 1 },
-          { tipo: 'vf', txt: 'O sol é um planeta gasoso gigante.', resp: 'f' },
-          { tipo: 'veloc', txt: 'Qual é a velocidade aproximada da luz no vácuo?', resp: '300.000 km/s' }
-        ],
-        'Cinema': [
-          { tipo: 'mc', txt: 'Quem dirigiu o aclamado filme "Titanic" (1997)?', alts: ['Steven Spielberg', 'Christopher Nolan', 'James Cameron', 'Quentin Tarantino'], resp: 2 },
-          { tipo: 'vf', txt: 'O filme "Parasita" foi o primeiro filme em língua estrangeira a ganhar o Oscar de Melhor Filme.', resp: 'v' },
-          { tipo: 'mc', txt: 'Quantos filmes compõem a trilogia original de Star Wars?', alts: ['3', '6', '9', '12'], resp: 0 },
-          { tipo: 'vf', txt: 'O ator Leonardo DiCaprio ganhou o Oscar de Melhor Ator por Titanic.', resp: 'f' },
-          { tipo: 'veloc', txt: 'Qual filme animado da Disney apresenta a música "Let It Go"?', resp: 'Frozen' }
-        ],
-        'Ensino Religioso': [
-          { tipo: 'mc', txt: 'Qual é o livro sagrado do Islã?', alts: ['A Bíblia', 'A Torá', 'O Alcorão', 'Os Vedas'], resp: 2 },
-          { tipo: 'vf', txt: 'O Budismo é uma tradição filosófico-religiosa que não prega a existência de um Deus criador pessoal.', resp: 'v' },
-          { tipo: 'mc', txt: 'No Hinduísmo, como é chamado o conceito que representa o ciclo de nascimento, morte e renascimento (reencarnação)?', alts: ['Dharma', 'Karma', 'Nirvana', 'Samsara'], resp: 3 },
-          { tipo: 'vf', txt: 'A Regra de Ouro ("trate os outros como gostaria de ser tratado") é um princípio ético universal presente em quase todas as grandes tradições de fé e filosofias.', resp: 'v' },
-          { tipo: 'veloc', txt: 'Qual é o nome da principal figura histórica e mestre espiritual cuja vida e ensinamentos fundaram o Cristianismo?', resp: 'Jesus Cristo' },
-          { tipo: 'mc', txt: 'Qual destas comemorações religiosas celebra a libertação do povo hebreu da escravidão no antigo Egito?', alts: ['Hanukkah', 'Pessach (Páscoa)', 'Yom Kippur', 'Rosh Hashaná'], resp: 1 }
-        ]
-      };
-
-      // Obter perguntas mock do tema de forma case-insensitive
-      const temaEncontrado = Object.keys(bancoMock).find(k => k.toLowerCase() === materia.toLowerCase());
-      let pool = temaEncontrado ? bancoMock[temaEncontrado] : null;
-
-      // Se a matéria for desconhecida, fazemos um pool misto de todos os temas
-      if (!pool) {
-        pool = [];
-        Object.keys(bancoMock).forEach(key => {
-          pool = pool.concat(bancoMock[key]);
-        });
-      }
-
-      // Filtrar pelos tipos aceitos pelo usuário
-      let filtrados = pool.filter(p => tiposDisponiveis.includes(p.tipo));
-      if (!filtrados.length) filtrados = pool; // Fallback se nada bater
-
-      // Selecionar de forma aleatória a quantidade pedida
-      const embaralhadas = [...filtrados].sort(() => Math.random() - 0.5);
-      const selecionadas = embaralhadas.slice(0, Math.min(iaQtd, embaralhadas.length)).map(p => ({
-        ...p,
-        turma: iaTurma.trim() || 'Sem Turma',
-        mat: materia,
-        tema: iaTema.trim() || 'Geral'
-      }));
-
-      setIaPergsGeradas(selecionadas);
-      setIaFeedback({
-        txt: geminiKey.trim()
-          ? `⚠️ Simulação ativada: A API Gemini não respondeu corretamente. Geradas ${selecionadas.length} perguntas simuladas sobre "${materia}". Verifique sua chave de API.`
-          : `ℹ️ Sem chave de API: Geradas ${selecionadas.length} perguntas simuladas sobre "${materia}". Insira sua chave do Gemini para usar IA real.`,
-        tipo: geminiKey.trim() ? 'warn' : 'ok'
-      });
-      setIaLoading(false);
     }, 1500);
   };
 
@@ -4792,14 +4994,32 @@ export default function App() {
         : ass.total;
 
       if (qtdEscolhida > 0) {
-        const pergsEmbaralhadasAssunto = [...ass.pergs].sort(() => Math.random() - 0.5);
+        const pergsEmbaralhadasAssunto = fisherYates(ass.pergs);
         const selecionadas = pergsEmbaralhadasAssunto.slice(0, qtdEscolhida);
         poolFinal = [...poolFinal, ...selecionadas];
       }
     });
 
-    // Embaralhar o pool final consolidado
-    const poolEmbaralhadoCompleto = [...poolFinal].sort(() => Math.random() - 0.5);
+    // Embaralhar o pool final consolidado usando o algoritmo robusto de Fisher-Yates
+    let poolEmbaralhadoCompleto = fisherYates(poolFinal);
+
+    // Embaralhar as alternativas das perguntas de múltipla escolha para evitar viés de cor (Kahoot)
+    poolEmbaralhadoCompleto = poolEmbaralhadoCompleto.map(perg => {
+      if (perg.tipo === 'mc' && Array.isArray(perg.alts) && perg.alts.length === 4) {
+        const textoOriginalCorreto = perg.alts[perg.resp];
+        if (textoOriginalCorreto === undefined) return perg;
+
+        const novasAlts = fisherYates(perg.alts);
+        const novoResp = novasAlts.indexOf(textoOriginalCorreto);
+
+        return {
+          ...perg,
+          alts: novasAlts,
+          resp: novoResp !== -1 ? novoResp : perg.resp
+        };
+      }
+      return perg;
+    });
 
     if (poolEmbaralhadoCompleto.length === 0) {
       alert('Nenhuma pergunta selecionada para o duelo! Por favor, selecione pelo menos 1 pergunta.');
@@ -5035,7 +5255,7 @@ export default function App() {
       // Selecionar 2 alternativas incorretas para excluir
       const corretora = p.resp;
       const incorretas = [0, 1, 2, 3].filter(idx => idx !== corretora);
-      const excluidas = incorretas.sort(() => Math.random() - 0.5).slice(0, 2);
+      const excluidas = fisherYates(incorretas).slice(0, 2);
       setDicaExcluidas(excluidas);
     }
   };
