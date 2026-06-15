@@ -2962,15 +2962,13 @@ export default function App() {
       return;
     }
     if (autoAvancouRef.current) return;
-    // Só avança automaticamente se ainda há perguntas E o jogo ainda está em curso
     if (dueloEstado.phase === 'winner') return;
-    if (rodAtual > fila.length) return;
 
     autoAvancouRef.current = true;
     console.log('[Auto] Fase reveal detectada. Avançando em 4 segundos...');
     const t = setTimeout(() => {
       autoAvancouRef.current = false;
-      // Verifica de forma segura antes de avançar
+      // Avança apenas se ainda estiver em reveal (não virou winner ou outra fase)
       setDueloEstado(est => {
         if (est && est.phase === 'reveal') {
           avancarPerguntaDueloOnline();
@@ -2979,14 +2977,13 @@ export default function App() {
       });
     }, 4000);
     return () => clearTimeout(t);
-  }, [tela, dueloEstado, dueloModoControle, rodAtual, fila]);
+  }, [tela, dueloEstado, dueloModoControle]);
 
   // Countdown visual do auto-avanço (4s → 0)
   useEffect(() => {
     if (tela !== 'duelo-online-game') { setDueloAutoCountdown(0); return; }
     if (dueloModoControle !== 'celular') { setDueloAutoCountdown(0); return; }
     if (!dueloEstado || dueloEstado.phase !== 'reveal') { setDueloAutoCountdown(0); return; }
-    if (rodAtual > fila.length) { setDueloAutoCountdown(0); return; }
 
     setDueloAutoCountdown(4);
     const interval = setInterval(() => {
@@ -2996,7 +2993,7 @@ export default function App() {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [tela, dueloEstado, dueloModoControle, rodAtual, fila]);
+  }, [tela, dueloEstado, dueloModoControle]);
 
   // Escuta de estado do jogo (Aluno)
   useEffect(() => {
