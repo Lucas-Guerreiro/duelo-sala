@@ -10,6 +10,7 @@
 
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -22,7 +23,15 @@ const firebaseConfig = {
 };
 
 let db = null;
+let auth = null;
 let firebaseInitializado = false;
+
+/**
+ * Retorna o UID do usuário atualmente autenticado.
+ */
+export function getCurrentUserUid() {
+  return auth?.currentUser?.uid || null;
+}
 
 /**
  * Inicializa o Firebase. Chamado uma vez ao montar o App.
@@ -37,11 +46,21 @@ export function initFirebase() {
     if (getApps().length === 0) {
       const app = initializeApp(firebaseConfig);
       db = getFirestore(app);
+      auth = getAuth(app);
     } else {
-      db = getFirestore(getApps()[0]);
+      const app = getApps()[0];
+      db = getFirestore(app);
+      auth = getAuth(app);
     }
     firebaseInitializado = true;
-    console.log('[Firebase] Inicializado com sucesso.');
+    console.log('[Firebase] Firestore e Auth instanciados.');
+    
+    // Autenticação anônima silenciosa para proteção de rotas/banco
+    signInAnonymously(auth).then((userCredential) => {
+      console.log('[Firebase] Autenticado anonimamente. UID:', userCredential.user.uid);
+    }).catch(err => {
+      console.error('[Firebase] Erro na autenticação anônima:', err);
+    });
   } catch (e) {
     console.error('[Firebase] Erro ao inicializar:', e);
     throw e;
@@ -80,7 +99,8 @@ export async function publicarBancoNuvem(codigoSala, payload) {
   try {
     const chave = codigoSala.trim().toUpperCase();
     const ref = doc(db, 'salas', chave);
-    await setDoc(ref, { ...payload, _updatedAt: new Date().toISOString() });
+    const ownerUid = getCurrentUserUid();
+    await setDoc(ref, { ...payload, ownerUid, _updatedAt: new Date().toISOString() });
     return true;
   } catch (e) {
     console.error('[Firebase] Erro ao publicar banco na nuvem:', e);

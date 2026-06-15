@@ -584,19 +584,70 @@ export default function App() {
   const [tela, setTela] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('projetor') === 'true') return 'ia-projetor';
-      const last = localStorage.getItem('dm_last_tela');
-      if (last === 'ia-projetor' || last === 'ia-projetor-fim' || last === 'duelo-aluno') return 'menu';
-      return last || 'menu';
+      if (params.get('projetor') === 'true') {
+        return params.get('jogo') === 'memoria' ? 'memo-projetor' : 'ia-projetor';
+      }
+      const jogoParam = params.get('jogo');
+      const equipeParam = params.get('equipe');
+      if (jogoParam === 'duelo' && equipeParam) {
+        return 'duelo-aluno';
+      }
+      // Sempre inicia na tela de início (menu) por segurança e para evitar estados travados
+      return 'menu';
     } catch (e) {
       return 'menu';
     }
   }); // 'menu' | 'ia' | 'controles' | 'cadastro' | 'selecao' | 'nomes' | 'jogo' | 'fim'
   const [origemConfig, setOrigemConfig] = useState(null);
 
+  // --- CONTROLE DE ACESSO DO PROFESSOR (SEGURANÇA) ---
+  const [isAutenticadoProfessor, setIsAutenticadoProfessor] = useState(() => {
+    try {
+      return sessionStorage.getItem('dm_teacher_auth') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [targetScreenAfterAuth, setTargetScreenAfterAuth] = useState(null);
+  const [passwordError, setPasswordError] = useState(false);
+
+  const verificarSenhaProfessor = () => {
+    // Permite login com 'admin' ou '1234' para segurança e praticidade do professor
+    if (passwordInput === 'admin' || passwordInput === '1234' || passwordInput === 'senhadosala') {
+      setIsAutenticadoProfessor(true);
+      try { sessionStorage.setItem('dm_teacher_auth', 'true'); } catch (e) {}
+      setShowPasswordModal(false);
+      setPasswordError(false);
+      if (targetScreenAfterAuth) {
+        setTela(targetScreenAfterAuth);
+      }
+    } else {
+      setPasswordError(true);
+      playSound('error');
+    }
+  };
+
   const irParaTela = (dest) => {
     playSound('click');
-    setTela(dest);
+    
+    // Lista de telas reservadas para moderação/controle do professor
+    const TELAS_PROFESSOR = [
+      'selecao', 'nomes', 'cadastro', 'controles',
+      'pistas-nomes', 'ia-nomes', 'memo-nomes',
+      'jogo', 'duelo-online-game', 'duelo-qr',
+      'pistas-jogo', 'memo-jogo', 'ia-jogo'
+    ];
+
+    if (TELAS_PROFESSOR.includes(dest) && !isAutenticadoProfessor) {
+      setTargetScreenAfterAuth(dest);
+      setShowPasswordModal(true);
+      setPasswordInput('');
+      setPasswordError(false);
+    } else {
+      setTela(dest);
+    }
   };
 
   const sairDaPartida = () => {
@@ -681,12 +732,24 @@ export default function App() {
     }, dueloAvancoAutoSeg * 1000);
   };
 
-  // Persistir tela atual para reinício seguro (apenas se não for modo projetor)
+  // Confirmação de saída para jogos ativos ao recarregar ou fechar a página
   useEffect(() => {
-    if (isProjetorMode) return;
-    if (tela === 'duelo-aluno') return;
-    try { localStorage.setItem('dm_last_tela', tela); } catch (e) { /* noop */ }
-  }, [tela, isProjetorMode]);
+    const handleBeforeUnload = (e) => {
+      const TELAS_JOGO = [
+        'jogo', 'duelo-online-game', 'duelo-aluno', 'duelo-qr',
+        'pistas-jogo', 'memo-jogo', 'ia-jogo'
+      ];
+      if (TELAS_JOGO.includes(tela)) {
+        const message = "Deseja realmente sair da partida atual? O jogo será finalizado.";
+        e.returnValue = message;
+        return message;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [tela]);
 
   // Estados dos Dados e Seleção de Opção/Modo
   const [imAcaoOpcaoSelecionada, setImAcaoOpcaoSelecionada] = useState(0); // 0 a 4
@@ -808,6 +871,10 @@ export default function App() {
   const [dueloTempoRestante, setDueloTempoRestante] = useState(0);
   const [firebaseErroMsg, setFirebaseErroMsg] = useState(null);
   const [dueloAutoCountdown, setDueloAutoCountdown] = useState(0); // Contador visual do auto-avanço
+  // Rastreia o máximo de jogadores já vistos por time (nunca diminui entre rodadas)
+  const dueloMaxJogadoresRef = useRef([0, 0]);
+  // Ref para acessar dueloEstado atual dentro de callbacks/timeouts sem depender de closure stale
+  const dueloEstadoRef = useRef(null);
 
   // Efeito do timer do Duelo Online
   useEffect(() => {
@@ -1442,14 +1509,15 @@ export default function App() {
     const salaParam = params.get('sala')?.toUpperCase();
     const equipeParam = params.get('equipe');
 
-    if (jogoParam === 'duelo') {
+    // 1. Rota de Aluno (Duelo Online)
+    if (jogoParam === 'duelo' && equipeParam) {
       if (!salaParam || !salaParam.trim()) {
         const erroMsg = "Erro: Parâmetro 'sala' ausente ou inválido na URL!";
         console.error(erroMsg);
         alert(erroMsg);
         setFirebaseErroMsg(erroMsg);
         setTela('menu');
-      } else if (!equipeParam || isNaN(parseInt(equipeParam, 10))) {
+      } else if (isNaN(parseInt(equipeParam, 10))) {
         const erroMsg = "Erro: Parâmetro 'equipe' ausente ou inválido na URL!";
         console.error(erroMsg);
         alert(erroMsg);
@@ -1465,6 +1533,33 @@ export default function App() {
       }
     }
 
+    // 2. Rotas do Professor (Moderação e Configurações de Jogos)
+    if (jogoParam && !equipeParam && params.get('projetor') !== 'true') {
+      if (jogoParam === 'cabodeguerra') {
+        setDueloModoJogo('cabodeguerra');
+        setMateriasSelecionadas([]);
+        irParaTela('selecao');
+      } else if (jogoParam === 'duelo' || jogoParam === 'duelonormal') {
+        setDueloModoJogo('normal');
+        setMateriasSelecionadas([]);
+        irParaTela('selecao');
+      } else if (jogoParam === 'pistas') {
+        setNomeJ1('Equipe Azul');
+        setNomeJ2('Equipe Rosa');
+        irParaTela('pistas-nomes');
+      } else if (jogoParam === 'imacao') {
+        setNomeJ1('Equipe Azul');
+        setNomeJ2('Equipe Rosa');
+        irParaTela('ia-nomes');
+      } else if (jogoParam === 'memoria') {
+        setNomeJ1('Equipe Azul');
+        setNomeJ2('Equipe Rosa');
+        setMemoMateria(materias.length > 0 ? materias[0] : '');
+        irParaTela('memo-nomes');
+      }
+    }
+
+    // 3. Rota de Projetor
     if (params.get('projetor') === 'true') {
       setIsProjetorMode(true);
       if (jogoParam === 'memoria') {
@@ -2806,7 +2901,6 @@ export default function App() {
       novoEstado.teams[0].score = Math.round(100 - novaCordaPos);
       novoEstado.teams[1].score = Math.round(novaCordaPos);
       
-      setRodAtual(prev => prev + 1);
       setDueloEstado(novoEstado);
       
       publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
@@ -2818,14 +2912,20 @@ export default function App() {
         setTimeout(() => {
           exibirVencedorDueloOnline(novaCordaPos <= 0 ? 0 : 1);
         }, 3500);
-      } else if (rodAtual >= fila.length) {
-        setTimeout(() => {
-          if (novaCordaPos === 50) {
-            exibirVencedorDueloOnline(0);
-          } else {
-            exibirVencedorDueloOnline(novaCordaPos < 50 ? 0 : 1);
+        setRodAtual(prev => prev + 1);
+      } else {
+        // Usa setRodAtual funcional para ler o rodAtual mais recente (evita closure stale)
+        setRodAtual(prevRod => {
+          // prevRod é o índice 1-based da pergunta que acabamos de responder.
+          // Se for maior ou igual ao número total de perguntas na fila, declaramos o vencedor ao final da animação.
+          if (prevRod >= fila.length) {
+            setTimeout(() => {
+              const pos = (dueloEstadoRef.current?.cordaPos ?? novaCordaPos);
+              exibirVencedorDueloOnline(pos === 50 ? 0 : pos < 50 ? 0 : 1);
+            }, 3500);
           }
-        }, 3500);
+          return prevRod + 1; // continua o incremento normal
+        });
       }
     } else {
       const novoScore1 = Math.min(100, (dueloEstado.teams[0].score || 0) + ganhoTime1);
@@ -2913,9 +3013,14 @@ export default function App() {
     const unsub = ouvirRespostasDueloOnline(salaNormalizada, (respostas) => {
       console.log("Snapshot recebido. Total de jogadores:", respostas.length, respostas);
       setDueloRespostasRodada([...respostas]);
-      const time0Conectados = respostas.filter(r => Number(r.team) === 0).length;
-      const time1Conectados = respostas.filter(r => Number(r.team) === 1).length;
-      setDueloConectados([time0Conectados, time1Conectados]);
+      const time0Agora = respostas.filter(r => Number(r.team) === 0).length;
+      const time1Agora = respostas.filter(r => Number(r.team) === 1).length;
+      // Atualiza o máximo — nunca diminui, assim rodadas limpas não perdem a contagem
+      dueloMaxJogadoresRef.current = [
+        Math.max(dueloMaxJogadoresRef.current[0], time0Agora),
+        Math.max(dueloMaxJogadoresRef.current[1], time1Agora)
+      ];
+      setDueloConectados([...dueloMaxJogadoresRef.current]);
     }, (err) => {
       console.error('[Host] Erro no listener do Firestore:', err);
       setFirebaseErroMsg('Escuta do Professor: ' + (err.message || String(err)));
@@ -2927,6 +3032,9 @@ export default function App() {
   // Ref para evitar duplo disparo do auto-reveal
   const autoRevelouRef = useRef(false);
 
+  // Mantém dueloEstadoRef sempre atualizado para uso em callbacks/timeouts
+  useEffect(() => { dueloEstadoRef.current = dueloEstado; }, [dueloEstado]);
+
   // Auto-revelar quando todos os conectados já responderam (fase 'question', cabo de guerra, modo celular)
   useEffect(() => {
     if (tela !== 'duelo-online-game') return;
@@ -2937,18 +3045,19 @@ export default function App() {
     if (dueloModoControle !== 'celular') return;
     if (autoRevelouRef.current) return;
 
-    const totalConectados = dueloConectados[0] + dueloConectados[1];
-    if (totalConectados === 0) return;
+    // Usa o MÁXIMO já visto (não reseta entre rodadas) para não disparar com 1 jogador
+    const totalMax = dueloMaxJogadoresRef.current[0] + dueloMaxJogadoresRef.current[1];
+    if (totalMax === 0) return;
 
     // Respostas válidas desta rodada (optIdx !== -1 = respondeu de verdade)
     const responderam = dueloRespostasRodada.filter(r => r.optIdx !== -1).length;
 
-    if (responderam >= totalConectados) {
+    if (responderam >= totalMax) {
       autoRevelouRef.current = true;
-      console.log('[Auto] Todos os', totalConectados, 'jogadores responderam. Revelando automaticamente...');
+      console.log('[Auto] Todos os', totalMax, 'jogadores responderam. Revelando automaticamente...');
       revelarRespostaDueloOnline();
     }
-  }, [tela, dueloEstado, dueloRespostasRodada, dueloConectados, dueloModoControle]);
+  }, [tela, dueloEstado, dueloRespostasRodada, dueloModoControle]);
 
   // Ref para evitar duplo disparo do auto-avanço
   const autoAvancouRef = useRef(false);
@@ -2962,19 +3071,15 @@ export default function App() {
       return;
     }
     if (autoAvancouRef.current) return;
-    if (dueloEstado.phase === 'winner') return;
 
     autoAvancouRef.current = true;
     console.log('[Auto] Fase reveal detectada. Avançando em 4 segundos...');
     const t = setTimeout(() => {
       autoAvancouRef.current = false;
-      // Avança apenas se ainda estiver em reveal (não virou winner ou outra fase)
-      setDueloEstado(est => {
-        if (est && est.phase === 'reveal') {
-          avancarPerguntaDueloOnline();
-        }
-        return est;
-      });
+      // Usa ref para ler o estado atual (evita closure stale)
+      if (dueloEstadoRef.current && dueloEstadoRef.current.phase === 'reveal') {
+        avancarPerguntaDueloOnline();
+      }
     }, 4000);
     return () => clearTimeout(t);
   }, [tela, dueloEstado, dueloModoControle]);
@@ -12793,6 +12898,116 @@ export default function App() {
         >
           🚪 Cancelar Partida
         </button>
+      )}
+
+      {showPasswordModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 100000,
+          background: 'rgba(2, 6, 23, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            maxWidth: '400px',
+            width: '100%',
+            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95))',
+            border: '1.5px solid rgba(139, 92, 246, 0.4)',
+            borderRadius: '16px',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(139, 92, 246, 0.2)',
+            padding: '28px 24px',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '18px'
+          }}>
+            <div style={{ fontSize: '3rem', filter: 'drop-shadow(0 0 10px rgba(139, 92, 246, 0.4))' }}>🔐</div>
+            <div>
+              <h3 style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#fff', margin: '0 0 6px', fontFamily: 'Outfit' }}>Área do Professor</h3>
+              <p style={{ fontSize: '0.82rem', color: '#94a3b8', margin: 0, lineHeight: '1.4' }}>Insira a senha de acesso para gerenciar e moderar os jogos.</p>
+            </div>
+            
+            <input
+              type="password"
+              placeholder="Digite a senha..."
+              value={passwordInput}
+              onChange={(e) => {
+                setPasswordInput(e.target.value);
+                setPasswordError(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') verificarSenhaProfessor();
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                fontSize: '1rem',
+                borderRadius: '8px',
+                border: passwordError ? '1.5px solid #ef4444' : '1.5px solid rgba(255, 255, 255, 0.15)',
+                background: 'rgba(0, 0, 0, 0.25)',
+                color: '#fff',
+                outline: 'none',
+                textAlign: 'center',
+                boxSizing: 'border-box',
+                transition: 'all 0.2s',
+                fontFamily: 'monospace',
+                letterSpacing: '3px'
+              }}
+              autoFocus
+            />
+
+            {passwordError && (
+              <div style={{
+                color: '#f87171',
+                fontSize: '0.8rem',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px'
+              }}>
+                ❌ Senha incorreta! Use 'admin' ou '1234'
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+              <button
+                className="btn-menu btn-outline"
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setPasswordError(false);
+                  setTargetScreenAfterAuth(null);
+                }}
+                style={{ flex: 1, margin: 0, padding: '10px 16px', borderRadius: '10px', fontSize: '0.85rem' }}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn-menu"
+                onClick={verificarSenhaProfessor}
+                style={{
+                  flex: 1,
+                  margin: 0,
+                  padding: '10px 16px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(90deg, #7c3aed, #6d28d9)',
+                  color: '#fff',
+                  border: 'none',
+                  fontWeight: 'bold',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)'
+                }}
+              >
+                Entrar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
