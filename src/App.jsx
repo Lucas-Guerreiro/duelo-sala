@@ -924,44 +924,22 @@ export default function App() {
         newJogo = 'imagem-acao';
       } else if (tela === 'memo-nomes' || tela === 'memo-jogo' || tela === 'memo-fim') {
         newJogo = 'memoria';
-      } else if (tela === 'duelo-online-lobby' || tela === 'duelo-online-game' || tela === 'duelo-online-fim') {
+      } else if (tela === 'duelo-online-lobby' || tela === 'duelo-online-game' || tela === 'duelo-online-fim' || tela === 'duelo-qr') {
         newJogo = dueloModoJogo === 'cabodeguerra' ? 'cabo-guerra' : 'duelo';
       }
       
       if (newJogo) {
         params.set('jogo', newJogo);
+        window.history.replaceState(null, '', `?jogo=${newJogo}#/${newJogo}`);
       } else {
         params.delete('jogo');
+        const searchStr = params.toString();
+        window.history.replaceState(null, '', searchStr ? `?${searchStr}` : '/');
       }
-      
-      const newSearch = params.toString();
-      const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '');
-      window.history.replaceState(null, '', newUrl);
     } catch (e) {
       console.error("Erro ao atualizar URL:", e);
     }
   }, [tela, dueloModoJogo]);
-
-  // Verifica se o jogo foi acessado diretamente por parâmetro e exige login do professor
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const jogoParam = params.get('jogo');
-      const isAuth = sessionStorage.getItem('dm_teacher_auth') === 'true';
-      if (jogoParam && !isAuth) {
-        let target = 'menu';
-        if (jogoParam === 'imagem-acao') target = 'ia-nomes';
-        else if (jogoParam === 'pistas') target = 'pistas-nomes';
-        else if (jogoParam === 'memoria') target = 'memo-nomes';
-        else if (jogoParam === 'quiz') target = 'selecao';
-        
-        if (target !== 'menu') {
-          setTargetScreenAfterAuth(target);
-          setShowPasswordModal(true);
-        }
-      }
-    } catch (e) {}
-  }, []);
 
   // Efeitos dos timers do Duelo Online (Azul e Rosa na tela do Professor)
   useEffect(() => {
@@ -1635,11 +1613,28 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash.toLowerCase();
+    const path = window.location.pathname.toLowerCase();
     let projetor = false;
     
-    const jogoParam = params.get('jogo');
+    let jogoParam = params.get('jogo');
     const salaParam = params.get('sala')?.toUpperCase();
     const equipeParam = params.get('equipe');
+
+    // Mapear caminho ou hash para o parâmetro do jogo correspondente se não estiver nos query params
+    if (!jogoParam) {
+      if (path.includes('cabo-guerra') || path.includes('cabodeguerra') || hash.includes('cabo-guerra') || hash.includes('cabodeguerra')) {
+        jogoParam = 'cabodeguerra';
+      } else if (path.includes('imagem-acao') || path.includes('imacao') || hash.includes('imagem-acao') || hash.includes('imacao')) {
+        jogoParam = 'imacao';
+      } else if (path.includes('pistas') || hash.includes('pistas')) {
+        jogoParam = 'pistas';
+      } else if (path.includes('memoria') || hash.includes('memoria')) {
+        jogoParam = 'memoria';
+      } else if (path.includes('duelo') || hash.includes('duelo')) {
+        jogoParam = 'duelo';
+      }
+    }
 
     // 1. Rota de Aluno (Duelo Online)
     if (jogoParam === 'duelo' && equipeParam) {
@@ -1666,28 +1661,40 @@ export default function App() {
     }
 
     // 2. Rotas do Professor (Moderação e Configurações de Jogos)
-    if (jogoParam && !equipeParam && params.get('projetor') !== 'true') {
+    else if (jogoParam && !equipeParam && params.get('projetor') !== 'true') {
+      const isAuth = sessionStorage.getItem('dm_teacher_auth') === 'true';
+      let targetScreen = 'menu';
+      
       if (jogoParam === 'cabodeguerra') {
         setDueloModoJogo('cabodeguerra');
         setMateriasSelecionadas([]);
-        irParaTela('selecao');
+        targetScreen = 'selecao';
       } else if (jogoParam === 'duelo' || jogoParam === 'duelonormal') {
         setDueloModoJogo('normal');
         setMateriasSelecionadas([]);
-        irParaTela('selecao');
+        targetScreen = 'selecao';
       } else if (jogoParam === 'pistas') {
         setNomeJ1('Equipe Azul');
         setNomeJ2('Equipe Rosa');
-        irParaTela('pistas-nomes');
+        targetScreen = 'pistas-nomes';
       } else if (jogoParam === 'imacao') {
         setNomeJ1('Equipe Azul');
         setNomeJ2('Equipe Rosa');
-        irParaTela('ia-nomes');
+        targetScreen = 'ia-nomes';
       } else if (jogoParam === 'memoria') {
         setNomeJ1('Equipe Azul');
         setNomeJ2('Equipe Rosa');
         setMemoMateria(materias.length > 0 ? materias[0] : '');
-        irParaTela('memo-nomes');
+        targetScreen = 'memo-nomes';
+      }
+
+      if (targetScreen !== 'menu') {
+        if (!isAuth) {
+          setTargetScreenAfterAuth(targetScreen);
+          setShowPasswordModal(true);
+        } else {
+          setTela(targetScreen);
+        }
       }
     }
 
@@ -3287,14 +3294,13 @@ export default function App() {
       autoRevelouRefRosa.current = false;
       return;
     }
-    if (dueloModoControle !== 'celular') return;
 
     // Time Azul (0)
     const tAzul = dueloEstado.teams[0];
     if (tAzul && tAzul.phase === 'question' && tAzul.currentQ) {
-      const totalAzul = dueloMaxJogadoresRef.current[0];
-      const responderamAzul = dueloRespostasRodada.filter(r => 
-        Number(r.team) === 0 && 
+      const alunosAzul = dueloRespostasRodada.filter(r => Number(r.team) === 0);
+      const totalAzul = alunosAzul.length;
+      const responderamAzul = alunosAzul.filter(r => 
         r.optIdx !== -1 && 
         r.qIndex === tAzul.currentQ.qIndex
       ).length;
@@ -3310,9 +3316,9 @@ export default function App() {
     // Time Rosa (1)
     const tRosa = dueloEstado.teams[1];
     if (tRosa && tRosa.phase === 'question' && tRosa.currentQ) {
-      const totalRosa = dueloMaxJogadoresRef.current[1];
-      const responderamRosa = dueloRespostasRodada.filter(r => 
-        Number(r.team) === 1 && 
+      const alunosRosa = dueloRespostasRodada.filter(r => Number(r.team) === 1);
+      const totalRosa = alunosRosa.length;
+      const responderamRosa = alunosRosa.filter(r => 
         r.optIdx !== -1 && 
         r.qIndex === tRosa.currentQ.qIndex
       ).length;
@@ -3324,7 +3330,7 @@ export default function App() {
     } else {
       autoRevelouRefRosa.current = false;
     }
-  }, [tela, dueloEstado, dueloRespostasRodada, dueloModoControle]);
+  }, [tela, dueloEstado, dueloRespostasRodada]);
 
   // Ref para evitar duplo disparo do auto-avanço por time
   const autoAvancouRefAzul = useRef(false);
@@ -3333,7 +3339,6 @@ export default function App() {
   // Auto-avançar após revelar resposta (aguarda 4 segundos)
   useEffect(() => {
     if (tela !== 'duelo-online-game') return;
-    if (dueloModoControle !== 'celular') return;
     if (!dueloEstado || dueloEstado.phase !== 'playing') {
       autoAvancouRefAzul.current = false;
       autoAvancouRefRosa.current = false;
@@ -3374,12 +3379,11 @@ export default function App() {
       autoAvancouRefAzul.current = false;
       setDueloAutoCountdownAzul(0);
     }
-  }, [tela, dueloEstado ? dueloEstado.teams[0].phase : null, dueloModoControle]);
+  }, [tela, dueloEstado ? dueloEstado.teams[0].phase : null]);
 
   // Efeito idêntico para o Time Rosa (1)
   useEffect(() => {
     if (tela !== 'duelo-online-game') return;
-    if (dueloModoControle !== 'celular') return;
     if (!dueloEstado || dueloEstado.phase !== 'playing') {
       autoAvancouRefRosa.current = false;
       return;
@@ -3418,7 +3422,7 @@ export default function App() {
       autoAvancouRefRosa.current = false;
       setDueloAutoCountdownRosa(0);
     }
-  }, [tela, dueloEstado ? dueloEstado.teams[1].phase : null, dueloModoControle]);
+  }, [tela, dueloEstado ? dueloEstado.teams[1].phase : null]);
 
   // Escuta de estado do jogo (Aluno)
   useEffect(() => {

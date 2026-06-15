@@ -1,28 +1,25 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Regras de segurança para salas e jogos
-    match /salas/{sala} {
+    // Regras de Segurança para a Coleção de Salas e Respostas
+    match /salas/{salaId} {
+      // Qualquer um pode ler o estado da sala para poder participar do jogo
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && resource.data.ownerUid == request.auth.uid;
       
-      // Apenas o dono da sala (professor) pode alterar o estado do jogo
-      match /duelo/estado {
+      // Permitir escrita na sala (o host/professor gerencia o estado da sala)
+      allow write: if true;
+
+      // Respostas individuais dos alunos dentro da subcoleção duelo_respostas
+      match /duelo_respostas/{alunoId} {
+        // Qualquer um pode ler as respostas (Professor lê todas para o painel)
         allow read: if true;
-        allow write: if request.auth != null && get(/databases/$(database)/documents/salas/$(sala)).data.ownerUid == request.auth.uid;
+        
+        // Um aluno só pode criar ou atualizar seu próprio documento com base no seu ID (alunoId / pid)
+        allow create, update: if request.resource.data.pid == alunoId;
+        
+        // Host/Professor pode limpar as respostas ao iniciar ou encerrar
+        allow delete: if true;
       }
-      
-      // Respostas dos alunos na rodada ativa
-      match /duelo_respostas/{pid} {
-        allow read: if true;
-        allow write: if request.auth != null;
-      }
-    }
-    
-    // Backup das cartas do Imagem e Ação
-    match /backups/imacao {
-      allow read, write: if request.auth != null;
     }
   }
 }
