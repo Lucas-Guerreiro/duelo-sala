@@ -960,7 +960,8 @@ export default function App() {
       if (tAzul && tAzul.phase === 'question' && tAzul.timerEnd) {
         const restoAzul = Math.max(0, Math.ceil((tAzul.timerEnd - Date.now()) / 1000));
         setDueloTempoAzul(restoAzul);
-        if (restoAzul <= 0) {
+        if (restoAzul <= 0 && !autoRevelouRefAzul.current) {
+          autoRevelouRefAzul.current = true;
           revelarRespostaDueloOnlineTime(0);
         }
       } else {
@@ -972,7 +973,8 @@ export default function App() {
       if (tRosa && tRosa.phase === 'question' && tRosa.timerEnd) {
         const restoRosa = Math.max(0, Math.ceil((tRosa.timerEnd - Date.now()) / 1000));
         setDueloTempoRosa(restoRosa);
-        if (restoRosa <= 0) {
+        if (restoRosa <= 0 && !autoRevelouRefRosa.current) {
+          autoRevelouRefRosa.current = true;
           revelarRespostaDueloOnlineTime(1);
         }
       } else {
@@ -3355,12 +3357,10 @@ export default function App() {
         
         const timerId = setTimeout(() => {
           autoAvancouRefAzul.current = false;
-          setDueloEstado(curr => {
-            if (curr && curr.teams[0].phase === 'reveal') {
-              avancarPerguntaDueloOnlineTime(0);
-            }
-            return curr;
-          });
+          const currentEstado = dueloEstadoRef.current;
+          if (currentEstado && currentEstado.teams[0].phase === 'reveal') {
+            avancarPerguntaDueloOnlineTime(0);
+          }
         }, 4000);
 
         const countdownId = setInterval(() => {
@@ -3398,12 +3398,10 @@ export default function App() {
         
         const timerId = setTimeout(() => {
           autoAvancouRefRosa.current = false;
-          setDueloEstado(curr => {
-            if (curr && curr.teams[1].phase === 'reveal') {
-              avancarPerguntaDueloOnlineTime(1);
-            }
-            return curr;
-          });
+          const currentEstado = dueloEstadoRef.current;
+          if (currentEstado && currentEstado.teams[1].phase === 'reveal') {
+            avancarPerguntaDueloOnlineTime(1);
+          }
         }, 4000);
 
         const countdownId = setInterval(() => {
