@@ -9339,7 +9339,7 @@ export default function App() {
 
       {/* 7. TELA ARENA DO JOGO */}
       <div id="tela-jogo" className={`tela ${tela === 'jogo' ? 'ativa' : ''}`}>
-        {fila.length > 0 && rodAtual > 0 && (
+        {fila.length > 0 && rodAtual > 0 && rodAtual <= fila.length && (
           <div className="jogo-inner">
             {modoApostas && faseJogo === 'aposta' ? (
               <div className="fase-aposta-container" style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '24px', alignItems: 'center', padding: '10px 0' }}>
