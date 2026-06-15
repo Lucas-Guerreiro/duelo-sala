@@ -807,6 +807,7 @@ export default function App() {
   const [dueloUltimaQuestaoRespondida, setDueloUltimaQuestaoRespondida] = useState(-1);
   const [dueloTempoRestante, setDueloTempoRestante] = useState(0);
   const [firebaseErroMsg, setFirebaseErroMsg] = useState(null);
+  const [dueloAutoCountdown, setDueloAutoCountdown] = useState(0); // Contador visual do auto-avanço
 
   // Efeito do timer do Duelo Online
   useEffect(() => {
@@ -2922,6 +2923,80 @@ export default function App() {
 
     return () => unsub();
   }, [tela, codigoSalaOnline]);
+
+  // Ref para evitar duplo disparo do auto-reveal
+  const autoRevelouRef = useRef(false);
+
+  // Auto-revelar quando todos os conectados já responderam (fase 'question', cabo de guerra, modo celular)
+  useEffect(() => {
+    if (tela !== 'duelo-online-game') return;
+    if (!dueloEstado || dueloEstado.phase !== 'question') {
+      autoRevelouRef.current = false; // Reseta ao mudar de fase
+      return;
+    }
+    if (dueloModoControle !== 'celular') return;
+    if (autoRevelouRef.current) return;
+
+    const totalConectados = dueloConectados[0] + dueloConectados[1];
+    if (totalConectados === 0) return;
+
+    // Respostas válidas desta rodada (optIdx !== -1 = respondeu de verdade)
+    const responderam = dueloRespostasRodada.filter(r => r.optIdx !== -1).length;
+
+    if (responderam >= totalConectados) {
+      autoRevelouRef.current = true;
+      console.log('[Auto] Todos os', totalConectados, 'jogadores responderam. Revelando automaticamente...');
+      revelarRespostaDueloOnline();
+    }
+  }, [tela, dueloEstado, dueloRespostasRodada, dueloConectados, dueloModoControle]);
+
+  // Ref para evitar duplo disparo do auto-avanço
+  const autoAvancouRef = useRef(false);
+
+  // Auto-avançar após revelar resposta (cabo de guerra, modo celular) — aguarda 4 segundos
+  useEffect(() => {
+    if (tela !== 'duelo-online-game') return;
+    if (dueloModoControle !== 'celular') return;
+    if (!dueloEstado || dueloEstado.phase !== 'reveal') {
+      autoAvancouRef.current = false; // Reseta ao sair da fase reveal
+      return;
+    }
+    if (autoAvancouRef.current) return;
+    // Só avança automaticamente se ainda há perguntas E o jogo ainda está em curso
+    if (dueloEstado.phase === 'winner') return;
+    if (rodAtual > fila.length) return;
+
+    autoAvancouRef.current = true;
+    console.log('[Auto] Fase reveal detectada. Avançando em 4 segundos...');
+    const t = setTimeout(() => {
+      autoAvancouRef.current = false;
+      // Verifica de forma segura antes de avançar
+      setDueloEstado(est => {
+        if (est && est.phase === 'reveal') {
+          avancarPerguntaDueloOnline();
+        }
+        return est;
+      });
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [tela, dueloEstado, dueloModoControle, rodAtual, fila]);
+
+  // Countdown visual do auto-avanço (4s → 0)
+  useEffect(() => {
+    if (tela !== 'duelo-online-game') { setDueloAutoCountdown(0); return; }
+    if (dueloModoControle !== 'celular') { setDueloAutoCountdown(0); return; }
+    if (!dueloEstado || dueloEstado.phase !== 'reveal') { setDueloAutoCountdown(0); return; }
+    if (rodAtual > fila.length) { setDueloAutoCountdown(0); return; }
+
+    setDueloAutoCountdown(4);
+    const interval = setInterval(() => {
+      setDueloAutoCountdown(prev => {
+        if (prev <= 1) { clearInterval(interval); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [tela, dueloEstado, dueloModoControle, rodAtual, fila]);
 
   // Escuta de estado do jogo (Aluno)
   useEffect(() => {
@@ -12027,6 +12102,12 @@ export default function App() {
                       </button>
                     )}
                   </div>
+                  {/* Contador regressivo do auto-avanço (cabo de guerra, modo celular, fase reveal) */}
+                  {dueloModoControle === 'celular' && dueloEstado.phase === 'reveal' && rodAtual <= fila.length && dueloAutoCountdown > 0 && (
+                    <div style={{ textAlign: 'center', marginTop: '10px', color: '#94a3b8', fontSize: '0.85rem', letterSpacing: '0.5px' }}>
+                      ⏱️ Próxima pergunta em <span style={{ color: '#34d399', fontWeight: 'bold', fontSize: '1rem' }}>{dueloAutoCountdown}s</span>…
+                    </div>
+                  )}
                 </>
               ) : (
                 <div style={{ textAlign: 'center', color: '#cbd5e1', padding: '30px' }}>
