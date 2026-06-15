@@ -2683,6 +2683,13 @@ export default function App() {
 
       const sorteada = fila[rodAtual - 1];
       const novoQIndex = rodAtual - 1;
+
+      // Guard: sorteada pode ser undefined se a fila estiver esgotada
+      if (!sorteada) {
+        console.warn('Fila de perguntas esgotada. Encerrando duelo.');
+        finalizarPartidaDueloOnline();
+        return;
+      }
       
       // O limite de tempo da rodada
       const limite = globalTimerEnabled ? globalTempo : 30;
@@ -12000,8 +12007,23 @@ export default function App() {
                         🔔 Revelar Resposta
                       </button>
                     ) : (
-                      <button className="btn-start" style={{ background: 'linear-gradient(90deg, #10b981, #047857)', boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)', minWidth: '180px' }} onClick={avancarPerguntaDueloOnline}>
-                        ➡️ Próxima Pergunta
+                      <button
+                        className="btn-start"
+                        style={{
+                          background: rodAtual > fila.length
+                            ? 'linear-gradient(90deg, #374151, #4b5563)'
+                            : 'linear-gradient(90deg, #10b981, #047857)',
+                          boxShadow: rodAtual > fila.length
+                            ? 'none'
+                            : '0 6px 20px rgba(16, 185, 129, 0.4)',
+                          minWidth: '180px',
+                          opacity: rodAtual > fila.length ? 0.5 : 1,
+                          cursor: rodAtual > fila.length ? 'not-allowed' : 'pointer'
+                        }}
+                        onClick={avancarPerguntaDueloOnline}
+                        disabled={rodAtual > fila.length}
+                      >
+                        {rodAtual > fila.length ? '✅ Fim das Perguntas' : '➡️ Próxima Pergunta'}
                       </button>
                     )}
                   </div>
