@@ -592,6 +592,14 @@ export default function App() {
       if (jogoParam === 'duelo' && equipeParam) {
         return 'duelo-aluno';
       }
+      
+      const isAuth = sessionStorage.getItem('dm_teacher_auth') === 'true';
+      if (jogoParam && isAuth) {
+        if (jogoParam === 'imagem-acao') return 'ia-nomes';
+        if (jogoParam === 'pistas') return 'pistas-nomes';
+        if (jogoParam === 'memoria') return 'memo-nomes';
+        if (jogoParam === 'quiz') return 'selecao';
+      }
       // Sempre inicia na tela de início (menu) por segurança e para evitar estados travados
       return 'menu';
     } catch (e) {
@@ -737,7 +745,7 @@ export default function App() {
     const handleBeforeUnload = (e) => {
       const TELAS_JOGO = [
         'jogo', 'duelo-online-game', 'duelo-aluno', 'duelo-qr',
-        'pistas-jogo', 'memo-jogo', 'ia-jogo'
+        'pistas-jogo', 'memo-jogo', 'ia-jogo', 'duelo-online-lobby'
       ];
       if (TELAS_JOGO.includes(tela)) {
         const message = "Deseja realmente sair da partida atual? O jogo será finalizado.";
@@ -750,6 +758,80 @@ export default function App() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [tela]);
+
+  // Intercepta botão voltar do navegador (popstate)
+  useEffect(() => {
+    const handlePopState = (e) => {
+      const TELAS_JOGO = [
+        'jogo', 'duelo-online-game', 'duelo-aluno', 'duelo-qr',
+        'pistas-jogo', 'memo-jogo', 'ia-jogo', 'duelo-online-lobby'
+      ];
+      if (TELAS_JOGO.includes(tela)) {
+        if (!window.confirm("Deseja realmente sair da partida atual? O jogo em andamento será finalizado.")) {
+          window.history.pushState(null, null, window.location.href);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [tela]);
+
+  // Sincroniza a URL search param com a tela ativa para SPA routing (Opção A)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('projetor') === 'true') return;
+      if (params.get('jogo') === 'duelo' && params.get('equipe')) return;
+      
+      let newJogo = null;
+      if (tela === 'selecao' || tela === 'nomes' || tela === 'jogo' || tela === 'fim') {
+        newJogo = 'quiz';
+      } else if (tela === 'pistas-nomes' || tela === 'pistas-jogo') {
+        newJogo = 'pistas';
+      } else if (tela === 'ia-nomes' || tela === 'ia-jogo' || tela === 'ia-fim') {
+        newJogo = 'imagem-acao';
+      } else if (tela === 'memo-nomes' || tela === 'memo-jogo' || tela === 'memo-fim') {
+        newJogo = 'memoria';
+      } else if (tela === 'duelo-online-lobby' || tela === 'duelo-online-game' || tela === 'duelo-online-fim') {
+        newJogo = dueloModoJogo === 'cabodeguerra' ? 'cabo-guerra' : 'duelo';
+      }
+      
+      if (newJogo) {
+        params.set('jogo', newJogo);
+      } else {
+        params.delete('jogo');
+      }
+      
+      const newSearch = params.toString();
+      const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '');
+      window.history.replaceState(null, '', newUrl);
+    } catch (e) {
+      console.error("Erro ao atualizar URL:", e);
+    }
+  }, [tela, dueloModoJogo]);
+
+  // Verifica se o jogo foi acessado diretamente por parâmetro e exige login do professor
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const jogoParam = params.get('jogo');
+      const isAuth = sessionStorage.getItem('dm_teacher_auth') === 'true';
+      if (jogoParam && !isAuth) {
+        let target = 'menu';
+        if (jogoParam === 'imagem-acao') target = 'ia-nomes';
+        else if (jogoParam === 'pistas') target = 'pistas-nomes';
+        else if (jogoParam === 'memoria') target = 'memo-nomes';
+        else if (jogoParam === 'quiz') target = 'selecao';
+        
+        if (target !== 'menu') {
+          setTargetScreenAfterAuth(target);
+          setShowPasswordModal(true);
+        }
+      }
+    } catch (e) {}
+  }, []);
 
   // Estados dos Dados e Seleção de Opção/Modo
   const [imAcaoOpcaoSelecionada, setImAcaoOpcaoSelecionada] = useState(0); // 0 a 4
@@ -868,34 +950,83 @@ export default function App() {
   const [dueloOpcaoSelecionada, setDueloOpcaoSelecionada] = useState(null);
   const [dueloRespostaCorreta, setDueloRespostaCorreta] = useState(null);
   const [dueloUltimaQuestaoRespondida, setDueloUltimaQuestaoRespondida] = useState(-1);
-  const [dueloTempoRestante, setDueloTempoRestante] = useState(0);
+  const [dueloTempoAzul, setDueloTempoAzul] = useState(0);
+  const [dueloTempoRosa, setDueloTempoRosa] = useState(0);
+  const [dueloTempoAluno, setDueloTempoAluno] = useState(0);
+  const [dueloAutoCountdownAzul, setDueloAutoCountdownAzul] = useState(0);
+  const [dueloAutoCountdownRosa, setDueloAutoCountdownRosa] = useState(0);
   const [firebaseErroMsg, setFirebaseErroMsg] = useState(null);
-  const [dueloAutoCountdown, setDueloAutoCountdown] = useState(0); // Contador visual do auto-avanço
+  const [dueloAutoCountdown, setDueloAutoCountdown] = useState(0); // Legado para retrocompatibilidade
   // Rastreia o máximo de jogadores já vistos por time (nunca diminui entre rodadas)
   const dueloMaxJogadoresRef = useRef([0, 0]);
   // Ref para acessar dueloEstado atual dentro de callbacks/timeouts sem depender de closure stale
   const dueloEstadoRef = useRef(null);
 
-  // Efeito do timer do Duelo Online
+  // Efeitos dos timers do Duelo Online (Azul e Rosa na tela do Professor)
   useEffect(() => {
-    if (tela !== 'duelo-online-game' && tela !== 'duelo-aluno') return;
-    if (!dueloEstado || dueloEstado.phase !== 'question' || !dueloEstado.timerEnd) {
-      setDueloTempoRestante(0);
+    if (tela !== 'duelo-online-game') {
+      setDueloTempoAzul(0);
+      setDueloTempoRosa(0);
+      return;
+    }
+    if (!dueloEstado || dueloEstado.phase !== 'playing') {
+      setDueloTempoAzul(0);
+      setDueloTempoRosa(0);
       return;
     }
 
     const interval = setInterval(() => {
-      const resto = Math.max(0, Math.ceil((dueloEstado.timerEnd - Date.now()) / 1000));
-      setDueloTempoRestante(resto);
-      
-      if (resto <= 0 && tela === 'duelo-online-game' && dueloEstado.phase === 'question') {
-        clearInterval(interval);
-        revelarRespostaDueloOnline();
+      // Time Azul (0)
+      const tAzul = dueloEstado.teams[0];
+      if (tAzul && tAzul.phase === 'question' && tAzul.timerEnd) {
+        const restoAzul = Math.max(0, Math.ceil((tAzul.timerEnd - Date.now()) / 1000));
+        setDueloTempoAzul(restoAzul);
+        if (restoAzul <= 0) {
+          revelarRespostaDueloOnlineTime(0);
+        }
+      } else {
+        setDueloTempoAzul(0);
+      }
+
+      // Time Rosa (1)
+      const tRosa = dueloEstado.teams[1];
+      if (tRosa && tRosa.phase === 'question' && tRosa.timerEnd) {
+        const restoRosa = Math.max(0, Math.ceil((tRosa.timerEnd - Date.now()) / 1000));
+        setDueloTempoRosa(restoRosa);
+        if (restoRosa <= 0) {
+          revelarRespostaDueloOnlineTime(1);
+        }
+      } else {
+        setDueloTempoRosa(0);
       }
     }, 250);
 
     return () => clearInterval(interval);
-  }, [tela, dueloEstado ? dueloEstado.phase : null, dueloEstado ? dueloEstado.timerEnd : null]);
+  }, [tela, dueloEstado]);
+
+  // Efeito do timer do Aluno (Celular)
+  useEffect(() => {
+    if (tela !== 'duelo-aluno') {
+      setDueloTempoAluno(0);
+      return;
+    }
+    if (!dueloEstado || dueloEstado.phase !== 'playing') {
+      setDueloTempoAluno(0);
+      return;
+    }
+    const tState = dueloEstado.teams[dueloMeuTime];
+    if (!tState || tState.phase !== 'question' || !tState.timerEnd) {
+      setDueloTempoAluno(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const resto = Math.max(0, Math.ceil((tState.timerEnd - Date.now()) / 1000));
+      setDueloTempoAluno(resto);
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [tela, dueloEstado, dueloMeuTime]);
 
   const [memoCartaEscala, setMemoCartaEscala] = useState(() => Number(localStorage.getItem('memoCartaEscala')) || 100);
   const [memoProjetorCartaEscala, setMemoProjetorCartaEscala] = useState(100);
@@ -2753,222 +2884,320 @@ export default function App() {
     try {
       playSound('click');
       irParaTela('duelo-online-game');
-      avancarPerguntaDueloOnline();
+
+      setDueloEstado(current => {
+        if (!current) return current;
+
+        // Limite de tempo da rodada
+        const limite = globalTimerEnabled ? globalTempo : 30;
+        const temporizadorFim = Date.now() + limite * 1000;
+
+        const sorteada = fila[0];
+        if (!sorteada) return current;
+
+        let alts = [];
+        if (sorteada.tipo === 'mc') {
+          alts = Array.isArray(sorteada.alts) ? sorteada.alts : [];
+        } else if (sorteada.tipo === 'vf') {
+          alts = ['Verdadeiro', 'Falso'];
+        } else {
+          alts = ['Resposta Única'];
+        }
+
+        let correctIdx = 0;
+        if (sorteada.tipo === 'mc') {
+          if (typeof sorteada.resp === 'number') {
+            correctIdx = sorteada.resp;
+          } else {
+            correctIdx = ['a', 'b', 'c', 'd'].indexOf(String(sorteada.resp || 'a').toLowerCase());
+            if (correctIdx === -1) {
+              const num = Number(sorteada.resp);
+              correctIdx = isNaN(num) ? 0 : num;
+            }
+          }
+        } else if (sorteada.tipo === 'vf') {
+          const cVal = String(sorteada.resp || 'v').toLowerCase();
+          correctIdx = (cVal === 'f' || cVal === 'falso') ? 1 : 0;
+        }
+
+        const team0 = {
+          ...current.teams[0],
+          qIndex: 1,
+          phase: 'question',
+          timerEnd: temporizadorFim,
+          currentQ: {
+            cat: sorteada.mat || 'Geral',
+            q: sorteada.txt,
+            opts: alts,
+            correct: correctIdx,
+            qIndex: 0,
+            tipo: sorteada.tipo || 'mc'
+          }
+        };
+
+        const team1 = {
+          ...current.teams[1],
+          qIndex: 1,
+          phase: 'question',
+          timerEnd: temporizadorFim,
+          currentQ: {
+            cat: sorteada.mat || 'Geral',
+            q: sorteada.txt,
+            opts: alts,
+            correct: correctIdx,
+            qIndex: 0,
+            tipo: sorteada.tipo || 'mc'
+          }
+        };
+
+        const novoEstado = {
+          ...current,
+          phase: 'playing',
+          teams: [team0, team1]
+        };
+
+        publicarEstadoDueloOnline(codigoSalaOnline.trim().toUpperCase(), novoEstado).catch(err => {
+          console.error('Erro ao publicar estado inicial do Duelo:', err);
+        });
+
+        return novoEstado;
+      });
+
     } catch (err) {
       console.error('Erro ao começar jogo online:', err);
     }
   };
 
-  const avancarPerguntaDueloOnline = () => {
+  const avancarPerguntaDueloOnlineTime = (teamIdx) => {
     try {
       playSound('click');
       
-      if (rodAtual > fila.length) {
-        alert('Fim das perguntas! Encerrando duelo.');
-        finalizarPartidaDueloOnline();
-        return;
-      }
-
-      // Limpa respostas dos alunos da rodada anterior no Firestore (em segundo plano)
-      limparRespostasDueloOnline(codigoSalaOnline).catch(err => {
-        console.error('Erro ao limpar respostas:', err);
-        setFirebaseErroMsg('Limpar respostas: ' + (err.message || String(err)));
-      });
-      
-      setDueloRespostasRodada([]);
-
-      const sorteada = fila[rodAtual - 1];
-      const novoQIndex = rodAtual - 1;
-
-      // Guard: sorteada pode ser undefined se a fila estiver esgotada
-      if (!sorteada) {
-        console.warn('Fila de perguntas esgotada. Encerrando duelo.');
-        finalizarPartidaDueloOnline();
-        return;
-      }
-      
-      // O limite de tempo da rodada
-      const limite = globalTimerEnabled ? globalTempo : 30;
-      const temporizadorFim = Date.now() + limite * 1000;
-
-      // Define alternativas com segurança
-      let alts = [];
-      if (sorteada.tipo === 'mc') {
-        alts = Array.isArray(sorteada.alts) ? sorteada.alts : [];
-      } else if (sorteada.tipo === 'vf') {
-        alts = ['Verdadeiro', 'Falso'];
-      } else {
-        alts = ['Resposta Única'];
-      }
-
-      // Calcula o gabarito
-      let correctIdx = 0;
-      if (sorteada.tipo === 'mc') {
-        if (typeof sorteada.resp === 'number') {
-          correctIdx = sorteada.resp;
-        } else {
-          correctIdx = ['a', 'b', 'c', 'd'].indexOf(String(sorteada.resp || 'a').toLowerCase());
-          if (correctIdx === -1) {
-            const num = Number(sorteada.resp);
-            correctIdx = isNaN(num) ? 0 : num;
+      setDueloEstado(current => {
+        if (!current) return current;
+        
+        const teamState = current.teams[teamIdx];
+        const nextQIndex = teamState.qIndex; // Inicia em 0, e avança 1 por 1
+        
+        if (nextQIndex >= fila.length) {
+          // Time terminou todas as perguntas
+          const updatedTeams = [...current.teams];
+          updatedTeams[teamIdx] = {
+            ...teamState,
+            phase: 'finished',
+            currentQ: null
+          };
+          
+          const novoEstado = {
+            ...current,
+            teams: updatedTeams
+          };
+          
+          // Se ambos os times terminaram, define o vencedor global
+          const todosTerminaram = updatedTeams[0].phase === 'finished' && updatedTeams[1].phase === 'finished';
+          if (todosTerminaram && current.winnerIndex === null) {
+            let winIdx = 0;
+            if (dueloModoJogo === 'cabodeguerra') {
+              winIdx = current.cordaPos === 50 ? 0 : (current.cordaPos < 50 ? 0 : 1);
+            } else {
+              winIdx = updatedTeams[0].score > updatedTeams[1].score ? 0 : 1;
+            }
+            novoEstado.winnerIndex = winIdx;
+            novoEstado.phase = 'winner';
+            
+            setTimeout(() => {
+              setTela('duelo-online-fim');
+            }, 3000);
           }
+          
+          publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
+            console.error('Erro ao publicar estado final do time:', err);
+          });
+          return novoEstado;
         }
-      } else if (sorteada.tipo === 'vf') {
-        const cVal = String(sorteada.resp || 'v').toLowerCase();
-        correctIdx = (cVal === 'f' || cVal === 'falso') ? 1 : 0;
-      }
 
-      const novoEstado = {
-        ...dueloEstado,
-        qIndex: novoQIndex,
-        currentQ: {
-          cat: sorteada.mat || 'Geral',
-          q: sorteada.txt,
-          opts: alts,
-          correct: correctIdx,
-          qIndex: novoQIndex,
-          tipo: sorteada.tipo || 'mc'
-        },
-        phase: 'question',
-        timerEnd: temporizadorFim
-      };
+        const sorteada = fila[nextQIndex];
+        // O limite de tempo da rodada
+        const limite = globalTimerEnabled ? globalTempo : 30;
+        const temporizadorFim = Date.now() + limite * 1000;
 
-      setDueloEstado(novoEstado);
-      // Publica no Firestore em segundo plano
-      publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
-        console.error('Erro ao publicar estado do duelo:', err);
-        setFirebaseErroMsg('Publicar estado: ' + (err.message || String(err)));
+        let alts = [];
+        if (sorteada.tipo === 'mc') {
+          alts = Array.isArray(sorteada.alts) ? sorteada.alts : [];
+        } else if (sorteada.tipo === 'vf') {
+          alts = ['Verdadeiro', 'Falso'];
+        } else {
+          alts = ['Resposta Única'];
+        }
+
+        let correctIdx = 0;
+        if (sorteada.tipo === 'mc') {
+          if (typeof sorteada.resp === 'number') {
+            correctIdx = sorteada.resp;
+          } else {
+            correctIdx = ['a', 'b', 'c', 'd'].indexOf(String(sorteada.resp || 'a').toLowerCase());
+            if (correctIdx === -1) {
+              const num = Number(sorteada.resp);
+              correctIdx = isNaN(num) ? 0 : num;
+            }
+          }
+        } else if (sorteada.tipo === 'vf') {
+          const cVal = String(sorteada.resp || 'v').toLowerCase();
+          correctIdx = (cVal === 'f' || cVal === 'falso') ? 1 : 0;
+        }
+
+        const updatedTeams = [...current.teams];
+        updatedTeams[teamIdx] = {
+          ...teamState,
+          qIndex: nextQIndex + 1,
+          phase: 'question',
+          timerEnd: temporizadorFim,
+          currentQ: {
+            cat: sorteada.mat || 'Geral',
+            q: sorteada.txt,
+            opts: alts,
+            correct: correctIdx,
+            qIndex: nextQIndex,
+            tipo: sorteada.tipo || 'mc'
+          }
+        };
+
+        const novoEstado = {
+          ...current,
+          teams: updatedTeams
+        };
+
+        publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
+          console.error('Erro ao publicar estado do time:', err);
+        });
+
+        return novoEstado;
       });
       
     } catch (err) {
-      console.error('Erro em avancarPerguntaDueloOnline:', err);
+      console.error('Erro em avancarPerguntaDueloOnlineTime:', err);
     }
   };
 
-  const revelarRespostaDueloOnline = async () => {
-    if (!dueloEstado || dueloEstado.phase !== 'question') return;
+  const revelarRespostaDueloOnlineTime = async (teamIdx) => {
     playSound('correct');
+    
+    setDueloEstado(current => {
+      if (!current) return current;
+      const teamState = current.teams[teamIdx];
+      if (teamState.phase !== 'question') return current;
 
-    const novoEstado = {
-      ...dueloEstado,
-      phase: 'reveal'
-    };
+      // Respostas válidas deste time específicas para a pergunta atual
+      const respostasTime = dueloRespostasRodada.filter(r => 
+        Number(r.team) === teamIdx && 
+        r.optIdx !== -1 && 
+        r.qIndex === teamState.currentQ?.qIndex
+      );
 
-    // Respostas válidas de cada time
-    const equipe1Ans = dueloRespostasRodada.filter(r => Number(r.team) === 0 && r.optIdx !== -1);
-    const equipe2Ans = dueloRespostasRodada.filter(r => Number(r.team) === 1 && r.optIdx !== -1);
+      const corretas = respostasTime.filter(r => r.correct).length;
+      const total = respostasTime.length;
+      
+      // Calcular ganho/pontuação para o time
+      let ganhoPercentual = 0;
+      if (total > 0) {
+        // Média de acertos ponderada por conectados ativos do time no lobby
+        const conectadosDoTime = Math.max(1, dueloConectados[teamIdx]);
+        const percentualAcertos = (corretas / total); // Proporção de acertos dos que responderam
+        const participacao = total / conectadosDoTime; // Proporção de conectados que responderam
+        
+        // Ganho básico de até 20%
+        ganhoPercentual = Math.round(percentualAcertos * 20);
+        
+        // Bônus de velocidade médio dos acertos (máximo +5%)
+        const acertos = respostasTime.filter(r => r.correct);
+        const bonusMedio = acertos.length > 0
+          ? acertos.reduce((acc, r) => acc + (r.speedBonus || 0), 0) / acertos.length
+          : 0;
+        ganhoPercentual += Math.round(bonusMedio);
+      }
 
-    // Calcular quem respondeu correto mais rápido globalmente para o bônus de velocidade de rodada
-    let maisRapidoAcertou = null;
-    const todasRespostasCorretas = dueloRespostasRodada.filter(r => r.correct && r.optIdx !== -1);
-    if (todasRespostasCorretas.length > 0) {
-      todasRespostasCorretas.sort((a, b) => b.speedBonus - a.speedBonus);
-      maisRapidoAcertou = todasRespostasCorretas[0];
-      novoEstado.fastestStudent = {
-        team: Number(maisRapidoAcertou.team),
-        pid: maisRapidoAcertou.pid
-      };
-    }
+      const updatedTeams = [...current.teams];
+      let novoScore = teamState.score;
+      let novaCordaPos = current.cordaPos !== undefined ? current.cordaPos : 50;
 
-    const calcularGanho = (respostasDoTime, indexTime) => {
-      if (respostasDoTime.length === 0) return 0;
-      const acertos = respostasDoTime.filter(r => r.correct).length;
-      const ratio = acertos / respostasDoTime.length; // Proporção de acertos
-      
-      const totalConectadosTime = Math.max(1, dueloConectados[indexTime]);
-      const speedSum = respostasDoTime.filter(r => r.correct).reduce((s, a) => s + (a.speedBonus || 0), 0);
-      
-      // Cada rodada vale no máximo 15 pontos de preenchimento do copo
-      // 10 pontos pela taxa de acerto do grupo + até 5 pontos de bônus de velocidade média
-      const ganhoRaw = (ratio * 10) + (speedSum / totalConectadosTime);
-      return Math.round(ganhoRaw * 10) / 10;
-    };
-
-    const ganhoTime1 = calcularGanho(equipe1Ans, 0);
-    const ganhoTime2 = calcularGanho(equipe2Ans, 1);
-
-    if (dueloModoJogo === 'cabodeguerra') {
-      const forcaAzul = ganhoTime1 * 1.5;
-      const forcaRosa = ganhoTime2 * 1.5;
-      const delta = forcaRosa - forcaAzul;
-      
-      let cordaAtual = dueloEstado.cordaPos !== undefined ? dueloEstado.cordaPos : 50;
-      let novaCordaPos = Math.max(0, Math.min(100, cordaAtual + delta));
-      
-      novoEstado.cordaPos = novaCordaPos;
-      novoEstado.teams[0].lastGain = ganhoTime1;
-      novoEstado.teams[1].lastGain = ganhoTime2;
-      novoEstado.teams[0].score = Math.round(100 - novaCordaPos);
-      novoEstado.teams[1].score = Math.round(novaCordaPos);
-      
-      setDueloEstado(novoEstado);
-      
-      publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
-        console.error('Erro ao salvar placar:', err);
-        setFirebaseErroMsg('Salvar placar: ' + (err.message || String(err)));
-      });
-      
-      if (novaCordaPos <= 0 || novaCordaPos >= 100) {
-        setTimeout(() => {
-          exibirVencedorDueloOnline(novaCordaPos <= 0 ? 0 : 1);
-        }, 3500);
-        setRodAtual(prev => prev + 1);
+      if (dueloModoJogo === 'cabodeguerra') {
+        // Cabo de guerra: acertos do time 0 puxam para a esquerda (- cordaPos), time 1 puxam para a direita (+ cordaPos)
+        // Cada rodada move a corda proporcionalmente ao ganho de acertos
+        const forcaAzul = teamIdx === 0 ? ganhoPercentual : 0;
+        const forcaRosa = teamIdx === 1 ? ganhoPercentual : 0;
+        // Puxa corda
+        const alteracaoCorda = forcaRosa - forcaAzul; // Se rosa ganhou, aumenta (move direita); se azul ganhou, diminui (move esquerda)
+        novaCordaPos = Math.max(10, Math.min(90, novaCordaPos + alteracaoCorda));
+        updatedTeams[0].score = Math.round(100 - novaCordaPos);
+        updatedTeams[1].score = Math.round(novaCordaPos);
       } else {
-        // Usa setRodAtual funcional para ler o rodAtual mais recente (evita closure stale)
-        setRodAtual(prevRod => {
-          // prevRod é o índice 1-based da pergunta que acabamos de responder.
-          // Se for maior ou igual ao número total de perguntas na fila, declaramos o vencedor ao final da animação.
-          if (prevRod >= fila.length) {
-            setTimeout(() => {
-              const pos = (dueloEstadoRef.current?.cordaPos ?? novaCordaPos);
-              exibirVencedorDueloOnline(pos === 50 ? 0 : pos < 50 ? 0 : 1);
-            }, 3500);
-          }
-          return prevRod + 1; // continua o incremento normal
-        });
+        // Modo normal: encher o copo até 100%
+        novoScore = Math.min(100, teamState.score + ganhoPercentual);
       }
-    } else {
-      const novoScore1 = Math.min(100, (dueloEstado.teams[0].score || 0) + ganhoTime1);
-      const novoScore2 = Math.min(100, (dueloEstado.teams[1].score || 0) + ganhoTime2);
 
-      novoEstado.teams[0].score = novoScore1;
-      novoEstado.teams[0].lastGain = ganhoTime1;
-      novoEstado.teams[1].score = novoScore2;
-      novoEstado.teams[1].lastGain = ganhoTime2;
+      updatedTeams[teamIdx] = {
+        ...teamState,
+        phase: 'reveal',
+        score: dueloModoJogo === 'cabodeguerra' ? updatedTeams[teamIdx].score : novoScore,
+        lastGain: ganhoPercentual
+      };
 
-      setRodAtual(prev => prev + 1);
-      setDueloEstado(novoEstado);
-      
+      const novoEstado = {
+        ...current,
+        teams: updatedTeams,
+        ...(dueloModoJogo === 'cabodeguerra' && { cordaPos: novaCordaPos })
+      };
+
+      // Verificar condição de vitória imediata (se atingir limites)
+      if (dueloModoJogo === 'cabodeguerra') {
+        if (novaCordaPos <= 10 && current.winnerIndex === null) {
+          // Azul ganhou
+          novoEstado.winnerIndex = 0;
+          novoEstado.phase = 'winner';
+          setTimeout(() => setTela('duelo-online-fim'), 3000);
+        } else if (novaCordaPos >= 90 && current.winnerIndex === null) {
+          // Rosa ganhou
+          novoEstado.winnerIndex = 1;
+          novoEstado.phase = 'winner';
+          setTimeout(() => setTela('duelo-online-fim'), 3000);
+        }
+      } else {
+        if (novoScore >= 100 && current.winnerIndex === null) {
+          novoEstado.winnerIndex = teamIdx;
+          novoEstado.phase = 'winner';
+          setTimeout(() => setTela('duelo-online-fim'), 3000);
+        }
+      }
+
       publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
-        console.error('Erro ao salvar placar:', err);
-        setFirebaseErroMsg('Salvar placar: ' + (err.message || String(err)));
+        console.error('Erro ao publicar reveal do time:', err);
       });
 
-      if (novoScore1 >= 100 || novoScore2 >= 100) {
-        setTimeout(() => {
-          exibirVencedorDueloOnline(novoScore1 >= 100 && novoScore2 >= 100 ? (novoScore1 >= novoScore2 ? 0 : 1) : (novoScore1 >= 100 ? 0 : 1));
-        }, 3500);
-      }
-    }
+      return novoEstado;
+    });
   };
 
   const exibirVencedorDueloOnline = (indexTime) => {
     playSound('victory');
-    const novoEstado = {
-      ...dueloEstado,
-      phase: 'winner',
-      winnerIndex: indexTime
-    };
-    setDueloEstado(novoEstado);
-    publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
-      console.error('Erro ao declarar vencedor:', err);
-      setFirebaseErroMsg('Declarar vencedor: ' + (err.message || String(err)));
+    setDueloEstado(current => {
+      if (!current) return current;
+      const novoEstado = {
+        ...current,
+        phase: 'winner',
+        winnerIndex: indexTime
+      };
+      publicarEstadoDueloOnline(codigoSalaOnline, novoEstado).catch(err => {
+        console.error('Erro ao declarar vencedor:', err);
+      });
+      return novoEstado;
     });
     irParaTela('duelo-online-fim');
   };
 
   const finalizarPartidaDueloOnline = () => {
     playSound('click');
+    if (!window.confirm("Deseja realmente sair da partida atual? O jogo em andamento será finalizado.")) {
+      return;
+    }
     if (codigoSalaOnline.trim()) {
       publicarEstadoDueloOnline(codigoSalaOnline, { phase: 'waiting', teams: [] })
         .then(() => limparRespostasDueloOnline(codigoSalaOnline))
@@ -2982,20 +3211,33 @@ export default function App() {
 
   const submeterRespostaAlunoDueloOnline = async (optIdx) => {
     if (dueloRespondida) return;
+    
+    const teamState = dueloEstado?.teams?.[dueloMeuTime];
+    if (!teamState || !teamState.currentQ) return;
+
     setDueloRespondida(true);
     setDueloOpcaoSelecionada(optIdx);
 
-    const correct = optIdx === dueloEstado.currentQ.correct;
+    const correct = optIdx === teamState.currentQ.correct;
     setDueloRespostaCorreta(correct);
     playSound(correct ? 'correct' : 'wrong');
 
     const limite = dueloEstado.qtime || 30;
-    const tempoRestante = Math.max(0, (dueloEstado.timerEnd - Date.now()) / 1000);
+    const tempoRestante = Math.max(0, (teamState.timerEnd - Date.now()) / 1000);
     // Bônus de velocidade varia de 0 a 5 baseado no tempo restante
     const speedBonus = correct ? Math.round((tempoRestante / limite) * 5 * 10) / 10 : 0;
 
     try {
-      await enviarRespostaDueloOnline(codigoSalaOnline.trim().toUpperCase(), dueloMeuPid, dueloMeuTime, optIdx, correct, speedBonus, dueloApelidoAluno);
+      await enviarRespostaDueloOnline(
+        codigoSalaOnline.trim().toUpperCase(),
+        dueloMeuPid,
+        dueloMeuTime,
+        optIdx,
+        correct,
+        speedBonus,
+        dueloApelidoAluno,
+        teamState.currentQ.qIndex
+      );
     } catch (e) {
       console.error('Erro ao enviar resposta do aluno:', e);
       setFirebaseErroMsg('Enviar resposta: ' + (e.message || String(e)));
@@ -3029,76 +3271,153 @@ export default function App() {
     return () => unsub();
   }, [tela, codigoSalaOnline]);
 
-  // Ref para evitar duplo disparo do auto-reveal
-  const autoRevelouRef = useRef(false);
+  // Ref para evitar duplo disparo do auto-reveal por time
+  const autoRevelouRefAzul = useRef(false);
+  const autoRevelouRefRosa = useRef(false);
 
   // Mantém dueloEstadoRef sempre atualizado para uso em callbacks/timeouts
   useEffect(() => { dueloEstadoRef.current = dueloEstado; }, [dueloEstado]);
 
-  // Auto-revelar quando todos os conectados já responderam (fase 'question', cabo de guerra, modo celular)
+  // Auto-revelar quando todos os alunos de um time responderem
   useEffect(() => {
     if (tela !== 'duelo-online-game') return;
-    if (!dueloEstado || dueloEstado.phase !== 'question') {
-      autoRevelouRef.current = false; // Reseta ao mudar de fase
+    if (!dueloEstado || dueloEstado.phase !== 'playing') {
+      autoRevelouRefAzul.current = false;
+      autoRevelouRefRosa.current = false;
       return;
     }
     if (dueloModoControle !== 'celular') return;
-    if (autoRevelouRef.current) return;
 
-    // Usa o MÁXIMO já visto (não reseta entre rodadas) para não disparar com 1 jogador
-    const totalMax = dueloMaxJogadoresRef.current[0] + dueloMaxJogadoresRef.current[1];
-    if (totalMax === 0) return;
+    // Time Azul (0)
+    const tAzul = dueloEstado.teams[0];
+    if (tAzul && tAzul.phase === 'question' && tAzul.currentQ) {
+      const totalAzul = dueloMaxJogadoresRef.current[0];
+      const responderamAzul = dueloRespostasRodada.filter(r => 
+        Number(r.team) === 0 && 
+        r.optIdx !== -1 && 
+        r.qIndex === tAzul.currentQ.qIndex
+      ).length;
+      if (totalAzul > 0 && responderamAzul >= totalAzul && !autoRevelouRefAzul.current) {
+        autoRevelouRefAzul.current = true;
+        console.log('[Auto Azul] Todos responderam. Revelando...');
+        revelarRespostaDueloOnlineTime(0);
+      }
+    } else {
+      autoRevelouRefAzul.current = false;
+    }
 
-    // Respostas válidas desta rodada (optIdx !== -1 = respondeu de verdade)
-    const responderam = dueloRespostasRodada.filter(r => r.optIdx !== -1).length;
-
-    if (responderam >= totalMax) {
-      autoRevelouRef.current = true;
-      console.log('[Auto] Todos os', totalMax, 'jogadores responderam. Revelando automaticamente...');
-      revelarRespostaDueloOnline();
+    // Time Rosa (1)
+    const tRosa = dueloEstado.teams[1];
+    if (tRosa && tRosa.phase === 'question' && tRosa.currentQ) {
+      const totalRosa = dueloMaxJogadoresRef.current[1];
+      const responderamRosa = dueloRespostasRodada.filter(r => 
+        Number(r.team) === 1 && 
+        r.optIdx !== -1 && 
+        r.qIndex === tRosa.currentQ.qIndex
+      ).length;
+      if (totalRosa > 0 && responderamRosa >= totalRosa && !autoRevelouRefRosa.current) {
+        autoRevelouRefRosa.current = true;
+        console.log('[Auto Rosa] Todos responderam. Revelando...');
+        revelarRespostaDueloOnlineTime(1);
+      }
+    } else {
+      autoRevelouRefRosa.current = false;
     }
   }, [tela, dueloEstado, dueloRespostasRodada, dueloModoControle]);
 
-  // Ref para evitar duplo disparo do auto-avanço
-  const autoAvancouRef = useRef(false);
+  // Ref para evitar duplo disparo do auto-avanço por time
+  const autoAvancouRefAzul = useRef(false);
+  const autoAvancouRefRosa = useRef(false);
 
-  // Auto-avançar após revelar resposta (cabo de guerra, modo celular) — aguarda 4 segundos
+  // Auto-avançar após revelar resposta (aguarda 4 segundos)
   useEffect(() => {
     if (tela !== 'duelo-online-game') return;
     if (dueloModoControle !== 'celular') return;
-    if (!dueloEstado || dueloEstado.phase !== 'reveal') {
-      autoAvancouRef.current = false; // Reseta ao sair da fase reveal
+    if (!dueloEstado || dueloEstado.phase !== 'playing') {
+      autoAvancouRefAzul.current = false;
+      autoAvancouRefRosa.current = false;
       return;
     }
-    if (autoAvancouRef.current) return;
 
-    autoAvancouRef.current = true;
-    console.log('[Auto] Fase reveal detectada. Avançando em 4 segundos...');
-    const t = setTimeout(() => {
-      autoAvancouRef.current = false;
-      // Usa ref para ler o estado atual (evita closure stale)
-      if (dueloEstadoRef.current && dueloEstadoRef.current.phase === 'reveal') {
-        avancarPerguntaDueloOnline();
+    // Time Azul (0)
+    const tAzul = dueloEstado.teams[0];
+    if (tAzul && tAzul.phase === 'reveal') {
+      if (!autoAvancouRefAzul.current) {
+        autoAvancouRefAzul.current = true;
+        console.log('[Auto Azul] Fase reveal. Avançando em 4s...');
+        setDueloAutoCountdownAzul(4);
+        
+        const timerId = setTimeout(() => {
+          autoAvancouRefAzul.current = false;
+          setDueloEstado(curr => {
+            if (curr && curr.teams[0].phase === 'reveal') {
+              avancarPerguntaDueloOnlineTime(0);
+            }
+            return curr;
+          });
+        }, 4000);
+
+        const countdownId = setInterval(() => {
+          setDueloAutoCountdownAzul(prev => {
+            if (prev <= 1) { clearInterval(countdownId); return 0; }
+            return prev - 1;
+          });
+        }, 1000);
+
+        return () => {
+          clearTimeout(timerId);
+          clearInterval(countdownId);
+        };
       }
-    }, 4000);
-    return () => clearTimeout(t);
-  }, [tela, dueloEstado, dueloModoControle]);
+    } else {
+      autoAvancouRefAzul.current = false;
+      setDueloAutoCountdownAzul(0);
+    }
+  }, [tela, dueloEstado ? dueloEstado.teams[0].phase : null, dueloModoControle]);
 
-  // Countdown visual do auto-avanço (4s → 0)
+  // Efeito idêntico para o Time Rosa (1)
   useEffect(() => {
-    if (tela !== 'duelo-online-game') { setDueloAutoCountdown(0); return; }
-    if (dueloModoControle !== 'celular') { setDueloAutoCountdown(0); return; }
-    if (!dueloEstado || dueloEstado.phase !== 'reveal') { setDueloAutoCountdown(0); return; }
+    if (tela !== 'duelo-online-game') return;
+    if (dueloModoControle !== 'celular') return;
+    if (!dueloEstado || dueloEstado.phase !== 'playing') {
+      autoAvancouRefRosa.current = false;
+      return;
+    }
 
-    setDueloAutoCountdown(4);
-    const interval = setInterval(() => {
-      setDueloAutoCountdown(prev => {
-        if (prev <= 1) { clearInterval(interval); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [tela, dueloEstado, dueloModoControle]);
+    const tRosa = dueloEstado.teams[1];
+    if (tRosa && tRosa.phase === 'reveal') {
+      if (!autoAvancouRefRosa.current) {
+        autoAvancouRefRosa.current = true;
+        console.log('[Auto Rosa] Fase reveal. Avançando em 4s...');
+        setDueloAutoCountdownRosa(4);
+        
+        const timerId = setTimeout(() => {
+          autoAvancouRefRosa.current = false;
+          setDueloEstado(curr => {
+            if (curr && curr.teams[1].phase === 'reveal') {
+              avancarPerguntaDueloOnlineTime(1);
+            }
+            return curr;
+          });
+        }, 4000);
+
+        const countdownId = setInterval(() => {
+          setDueloAutoCountdownRosa(prev => {
+            if (prev <= 1) { clearInterval(countdownId); return 0; }
+            return prev - 1;
+          });
+        }, 1000);
+
+        return () => {
+          clearTimeout(timerId);
+          clearInterval(countdownId);
+        };
+      }
+    } else {
+      autoAvancouRefRosa.current = false;
+      setDueloAutoCountdownRosa(0);
+    }
+  }, [tela, dueloEstado ? dueloEstado.teams[1].phase : null, dueloModoControle]);
 
   // Escuta de estado do jogo (Aluno)
   useEffect(() => {
@@ -3137,9 +3456,10 @@ export default function App() {
           });
       }
 
-      // Se virou pergunta, reseta estado local do aluno
-      if (estado.phase === 'question' && estado.currentQ) {
-        const qIdx = estado.currentQ.qIndex;
+      // Se virou pergunta para a equipe do aluno, reseta estado local do aluno
+      const teamState = estado.teams?.[dueloMeuTime];
+      if (teamState && teamState.phase === 'question' && teamState.currentQ) {
+        const qIdx = teamState.currentQ.qIndex;
         setDueloUltimaQuestaoRespondida(prev => {
           if (prev !== qIdx) {
             setDueloRespondida(false);
@@ -5308,15 +5628,26 @@ export default function App() {
       
       const novoEstado = {
         teams: [
-          { name: nomeJ1 || 'Meninos', score: dueloModoJogo === 'cabodeguerra' ? 50 : 0 },
-          { name: nomeJ2 || 'Meninas', score: dueloModoJogo === 'cabodeguerra' ? 50 : 0 }
+          { 
+            name: nomeJ1 || 'Meninos', 
+            score: dueloModoJogo === 'cabodeguerra' ? 50 : 0,
+            phase: 'waiting',
+            currentQ: null,
+            timerEnd: null,
+            qIndex: 0
+          },
+          { 
+            name: nomeJ2 || 'Meninas', 
+            score: dueloModoJogo === 'cabodeguerra' ? 50 : 0,
+            phase: 'waiting',
+            currentQ: null,
+            timerEnd: null,
+            qIndex: 0
+          }
         ],
         qtime: globalTimerEnabled ? globalTempo : 30,
         usedQs: [],
-        qIndex: -1,
-        currentQ: null,
         phase: 'waiting',
-        timerEnd: null,
         winnerIndex: null,
         ...(dueloModoJogo === 'cabodeguerra' && { cordaPos: 50 })
       };
@@ -12069,405 +12400,474 @@ export default function App() {
         )}
 
         <div className="duelo-online-layout" style={{ 
-          flexDirection: dueloModoJogo === 'cabodeguerra' ? 'column' : 'row',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '20px'
+          gap: '20px',
+          width: '100%',
+          maxWidth: '1200px',
+          margin: '0 auto'
         }}>
-          {/* Lado Azul (Tanque) - Apenas se NÃO for Cabo de Guerra */}
-          {dueloModoJogo !== 'cabodeguerra' && (
-            <div className="duelo-side">
-              <div className="duelo-tank-container">
-                <h3 className="duelo-tank-label" style={{ color: '#60a5fa' }}>🔵 {nomeJ1 || 'Equipe Azul'}</h3>
-                <div className="duelo-tank blue">
-                  <div className="tank-score-val">{Math.round(dueloEstado?.teams?.[0]?.score || 0)}%</div>
-                  <div className="duelo-liquid blue" style={{ height: `${dueloEstado?.teams?.[0]?.score || 0}%` }}>
-                    <div className="duelo-wave" />
-                    <div className="duelo-wave duelo-wave-alt" />
+          {/* Grid Split-Screen Lado a Lado */}
+          <div style={{ display: 'flex', gap: '30px', width: '100%', alignItems: 'stretch' }}>
+            
+            {/* LADO AZUL */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', borderRight: '1px solid rgba(255,255,255,0.08)', paddingRight: '15px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, color: '#3b82f6', fontFamily: 'Outfit', fontSize: '1.45rem', fontWeight: 900 }}>🔵 {nomeJ1 || 'Equipe Azul'}</h3>
+                
+                {/* Se não for Cabo de Guerra, mostra o nível do tanque Azul */}
+                {dueloModoJogo !== 'cabodeguerra' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#60a5fa' }}>{Math.round(dueloEstado?.teams?.[0]?.score || 0)}%</span>
+                    <div style={{ width: '80px', height: '16px', background: 'rgba(0,0,0,0.4)', borderRadius: '8px', border: '1px solid #3b82f6', overflow: 'hidden' }}>
+                      <div style={{ width: `${dueloEstado?.teams?.[0]?.score || 0}%`, height: '100%', background: '#3b82f6' }} />
+                    </div>
                   </div>
-                </div>
-                {dueloEstado?.teams?.[0]?.lastGain > 0 && (
-                  <span className="last-gain-tag blue">+{dueloEstado.teams[0].lastGain}% líquido</span>
                 )}
-                <span style={{ fontSize: '0.8rem', color: '#93c5fd', marginTop: '5px' }}>
-                  👤 {dueloRespostasRodada.filter(r => Number(r.team) === 0).length} de {dueloConectados[0]} prontos
-                </span>
               </div>
-            </div>
-          )}
 
-          {/* Painel Central (Perguntas e Controles) */}
-          <div className="duelo-center-pane" style={{ width: '100%', maxWidth: dueloModoJogo === 'cabodeguerra' ? '900px' : 'none' }}>
-            <div className="duelo-qcard">
-              {dueloEstado?.currentQ ? (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
-                    <span style={{ background: 'linear-gradient(90deg, #7c3aed, #4f46e5)', padding: '5px 12px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      {dueloEstado.currentQ.cat}
-                    </span>
-                    
-                    {dueloEstado.phase === 'question' && (
-                      <div className="timer-ring-container">
-                        <div className="timer-val">{dueloTempoRestante}s</div>
-                      </div>
-                    )}
-                  </div>
+              {/* Card de pergunta do time Azul */}
+              {(() => {
+                const tState = dueloEstado?.teams?.[0];
+                if (!tState) return <div style={{ color: '#64748b', textAlign: 'center', padding: '20px' }}>Aguardando...</div>;
+                if (tState.phase === 'finished') {
+                  return (
+                    <div className="duelo-qcard" style={{ border: '2px solid rgba(59, 130, 246, 0.4)', background: 'rgba(59,130,246,0.05)', textAlign: 'center', padding: '40px 20px', flex: 1 }}>
+                      <span style={{ fontSize: '3rem' }}>🏁</span>
+                      <h3 style={{ color: '#93c5fd', fontFamily: 'Outfit', fontWeight: 900, margin: '10px 0 5px' }}>Perguntas Concluídas!</h3>
+                      <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>Todos os integrantes do time Azul responderam todas as perguntas.</p>
+                    </div>
+                  );
+                }
+                const currentQ = tState.currentQ;
+                if (!currentQ) return <div style={{ color: '#64748b', textAlign: 'center', padding: '20px' }}>Inicializando...</div>;
 
-                  <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#fff', lineHeight: 1.4, margin: '0 0 20px', fontFamily: 'Outfit' }}>
-                    {dueloEstado.currentQ.q}
-                  </h2>
-
-                  <div className="duelo-opt-row">
-                    {dueloEstado.currentQ.opts.map((opt, oIdx) => {
-                      let btnClass = '';
-                      if (dueloEstado.phase === 'reveal') {
-                        btnClass = oIdx === dueloEstado.currentQ.correct ? 'correct-reveal' : 'wrong-reveal';
-                      }
-                      return (
-                        <div key={oIdx} className={`duelo-opt-btn ${btnClass}`}>
-                          <span style={{
-                            width: '26px',
-                            height: '26px',
-                            borderRadius: '50%',
-                            background: oIdx === 0 ? '#3b82f6' : oIdx === 1 ? '#ec4899' : oIdx === 2 ? '#eab308' : '#22c55e',
-                            color: '#fff',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '0.85rem',
-                            fontWeight: 'bold'
-                          }}>
-                            {String.fromCharCode(65 + oIdx)}
-                          </span>
-                          <span>{opt}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Resultados da rodada na revelação */}
-                  {dueloEstado.phase === 'reveal' && (
-                    <div style={{ marginTop: '25px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)', animation: 'popIn 0.4s' }}>
-                      <h4 style={{ margin: '0 0 10px', color: '#a78bfa', fontFamily: 'Outfit', fontWeight: 800, fontSize: '0.95rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>📊 Desempenho do Grupo:</h4>
-                      
-                      <div style={{ display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: '10px', fontSize: '0.9rem' }}>
-                        <div>
-                          <span style={{ color: '#60a5fa', fontWeight: 'bold' }}>🔵 {nomeJ1 || 'Equipe Azul'}:</span>{' '}
-                          <span style={{ color: '#fff', fontWeight: 'bold' }}>
-                            {dueloRespostasRodada.filter(r => Number(r.team) === 0 && r.correct && r.optIdx !== -1).length} / {Math.max(1, dueloRespostasRodada.filter(r => Number(r.team) === 0 && r.optIdx !== -1).length)} acertos
-                          </span>
-                        </div>
-                        <div>
-                          <span style={{ color: '#f472b6', fontWeight: 'bold' }}>🩷 {nomeJ2 || 'Equipe Rosa'}:</span>{' '}
-                          <span style={{ color: '#fff', fontWeight: 'bold' }}>
-                            {dueloRespostasRodada.filter(r => Number(r.team) === 1 && r.correct && r.optIdx !== -1).length} / {Math.max(1, dueloRespostasRodada.filter(r => Number(r.team) === 1 && r.optIdx !== -1).length)} acertos
-                          </span>
-                        </div>
+                return (
+                  <div className="duelo-qcard" style={{ borderLeft: '4px solid #3b82f6', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <span style={{ background: '#3b82f6', padding: '3px 10px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 'bold', color: '#fff' }}>
+                          {currentQ.cat}
+                        </span>
+                        <span style={{ color: '#93c5fd', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                          Pergunta {tState.qIndex} de {fila.length}
+                        </span>
                       </div>
 
-                      {dueloEstado.fastestStudent && (
-                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '12px', paddingTop: '10px', textAlign: 'center', color: '#e2e8f0', fontSize: '0.88rem' }}>
-                          ⚡ <span style={{ color: '#fb923c', fontWeight: 'black' }}>Aluno Mais Rápido:</span>{' '}
-                          <span style={{ fontWeight: 'bold', color: Number(dueloEstado.fastestStudent.team) === 0 ? '#60a5fa' : '#f472b6' }}>
-                            {dueloRespostasRodada.find(r => r.pid === dueloEstado.fastestStudent.pid)?.nomeAluno || 'Anônimo'}
-                          </span>{' '}
-                          (Equipe {Number(dueloEstado.fastestStudent.team) === 0 ? nomeJ1 || 'Azul' : nomeJ2 || 'Rosa'})!
+                      <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', lineHeight: 1.4, margin: '0 0 15px', minHeight: '60px' }}>
+                        {currentQ.q}
+                      </h2>
+
+                      <div className="duelo-opt-row" style={{ gridTemplateColumns: '1fr', gap: '8px', marginTop: '10px' }}>
+                        {currentQ.opts.map((opt, oIdx) => {
+                          let btnClass = '';
+                          if (tState.phase === 'reveal') {
+                            btnClass = oIdx === currentQ.correct ? 'correct-reveal' : 'wrong-reveal';
+                          }
+                          return (
+                            <div key={oIdx} className={`duelo-opt-btn ${btnClass}`} style={{ padding: '10px 14px', fontSize: '0.92rem' }}>
+                              <span style={{
+                                width: '20px',
+                                height: '20px',
+                                borderRadius: '50%',
+                                background: oIdx === 0 ? '#3b82f6' : oIdx === 1 ? '#ec4899' : oIdx === 2 ? '#eab308' : '#22c55e',
+                                color: '#fff',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold',
+                                flexShrink: 0
+                              }}>
+                                {String.fromCharCode(65 + oIdx)}
+                              </span>
+                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{opt}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      {/* HUD de Respostas e Timer */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+                        <span style={{ fontSize: '0.85rem', color: '#93c5fd' }}>
+                          ⏱️ {tState.phase === 'question' ? `${dueloTempoAzul}s` : `Avançando em ${dueloAutoCountdownAzul}s`}
+                        </span>
+                        <span style={{ fontSize: '0.82rem', color: '#64748b' }}>
+                          👤 {dueloRespostasRodada.filter(r => Number(r.team) === 0 && r.optIdx !== -1 && r.qIndex === currentQ.qIndex).length} de {dueloConectados[0]} responderam
+                        </span>
+                      </div>
+
+                      {/* Mostrar se acertaram na fase reveal */}
+                      {tState.phase === 'reveal' && (
+                        <div style={{ marginTop: '10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', padding: '10px', borderRadius: '8px', color: '#4ade80', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>
+                          Acertos: {dueloRespostasRodada.filter(r => Number(r.team) === 0 && r.correct && r.qIndex === currentQ.qIndex).length} de {Math.max(1, dueloRespostasRodada.filter(r => Number(r.team) === 0 && r.optIdx !== -1 && r.qIndex === currentQ.qIndex).length)}
                         </div>
                       )}
-                    </div>
-                  )}
 
-                  {/* Painel do Professor */}
-                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '30px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }}>
-                    {dueloEstado.phase === 'question' ? (
-                      <button className="btn-start" style={{ background: 'linear-gradient(90deg, #7c3aed, #5b21b6)', boxShadow: '0 6px 20px rgba(124, 58, 237, 0.45)', minWidth: '180px' }} onClick={revelarRespostaDueloOnline}>
-                        🔔 Revelar Resposta
-                      </button>
-                    ) : (
-                      <button
-                        className="btn-start"
-                        style={{
-                          background: rodAtual > fila.length
-                            ? 'linear-gradient(90deg, #374151, #4b5563)'
-                            : 'linear-gradient(90deg, #10b981, #047857)',
-                          boxShadow: rodAtual > fila.length
-                            ? 'none'
-                            : '0 6px 20px rgba(16, 185, 129, 0.4)',
-                          minWidth: '180px',
-                          opacity: rodAtual > fila.length ? 0.5 : 1,
-                          cursor: rodAtual > fila.length ? 'not-allowed' : 'pointer'
-                        }}
-                        onClick={avancarPerguntaDueloOnline}
-                        disabled={rodAtual > fila.length}
-                      >
-                        {rodAtual > fila.length ? '✅ Fim das Perguntas' : '➡️ Próxima Pergunta'}
-                      </button>
-                    )}
-                  </div>
-                  {/* Contador regressivo do auto-avanço (cabo de guerra, modo celular, fase reveal) */}
-                  {dueloModoControle === 'celular' && dueloEstado.phase === 'reveal' && rodAtual <= fila.length && dueloAutoCountdown > 0 && (
-                    <div style={{ textAlign: 'center', marginTop: '10px', color: '#94a3b8', fontSize: '0.85rem', letterSpacing: '0.5px' }}>
-                      ⏱️ Próxima pergunta em <span style={{ color: '#34d399', fontWeight: 'bold', fontSize: '1rem' }}>{dueloAutoCountdown}s</span>…
+                      {/* Painel de Controle Manual para o Professor (Time Azul) */}
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '15px' }}>
+                        {tState.phase === 'question' ? (
+                          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #3b82f6, #1d4ed8)', padding: '8px 16px', fontSize: '0.85rem', minWidth: '140px' }} onClick={() => revelarRespostaDueloOnlineTime(0)}>
+                            🔔 Revelar Resposta
+                          </button>
+                        ) : (
+                          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #10b981, #047857)', padding: '8px 16px', fontSize: '0.85rem', minWidth: '140px' }} onClick={() => avancarPerguntaDueloOnlineTime(0)}>
+                            ➡️ Próxima Pergunta
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </>
-              ) : (
-                <div style={{ textAlign: 'center', color: '#cbd5e1', padding: '30px' }}>
-                  <h3>Inicializando arena...</h3>
-                </div>
-              )}
+                  </div>
+                );
+              })()}
             </div>
+
+            {/* LADO ROSA */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', paddingLeft: '15px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, color: '#ec4899', fontFamily: 'Outfit', fontSize: '1.45rem', fontWeight: 900 }}>🩷 {nomeJ2 || 'Equipe Rosa'}</h3>
+                
+                {/* Se não for Cabo de Guerra, mostra o nível do tanque Rosa */}
+                {dueloModoJogo !== 'cabodeguerra' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#f472b6' }}>{Math.round(dueloEstado?.teams?.[1]?.score || 0)}%</span>
+                    <div style={{ width: '80px', height: '16px', background: 'rgba(0,0,0,0.4)', borderRadius: '8px', border: '1px solid #ec4899', overflow: 'hidden' }}>
+                      <div style={{ width: `${dueloEstado?.teams?.[1]?.score || 0}%`, height: '100%', background: '#ec4899' }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Card de pergunta do time Rosa */}
+              {(() => {
+                const tState = dueloEstado?.teams?.[1];
+                if (!tState) return <div style={{ color: '#64748b', textAlign: 'center', padding: '20px' }}>Aguardando...</div>;
+                if (tState.phase === 'finished') {
+                  return (
+                    <div className="duelo-qcard" style={{ border: '2px solid rgba(236, 72, 153, 0.4)', background: 'rgba(236,72,153,0.05)', textAlign: 'center', padding: '40px 20px', flex: 1 }}>
+                      <span style={{ fontSize: '3rem' }}>🏁</span>
+                      <h3 style={{ color: '#f9a8d4', fontFamily: 'Outfit', fontWeight: 900, margin: '10px 0 5px' }}>Perguntas Concluídas!</h3>
+                      <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>Todos os integrantes do time Rosa responderam todas as perguntas.</p>
+                    </div>
+                  );
+                }
+                const currentQ = tState.currentQ;
+                if (!currentQ) return <div style={{ color: '#64748b', textAlign: 'center', padding: '20px' }}>Inicializando...</div>;
+
+                return (
+                  <div className="duelo-qcard" style={{ borderLeft: '4px solid #ec4899', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <span style={{ background: '#ec4899', padding: '3px 10px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 'bold', color: '#fff' }}>
+                          {currentQ.cat}
+                        </span>
+                        <span style={{ color: '#f9a8d4', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                          Pergunta {tState.qIndex} de {fila.length}
+                        </span>
+                      </div>
+
+                      <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', lineHeight: 1.4, margin: '0 0 15px', minHeight: '60px' }}>
+                        {currentQ.q}
+                      </h2>
+
+                      <div className="duelo-opt-row" style={{ gridTemplateColumns: '1fr', gap: '8px', marginTop: '10px' }}>
+                        {currentQ.opts.map((opt, oIdx) => {
+                          let btnClass = '';
+                          if (tState.phase === 'reveal') {
+                            btnClass = oIdx === currentQ.correct ? 'correct-reveal' : 'wrong-reveal';
+                          }
+                          return (
+                            <div key={oIdx} className={`duelo-opt-btn ${btnClass}`} style={{ padding: '10px 14px', fontSize: '0.92rem' }}>
+                              <span style={{
+                                width: '20px',
+                                height: '20px',
+                                borderRadius: '50%',
+                                background: oIdx === 0 ? '#3b82f6' : oIdx === 1 ? '#ec4899' : oIdx === 2 ? '#eab308' : '#22c55e',
+                                color: '#fff',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold',
+                                flexShrink: 0
+                              }}>
+                                {String.fromCharCode(65 + oIdx)}
+                              </span>
+                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{opt}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      {/* HUD de Respostas e Timer */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+                        <span style={{ fontSize: '0.85rem', color: '#f9a8d4' }}>
+                          ⏱️ {tState.phase === 'question' ? `${dueloTempoRosa}s` : `Avançando em ${dueloAutoCountdownRosa}s`}
+                        </span>
+                        <span style={{ fontSize: '0.82rem', color: '#64748b' }}>
+                          👤 {dueloRespostasRodada.filter(r => Number(r.team) === 1 && r.optIdx !== -1 && r.qIndex === currentQ.qIndex).length} de {dueloConectados[1]} responderam
+                        </span>
+                      </div>
+
+                      {/* Mostrar se acertaram na fase reveal */}
+                      {tState.phase === 'reveal' && (
+                        <div style={{ marginTop: '10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', padding: '10px', borderRadius: '8px', color: '#4ade80', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>
+                          Acertos: {dueloRespostasRodada.filter(r => Number(r.team) === 1 && r.correct && r.qIndex === currentQ.qIndex).length} de {Math.max(1, dueloRespostasRodada.filter(r => Number(r.team) === 1 && r.optIdx !== -1 && r.qIndex === currentQ.qIndex).length)}
+                        </div>
+                      )}
+
+                      {/* Painel de Controle Manual para o Professor (Time Rosa) */}
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '15px' }}>
+                        {tState.phase === 'question' ? (
+                          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #ec4899, #be185d)', padding: '8px 16px', fontSize: '0.85rem', minWidth: '140px' }} onClick={() => revelarRespostaDueloOnlineTime(1)}>
+                            🔔 Revelar Resposta
+                          </button>
+                        ) : (
+                          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #10b981, #047857)', padding: '8px 16px', fontSize: '0.85rem', minWidth: '140px' }} onClick={() => avancarPerguntaDueloOnlineTime(1)}>
+                            ➡️ Próxima Pergunta
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
           </div>
 
-          {/* Lado Rosa (Tanque) - Apenas se NÃO for Cabo de Guerra */}
-          {dueloModoJogo !== 'cabodeguerra' && (
-            <div className="duelo-side">
-              <div className="duelo-tank-container">
-                <h3 className="duelo-tank-label" style={{ color: '#f472b6' }}>🩷 {nomeJ2 || 'Equipe Rosa'}</h3>
-                <div className="duelo-tank pink">
-                  <div className="tank-score-val">{Math.round(dueloEstado?.teams?.[1]?.score || 0)}%</div>
-                  <div className="duelo-liquid pink" style={{ height: `${dueloEstado?.teams?.[1]?.score || 0}%` }}>
-                    <div className="duelo-wave" />
-                    <div className="duelo-wave duelo-wave-alt" />
+          {/* CABO DE GUERRA ARENA - Exibida no rodapé ocupando toda a largura se for o modo cabodeguerra */}
+          {dueloModoJogo === 'cabodeguerra' && (
+            <div className="card" style={{ 
+              width: '100%', 
+              maxWidth: '900px', 
+              margin: '20px auto 0', 
+              padding: '24px', 
+              background: 'rgba(15, 23, 42, 0.55)', 
+              border: '1.5px solid rgba(251, 191, 36, 0.2)', 
+              borderRadius: '20px',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px'
+            }}>
+              {/* Header / Indicador de Forças */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div style={{ textAlign: 'left' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 'black', textTransform: 'uppercase' }}>🔵 {nomeJ1 || 'Equipe Azul'}</span>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                    👤 {dueloRespostasRodada.filter(r => Number(r.team) === 0).length} de {dueloConectados[0]} prontos
                   </div>
                 </div>
-                {dueloEstado?.teams?.[1]?.lastGain > 0 && (
-                  <span className="last-gain-tag pink">+{dueloEstado.teams[1].lastGain}% líquido</span>
-                )}
-                <span style={{ fontSize: '0.8rem', color: '#f9a8d4', marginTop: '5px' }}>
-                  👤 {dueloRespostasRodada.filter(r => Number(r.team) === 1).length} de {dueloConectados[1]} prontos
+                
+                <div style={{ textAlign: 'center' }}>
+                  <span style={{ 
+                    background: 'rgba(251, 191, 36, 0.1)', 
+                    border: '1px solid #fbbf24', 
+                    color: '#fbbf24', 
+                    padding: '4px 14px', 
+                    borderRadius: '20px', 
+                    fontSize: '0.8rem', 
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    💪 Disputa de Força 💪
+                  </span>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#f472b6', fontWeight: 'black', textTransform: 'uppercase' }}>🩷 {nomeJ2 || 'Equipe Rosa'}</span>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                    👤 {dueloRespostasRodada.filter(r => Number(r.team) === 1).length} de {dueloConectados[1]} prontos
+                  </div>
+                </div>
+              </div>
+
+              {/* A Arena do Cabo de Guerra Física */}
+              <div style={{ 
+                position: 'relative', 
+                width: '100%', 
+                height: '140px', 
+                background: 'rgba(5, 5, 10, 0.6)', 
+                borderRadius: '16px', 
+                border: '2px solid rgba(255,255,255,0.06)',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                boxShadow: 'inset 0 0 20px rgba(0,0,0,0.8)'
+              }}>
+                {/* Marcação Central de Campo */}
+                <div style={{ 
+                  position: 'absolute', 
+                  left: '50%', 
+                  top: 0, 
+                  bottom: 0, 
+                  width: '2px', 
+                  background: 'rgba(255,255,255,0.15)', 
+                  borderLeft: '1px dashed rgba(255,255,255,0.3)',
+                  zIndex: 1
+                }} />
+
+                {/* Bonecos Puxando do lado Azul (Esquerda) */}
+                <div style={{ 
+                  position: 'absolute', 
+                  left: '20px', 
+                  display: 'flex', 
+                  gap: '8px', 
+                  alignItems: 'center',
+                  zIndex: 2,
+                  opacity: 0.85
+                }}>
+                  <span style={{ fontSize: '3rem', filter: 'drop-shadow(0 0 10px rgba(59, 130, 246, 0.5))' }}>🏃‍♂️🔵</span>
+                  <span style={{ fontSize: '2rem', opacity: 0.6, transform: 'scaleX(-1)' }}>🧑‍🤝‍🧑</span>
+                </div>
+
+                {/* Alunos da Equipe Azul (Puxadores na Esquerda) */}
+                <div key={`arena-puxadores-blue-${dueloRespostasRodada.filter(r => Number(r.team) === 0).length}`} style={{
+                  position: 'absolute',
+                  left: '20px',
+                  bottom: '10px',
+                  display: 'flex',
+                  gap: '4px',
+                  flexWrap: 'wrap',
+                  maxWidth: '40%',
+                  zIndex: 3
+                }}>
+                  {dueloRespostasRodada.filter(r => Number(r.team) === 0).map((r, i) => (
+                    <span key={r.pid || i} style={{
+                      fontSize: '0.68rem',
+                      background: 'rgba(59, 130, 246, 0.25)',
+                      border: '1px solid rgba(59, 130, 246, 0.4)',
+                      padding: '1px 6px',
+                      borderRadius: '6px',
+                      color: '#93c5fd',
+                      fontWeight: 'bold',
+                      textShadow: '0 0 4px rgba(59, 130, 246, 0.3)',
+                      animation: 'popIn 0.3s ease-out'
+                    }}>
+                      {r.nomeAluno || 'Anônimo'}
+                    </span>
+                  ))}
+                </div>
+
+                {/* A CORDA DE NEON */}
+                <div style={{ 
+                  position: 'absolute', 
+                  left: '10%', 
+                  right: '10%', 
+                  height: '6px', 
+                  background: 'linear-gradient(90deg, #3b82f6 0%, #a78bfa 50%, #ec4899 100%)', 
+                  borderRadius: '3px',
+                  boxShadow: '0 0 15px rgba(167, 139, 250, 0.6)',
+                  zIndex: 2
+                }} />
+
+                {/* O Lenço/Marcador Central que se move */}
+                <div style={{ 
+                  position: 'absolute', 
+                  left: `${dueloEstado?.cordaPos !== undefined ? dueloEstado.cordaPos : 50}%`, 
+                  transform: 'translateX(-50%)',
+                  transition: 'left 1.2s cubic-bezier(0.1, 0.8, 0.3, 1)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 5
+                }}>
+                  {/* O lenço de neon vermelho/laranja pendurado */}
+                  <div style={{ 
+                    width: '18px', 
+                    height: '18px', 
+                    background: '#f97316', 
+                    border: '3px solid #fff',
+                    borderRadius: '50%',
+                    boxShadow: '0 0 20px #f97316, 0 0 30px #f97316',
+                    animation: 'pulse 1s infinite alternate'
+                  }} />
+                  
+                  {/* Placar de porcentagem central flutuante */}
+                  <span style={{ 
+                    fontSize: '0.8rem', 
+                    fontWeight: 900, 
+                    color: '#fff', 
+                    background: 'rgba(15, 23, 42, 0.95)', 
+                    border: '1.5px solid #fbbf24',
+                    padding: '2px 8px', 
+                    borderRadius: '6px',
+                    marginTop: '6px',
+                    whiteSpace: 'nowrap',
+                    fontFamily: 'Outfit, sans-serif'
+                  }}>
+                    {Math.round(dueloEstado?.cordaPos !== undefined ? dueloEstado.cordaPos : 50)}%
+                  </span>
+                </div>
+
+                {/* Bonecos Puxando do lado Rosa (Direita) */}
+                <div style={{ 
+                  position: 'absolute', 
+                  right: '20px', 
+                  display: 'flex', 
+                  gap: '8px', 
+                  alignItems: 'center',
+                  zIndex: 2,
+                  opacity: 0.85
+                }}>
+                  <span style={{ fontSize: '2rem', opacity: 0.6 }}>🧑‍🤝‍🧑</span>
+                  <span style={{ fontSize: '3rem', filter: 'drop-shadow(0 0 10px rgba(236, 72, 153, 0.5))' }}>🩷🏃‍♀️</span>
+                </div>
+
+                {/* Alunos da Equipe Rosa (Puxadores na Direita) */}
+                <div key={`arena-puxadores-pink-${dueloRespostasRodada.filter(r => Number(r.team) === 1).length}`} style={{
+                  position: 'absolute',
+                  right: '20px',
+                  bottom: '10px',
+                  display: 'flex',
+                  gap: '4px',
+                  flexWrap: 'wrap',
+                  maxWidth: '40%',
+                  justifyContent: 'flex-end',
+                  zIndex: 3
+                }}>
+                  {dueloRespostasRodada.filter(r => Number(r.team) === 1).map((r, i) => (
+                    <span key={r.pid || i} style={{
+                      fontSize: '0.68rem',
+                      background: 'rgba(236, 72, 153, 0.25)',
+                      border: '1px solid rgba(236, 72, 153, 0.4)',
+                      padding: '1px 6px',
+                      borderRadius: '6px',
+                      color: '#f9a8d4',
+                      fontWeight: 'bold',
+                      textShadow: '0 0 4px rgba(236, 72, 153, 0.3)',
+                      animation: 'popIn 0.3s ease-out'
+                    }}>
+                      {r.nomeAluno || 'Anônimo'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Informações Auxiliares */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#94a3b8', padding: '0 4px' }}>
+                <span>⬅️ Puxe até <strong style={{ color: '#60a5fa' }}>0%</strong> para vencer</span>
+                <span style={{ fontStyle: 'italic' }}>
+                  {dueloEstado?.cordaPos < 50 
+                    ? `Vantagem: ${nomeJ1 || 'Azul'}` 
+                    : dueloEstado?.cordaPos > 50 
+                      ? `Vantagem: ${nomeJ2 || 'Rosa'}` 
+                      : 'Equilíbrio total'}
                 </span>
+                <span>Puxe até <strong style={{ color: '#f472b6' }}>100%</strong> para vencer ➡️</span>
               </div>
             </div>
           )}
         </div>
-
-        {/* Arena de Cabo de Guerra */}
-        {dueloModoJogo === 'cabodeguerra' && (
-          <div className="card" style={{ 
-            width: '100%', 
-            maxWidth: '900px', 
-            margin: '20px auto 0', 
-            padding: '24px', 
-            background: 'rgba(15, 23, 42, 0.55)', 
-            border: '1.5px solid rgba(251, 191, 36, 0.2)', 
-            borderRadius: '20px',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
-            backdropFilter: 'blur(10px)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px'
-          }}>
-            {/* Header / Indicador de Forças */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-              <div style={{ textAlign: 'left' }}>
-                <span style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 'black', textTransform: 'uppercase' }}>🔵 {nomeJ1 || 'Equipe Azul'}</span>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                  👤 {dueloRespostasRodada.filter(r => Number(r.team) === 0).length} de {dueloConectados[0]} prontos
-                </div>
-              </div>
-              
-              <div style={{ textAlign: 'center' }}>
-                <span style={{ 
-                  background: 'rgba(251, 191, 36, 0.1)', 
-                  border: '1px solid #fbbf24', 
-                  color: '#fbbf24', 
-                  padding: '4px 14px', 
-                  borderRadius: '20px', 
-                  fontSize: '0.8rem', 
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}>
-                  💪 Disputa de Força 💪
-                </span>
-              </div>
-
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '0.8rem', color: '#f472b6', fontWeight: 'black', textTransform: 'uppercase' }}>🩷 {nomeJ2 || 'Equipe Rosa'}</span>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                  👤 {dueloRespostasRodada.filter(r => Number(r.team) === 1).length} de {dueloConectados[1]} prontos
-                </div>
-              </div>
-            </div>
-
-            {/* A Arena do Cabo de Guerra Física */}
-            <div style={{ 
-              position: 'relative', 
-              width: '100%', 
-              height: '140px', 
-              background: 'rgba(5, 5, 10, 0.6)', 
-              borderRadius: '16px', 
-              border: '2px solid rgba(255,255,255,0.06)',
-              overflow: 'hidden',
-              display: 'flex',
-              alignItems: 'center',
-              boxShadow: 'inset 0 0 20px rgba(0,0,0,0.8)'
-            }}>
-              {/* Marcação Central de Campo */}
-              <div style={{ 
-                position: 'absolute', 
-                left: '50%', 
-                top: 0, 
-                bottom: 0, 
-                width: '2px', 
-                background: 'rgba(255,255,255,0.15)', 
-                borderLeft: '1px dashed rgba(255,255,255,0.3)',
-                zIndex: 1
-              }} />
-
-              {/* Bonecos Puxando do lado Azul (Esquerda) */}
-              <div style={{ 
-                position: 'absolute', 
-                left: '20px', 
-                display: 'flex', 
-                gap: '8px', 
-                alignItems: 'center',
-                zIndex: 2,
-                opacity: 0.85
-              }}>
-                <span style={{ fontSize: '3rem', filter: 'drop-shadow(0 0 10px rgba(59, 130, 246, 0.5))' }}>🏃‍♂️🔵</span>
-                <span style={{ fontSize: '2rem', opacity: 0.6, transform: 'scaleX(-1)' }}>🧑‍🤝‍🧑</span>
-              </div>
-
-              {/* Alunos da Equipe Azul (Puxadores na Esquerda) */}
-              <div key={`arena-puxadores-blue-${dueloRespostasRodada.filter(r => Number(r.team) === 0).length}`} style={{
-                position: 'absolute',
-                left: '20px',
-                bottom: '10px',
-                display: 'flex',
-                gap: '4px',
-                flexWrap: 'wrap',
-                maxWidth: '40%',
-                zIndex: 3
-              }}>
-                {dueloRespostasRodada.filter(r => Number(r.team) === 0).map((r, i) => (
-                  <span key={r.pid || i} style={{
-                    fontSize: '0.68rem',
-                    background: 'rgba(59, 130, 246, 0.25)',
-                    border: '1px solid rgba(59, 130, 246, 0.4)',
-                    padding: '1px 6px',
-                    borderRadius: '6px',
-                    color: '#93c5fd',
-                    fontWeight: 'bold',
-                    textShadow: '0 0 4px rgba(59, 130, 246, 0.3)',
-                    animation: 'popIn 0.3s ease-out'
-                  }}>
-                    {r.nomeAluno || 'Anônimo'}
-                  </span>
-                ))}
-              </div>
-
-              {/* A CORDA DE NEON */}
-              <div style={{ 
-                position: 'absolute', 
-                left: '10%', 
-                right: '10%', 
-                height: '6px', 
-                background: 'linear-gradient(90deg, #3b82f6 0%, #a78bfa 50%, #ec4899 100%)', 
-                borderRadius: '3px',
-                boxShadow: '0 0 15px rgba(167, 139, 250, 0.6)',
-                zIndex: 2
-              }} />
-
-              {/* O Lenço/Marcador Central que se move */}
-              <div style={{ 
-                position: 'absolute', 
-                left: `${dueloEstado?.cordaPos !== undefined ? dueloEstado.cordaPos : 50}%`, 
-                transform: 'translateX(-50%)',
-                transition: 'left 1.2s cubic-bezier(0.1, 0.8, 0.3, 1)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 5
-              }}>
-                {/* O lenço de neon vermelho/laranja pendurado */}
-                <div style={{ 
-                  width: '18px', 
-                  height: '18px', 
-                  background: '#f97316', 
-                  border: '3px solid #fff',
-                  borderRadius: '50%',
-                  boxShadow: '0 0 20px #f97316, 0 0 30px #f97316',
-                  animation: 'pulse 1s infinite alternate'
-                }} />
-                
-                {/* Placar de porcentagem central flutuante */}
-                <span style={{ 
-                  fontSize: '0.8rem', 
-                  fontWeight: 900, 
-                  color: '#fff', 
-                  background: 'rgba(15, 23, 42, 0.95)', 
-                  border: '1.5px solid #fbbf24',
-                  padding: '2px 8px', 
-                  borderRadius: '6px',
-                  marginTop: '6px',
-                  whiteSpace: 'nowrap',
-                  fontFamily: 'Outfit, sans-serif'
-                }}>
-                  {Math.round(dueloEstado?.cordaPos !== undefined ? dueloEstado.cordaPos : 50)}%
-                </span>
-              </div>
-
-              {/* Bonecos Puxando do lado Rosa (Direita) */}
-              <div style={{ 
-                position: 'absolute', 
-                right: '20px', 
-                display: 'flex', 
-                gap: '8px', 
-                alignItems: 'center',
-                zIndex: 2,
-                opacity: 0.85
-              }}>
-                <span style={{ fontSize: '2rem', opacity: 0.6 }}>🧑‍🤝‍🧑</span>
-                <span style={{ fontSize: '3rem', filter: 'drop-shadow(0 0 10px rgba(236, 72, 153, 0.5))' }}>🩷🏃‍♀️</span>
-              </div>
-
-              {/* Alunos da Equipe Rosa (Puxadores na Direita) */}
-              <div key={`arena-puxadores-pink-${dueloRespostasRodada.filter(r => Number(r.team) === 1).length}`} style={{
-                position: 'absolute',
-                right: '20px',
-                bottom: '10px',
-                display: 'flex',
-                gap: '4px',
-                flexWrap: 'wrap',
-                maxWidth: '40%',
-                justifyContent: 'flex-end',
-                zIndex: 3
-              }}>
-                {dueloRespostasRodada.filter(r => Number(r.team) === 1).map((r, i) => (
-                  <span key={r.pid || i} style={{
-                    fontSize: '0.68rem',
-                    background: 'rgba(236, 72, 153, 0.25)',
-                    border: '1px solid rgba(236, 72, 153, 0.4)',
-                    padding: '1px 6px',
-                    borderRadius: '6px',
-                    color: '#f9a8d4',
-                    fontWeight: 'bold',
-                    textShadow: '0 0 4px rgba(236, 72, 153, 0.3)',
-                    animation: 'popIn 0.3s ease-out'
-                  }}>
-                    {r.nomeAluno || 'Anônimo'}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Informações Auxiliares */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#94a3b8', padding: '0 4px' }}>
-              <span>⬅️ Puxe até <strong style={{ color: '#60a5fa' }}>0%</strong> para vencer</span>
-              <span style={{ fontStyle: 'italic' }}>
-                {dueloEstado?.cordaPos < 50 
-                  ? `Vantagem: ${nomeJ1 || 'Azul'}` 
-                  : dueloEstado?.cordaPos > 50 
-                    ? `Vantagem: ${nomeJ2 || 'Rosa'}` 
-                    : 'Equilíbrio total'}
-              </span>
-              <span>Puxe até <strong style={{ color: '#f472b6' }}>100%</strong> para vencer ➡️</span>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* 22. TELA DE FIM DO DUELO ONLINE */}
@@ -12729,7 +13129,7 @@ export default function App() {
             </div>
 
             {/* Fase de Espera por Pergunta */}
-            {(!dueloEstado || dueloEstado.phase === 'waiting') && (
+            {(!dueloEstado || dueloEstado.phase === 'waiting' || (dueloEstado.phase === 'playing' && dueloEstado.teams?.[dueloMeuTime]?.phase === 'waiting')) && (
               <div className="aluno-content-card">
                 <div className="pulse-bubble">⏳</div>
                 <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.3rem', margin: '0 0 8px' }}>Aguardando Partida</h3>
@@ -12738,104 +13138,119 @@ export default function App() {
             )}
 
             {/* Fase de Pergunta Ativa */}
-            {dueloEstado?.phase === 'question' && dueloEstado?.currentQ && (
-              <div className="aluno-content-card">
-                {dueloRespondida ? (
-                  <>
-                    <div className="pulse-bubble" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>🚀</div>
-                    <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.3rem', margin: '0 0 8px' }}>Resposta Enviada!</h3>
-                    <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>Você respondeu a alternativa <b>{String.fromCharCode(65 + dueloOpcaoSelecionada)}</b>. Aguarde a revelação do gabarito!</p>
-                  </>
-                ) : (
-                  <>
-                    <span style={{ fontSize: '0.8rem', background: '#3b82f6', color: '#fff', padding: '4px 10px', borderRadius: '10px', fontWeight: 'bold', marginBottom: '10px' }}>
-                      {dueloEstado.currentQ.cat}
-                    </span>
-                    <h4 style={{ margin: '0 0 10px', color: '#a78bfa', fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase' }}>⏱️ Responda rápido!</h4>
-                    <h2 style={{ fontSize: '1.3rem', fontWeight: 800, margin: '0 0 20px', fontFamily: 'Outfit', color: '#fff' }}>
-                      {dueloEstado.currentQ.q}
-                    </h2>
-                    
-                    <div className="aluno-opt-grid">
-                      {dueloEstado.currentQ.opts.map((opt, oIdx) => (
-                        <button 
-                          key={oIdx} 
-                          className="aluno-opt-card-btn"
-                          onClick={() => submeterRespostaAlunoDueloOnline(oIdx)}
-                        >
-                          <span style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            background: oIdx === 0 ? '#3b82f6' : oIdx === 1 ? '#ec4899' : oIdx === 2 ? '#eab308' : '#22c55e',
-                            color: '#fff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '1rem',
-                            fontWeight: 'bold',
-                            flexShrink: 0
-                          }}>
-                            {String.fromCharCode(65 + oIdx)}
-                          </span>
-                          <span>{opt}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Fase de Revelação do Gabarito */}
-            {dueloEstado?.phase === 'reveal' && dueloEstado?.currentQ && (
-              <div className="aluno-content-card" style={{
-                background: dueloRespondida 
-                  ? (dueloRespostaCorreta ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.05)') 
-                  : 'rgba(255,255,255,0.02)',
-                borderColor: dueloRespondida 
-                  ? (dueloRespostaCorreta ? 'rgba(34, 197, 94, 0.25)' : 'rgba(239, 68, 68, 0.2)') 
-                  : 'rgba(255,255,255,0.08)'
-              }}>
-                {dueloRespondida ? (
-                  dueloRespostaCorreta ? (
+            {dueloEstado?.phase === 'playing' && dueloEstado.teams?.[dueloMeuTime]?.phase === 'question' && dueloEstado.teams?.[dueloMeuTime]?.currentQ && (() => {
+              const currentQ = dueloEstado.teams[dueloMeuTime].currentQ;
+              return (
+                <div className="aluno-content-card">
+                  {dueloRespondida ? (
                     <>
-                      <div className="feedback-circle" style={{ color: '#4ade80' }}>🎉</div>
-                      <h3 style={{ color: '#4ade80', fontFamily: 'Outfit', fontWeight: 900, fontSize: '1.6rem', margin: '0 0 8px' }}>VOCÊ ACERTOU!</h3>
-                      <p style={{ color: '#cbd5e1', fontSize: '0.95rem', margin: 0 }}>Excelente trabalho! Você respondeu rápido e ajudou a encher o tanque do seu time!</p>
+                      <div className="pulse-bubble" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>🚀</div>
+                      <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.3rem', margin: '0 0 8px' }}>Resposta Enviada!</h3>
+                      <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>Você respondeu a alternativa <b>{String.fromCharCode(65 + dueloOpcaoSelecionada)}</b>. Aguarde a revelação do gabarito!</p>
                     </>
                   ) : (
                     <>
-                      <div className="feedback-circle" style={{ color: '#f87171' }}>😢</div>
-                      <h3 style={{ color: '#f87171', fontFamily: 'Outfit', fontWeight: 900, fontSize: '1.6rem', margin: '0 0 8px' }}>VOCÊ ERROU</h3>
-                      <p style={{ color: '#cbd5e1', fontSize: '0.95rem', margin: 0 }}>Não desanime! A resposta correta era a alternativa <b>{String.fromCharCode(65 + dueloEstado.currentQ.correct)}</b>. Foco na próxima!</p>
+                      <span style={{ fontSize: '0.8rem', background: '#3b82f6', color: '#fff', padding: '4px 10px', borderRadius: '10px', fontWeight: 'bold', marginBottom: '10px' }}>
+                        {currentQ.cat}
+                      </span>
+                      <h4 style={{ margin: '0 0 10px', color: '#a78bfa', fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase' }}>⏱️ Responda rápido! ({dueloTempoAluno}s)</h4>
+                      <h2 style={{ fontSize: '1.3rem', fontWeight: 800, margin: '0 0 20px', fontFamily: 'Outfit', color: '#fff' }}>
+                        {currentQ.q}
+                      </h2>
+                      
+                      <div className="aluno-opt-grid">
+                        {currentQ.opts.map((opt, oIdx) => (
+                          <button 
+                            key={oIdx} 
+                            className="aluno-opt-card-btn"
+                            onClick={() => submeterRespostaAlunoDueloOnline(oIdx)}
+                          >
+                            <span style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              background: oIdx === 0 ? '#3b82f6' : oIdx === 1 ? '#ec4899' : oIdx === 2 ? '#eab308' : '#22c55e',
+                              color: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '1rem',
+                              fontWeight: 'bold',
+                              flexShrink: 0
+                            }}>
+                              {String.fromCharCode(65 + oIdx)}
+                            </span>
+                            <span>{opt}</span>
+                          </button>
+                        ))}
+                      </div>
                     </>
-                  )
-                ) : (
-                  <>
-                    <div className="feedback-circle" style={{ color: '#94a3b8' }}>⏱️</div>
-                    <h3 style={{ color: '#94a3b8', fontFamily: 'Outfit', fontWeight: 900, fontSize: '1.6rem', margin: '0 0 8px' }}>TEMPO ESGOTADO</h3>
-                    <p style={{ color: '#cbd5e1', fontSize: '0.95rem', margin: 0 }}>Você não respondeu a tempo nesta rodada! A resposta correta era a alternativa <b>{String.fromCharCode(65 + dueloEstado.currentQ.correct)}</b>.</p>
-                  </>
-                )}
+                  )}
+                </div>
+              );
+            })()}
 
-                <div style={{ marginTop: '25px', width: '100%', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '20px', textAlign: 'left' }}>
-                  <span style={{ fontSize: '0.8rem', color: '#a78bfa', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Gabarito da Rodada</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px', background: 'rgba(34, 197, 94, 0.15)', padding: '12px 16px', borderRadius: '10px', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#4ade80', fontWeight: 'bold' }}>
-                    <span style={{
-                      width: '26px',
-                      height: '26px',
-                      borderRadius: '50%',
-                      background: '#22c55e',
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.95rem'
-                    }}>{String.fromCharCode(65 + dueloEstado.currentQ.correct)}</span>
-                    <span>{dueloEstado.currentQ.opts[dueloEstado.currentQ.correct]}</span>
+            {/* Fase de Revelação do Gabarito */}
+            {dueloEstado?.phase === 'playing' && dueloEstado.teams?.[dueloMeuTime]?.phase === 'reveal' && dueloEstado.teams?.[dueloMeuTime]?.currentQ && (() => {
+              const currentQ = dueloEstado.teams[dueloMeuTime].currentQ;
+              return (
+                <div className="aluno-content-card" style={{
+                  background: dueloRespondida 
+                    ? (dueloRespostaCorreta ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.05)') 
+                    : 'rgba(255,255,255,0.02)',
+                  borderColor: dueloRespondida 
+                    ? (dueloRespostaCorreta ? 'rgba(34, 197, 94, 0.25)' : 'rgba(239, 68, 68, 0.2)') 
+                    : 'rgba(255,255,255,0.08)'
+                }}>
+                  {dueloRespondida ? (
+                    dueloRespostaCorreta ? (
+                      <>
+                        <div className="feedback-circle" style={{ color: '#4ade80' }}>🎉</div>
+                        <h3 style={{ color: '#4ade80', fontFamily: 'Outfit', fontWeight: 900, fontSize: '1.6rem', margin: '0 0 8px' }}>VOCÊ ACERTOU!</h3>
+                        <p style={{ color: '#cbd5e1', fontSize: '0.95rem', margin: 0 }}>Excelente trabalho! Você respondeu rápido e ajudou a encher o tanque do seu time!</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="feedback-circle" style={{ color: '#f87171' }}>😢</div>
+                        <h3 style={{ color: '#f87171', fontFamily: 'Outfit', fontWeight: 900, fontSize: '1.6rem', margin: '0 0 8px' }}>VOCÊ ERROU</h3>
+                        <p style={{ color: '#cbd5e1', fontSize: '0.95rem', margin: 0 }}>Não desanime! A resposta correta era a alternativa <b>{String.fromCharCode(65 + currentQ.correct)}</b>. Foco na próxima!</p>
+                      </>
+                    )
+                  ) : (
+                    <>
+                      <div className="feedback-circle" style={{ color: '#94a3b8' }}>⏱️</div>
+                      <h3 style={{ color: '#94a3b8', fontFamily: 'Outfit', fontWeight: 900, fontSize: '1.6rem', margin: '0 0 8px' }}>TEMPO ESGOTADO</h3>
+                      <p style={{ color: '#cbd5e1', fontSize: '0.95rem', margin: 0 }}>Você não respondeu a tempo nesta rodada! A resposta correta era a alternativa <b>{String.fromCharCode(65 + currentQ.correct)}</b>.</p>
+                    </>
+                  )}
+
+                  <div style={{ marginTop: '25px', width: '100%', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '20px', textAlign: 'left' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#a78bfa', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Gabarito da Rodada</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px', background: 'rgba(34, 197, 94, 0.15)', padding: '12px 16px', borderRadius: '10px', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#4ade80', fontWeight: 'bold' }}>
+                      <span style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '50%',
+                        background: '#22c55e',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.95rem'
+                      }}>{String.fromCharCode(65 + currentQ.correct)}</span>
+                      <span>{currentQ.opts[currentQ.correct]}</span>
+                    </div>
                   </div>
                 </div>
+              );
+            })()}
+
+            {/* Fase de Conclusão das Perguntas pelo Time (Aguardando o outro time) */}
+            {dueloEstado?.phase === 'playing' && dueloEstado.teams?.[dueloMeuTime]?.phase === 'finished' && (
+              <div className="aluno-content-card">
+                <div className="pulse-bubble" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }}>🏁</div>
+                <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.3rem', margin: '0 0 8px' }}>Perguntas Concluídas!</h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>Você respondeu todas as perguntas. Aguarde a outra equipe terminar a disputa!</p>
               </div>
             )}
 

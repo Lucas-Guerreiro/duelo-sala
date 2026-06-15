@@ -174,7 +174,7 @@ export function ouvirEstadoDueloOnline(codigoSala, callback, errorCallback = nul
 /**
  * Envia a resposta individual de um aluno para o Firestore.
  */
-export async function enviarRespostaDueloOnline(codigoSala, pid, equipe, optIdx, correct, speedBonus, nomeAluno = '') {
+export async function enviarRespostaDueloOnline(codigoSala, pid, equipe, optIdx, correct, speedBonus, nomeAluno = '', qIndex = -1) {
   if (!firebaseInitializado || !db) {
     throw new Error("Firebase não inicializado ou sem conexão com o banco de dados.");
   }
@@ -182,7 +182,7 @@ export async function enviarRespostaDueloOnline(codigoSala, pid, equipe, optIdx,
     const chave = codigoSala.trim().toUpperCase();
     const ref = doc(db, 'salas', chave, 'duelo_respostas', pid);
     
-    console.log(`[Firebase] Iniciando setDoc no caminho: salas/${chave}/duelo_respostas/${pid} para o aluno "${nomeAluno}"`);
+    console.log(`[Firebase] Iniciando setDoc no caminho: salas/${chave}/duelo_respostas/${pid} para o aluno "${nomeAluno}", qIndex: ${qIndex}`);
 
     const gravarPromise = setDoc(ref, {
       team: equipe,
@@ -191,6 +191,7 @@ export async function enviarRespostaDueloOnline(codigoSala, pid, equipe, optIdx,
       correct: correct,
       speedBonus: speedBonus,
       nomeAluno: nomeAluno,
+      qIndex: qIndex,
       timestamp: new Date().toISOString()
     }).then(() => {
       console.log(`[Firebase] setDoc gravado com sucesso para o aluno "${nomeAluno}"`);
