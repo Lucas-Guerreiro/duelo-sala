@@ -740,98 +740,6 @@ export default function App() {
     }, dueloAvancoAutoSeg * 1000);
   };
 
-  // Confirmação de saída para jogos ativos ao recarregar ou fechar a página
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      const TELAS_JOGO = [
-        'jogo', 'duelo-online-game', 'duelo-aluno', 'duelo-qr',
-        'pistas-jogo', 'memo-jogo', 'ia-jogo', 'duelo-online-lobby'
-      ];
-      if (TELAS_JOGO.includes(tela)) {
-        const message = "Deseja realmente sair da partida atual? O jogo será finalizado.";
-        e.returnValue = message;
-        return message;
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [tela]);
-
-  // Intercepta botão voltar do navegador (popstate)
-  useEffect(() => {
-    const handlePopState = (e) => {
-      const TELAS_JOGO = [
-        'jogo', 'duelo-online-game', 'duelo-aluno', 'duelo-qr',
-        'pistas-jogo', 'memo-jogo', 'ia-jogo', 'duelo-online-lobby'
-      ];
-      if (TELAS_JOGO.includes(tela)) {
-        if (!window.confirm("Deseja realmente sair da partida atual? O jogo em andamento será finalizado.")) {
-          window.history.pushState(null, null, window.location.href);
-        }
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [tela]);
-
-  // Sincroniza a URL search param com a tela ativa para SPA routing (Opção A)
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('projetor') === 'true') return;
-      if (params.get('jogo') === 'duelo' && params.get('equipe')) return;
-      
-      let newJogo = null;
-      if (tela === 'selecao' || tela === 'nomes' || tela === 'jogo' || tela === 'fim') {
-        newJogo = 'quiz';
-      } else if (tela === 'pistas-nomes' || tela === 'pistas-jogo') {
-        newJogo = 'pistas';
-      } else if (tela === 'ia-nomes' || tela === 'ia-jogo' || tela === 'ia-fim') {
-        newJogo = 'imagem-acao';
-      } else if (tela === 'memo-nomes' || tela === 'memo-jogo' || tela === 'memo-fim') {
-        newJogo = 'memoria';
-      } else if (tela === 'duelo-online-lobby' || tela === 'duelo-online-game' || tela === 'duelo-online-fim') {
-        newJogo = dueloModoJogo === 'cabodeguerra' ? 'cabo-guerra' : 'duelo';
-      }
-      
-      if (newJogo) {
-        params.set('jogo', newJogo);
-      } else {
-        params.delete('jogo');
-      }
-      
-      const newSearch = params.toString();
-      const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '');
-      window.history.replaceState(null, '', newUrl);
-    } catch (e) {
-      console.error("Erro ao atualizar URL:", e);
-    }
-  }, [tela, dueloModoJogo]);
-
-  // Verifica se o jogo foi acessado diretamente por parâmetro e exige login do professor
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const jogoParam = params.get('jogo');
-      const isAuth = sessionStorage.getItem('dm_teacher_auth') === 'true';
-      if (jogoParam && !isAuth) {
-        let target = 'menu';
-        if (jogoParam === 'imagem-acao') target = 'ia-nomes';
-        else if (jogoParam === 'pistas') target = 'pistas-nomes';
-        else if (jogoParam === 'memoria') target = 'memo-nomes';
-        else if (jogoParam === 'quiz') target = 'selecao';
-        
-        if (target !== 'menu') {
-          setTargetScreenAfterAuth(target);
-          setShowPasswordModal(true);
-        }
-      }
-    } catch (e) {}
-  }, []);
 
   // Estados dos Dados e Seleção de Opção/Modo
   const [imAcaoOpcaoSelecionada, setImAcaoOpcaoSelecionada] = useState(0); // 0 a 4
@@ -961,6 +869,99 @@ export default function App() {
   const dueloMaxJogadoresRef = useRef([0, 0]);
   // Ref para acessar dueloEstado atual dentro de callbacks/timeouts sem depender de closure stale
   const dueloEstadoRef = useRef(null);
+
+  // Confirmação de saída para jogos ativos ao recarregar ou fechar a página
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      const TELAS_JOGO = [
+        'jogo', 'duelo-online-game', 'duelo-aluno', 'duelo-qr',
+        'pistas-jogo', 'memo-jogo', 'ia-jogo', 'duelo-online-lobby'
+      ];
+      if (TELAS_JOGO.includes(tela)) {
+        const message = "Deseja realmente sair da partida atual? O jogo será finalizado.";
+        e.returnValue = message;
+        return message;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [tela]);
+
+  // Intercepta botão voltar do navegador (popstate)
+  useEffect(() => {
+    const handlePopState = (e) => {
+      const TELAS_JOGO = [
+        'jogo', 'duelo-online-game', 'duelo-aluno', 'duelo-qr',
+        'pistas-jogo', 'memo-jogo', 'ia-jogo', 'duelo-online-lobby'
+      ];
+      if (TELAS_JOGO.includes(tela)) {
+        if (!window.confirm("Deseja realmente sair da partida atual? O jogo em andamento será finalizado.")) {
+          window.history.pushState(null, null, window.location.href);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [tela]);
+
+  // Sincroniza a URL search param com a tela ativa para SPA routing (Opção A)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('projetor') === 'true') return;
+      if (params.get('jogo') === 'duelo' && params.get('equipe')) return;
+      
+      let newJogo = null;
+      if (tela === 'selecao' || tela === 'nomes' || tela === 'jogo' || tela === 'fim') {
+        newJogo = 'quiz';
+      } else if (tela === 'pistas-nomes' || tela === 'pistas-jogo') {
+        newJogo = 'pistas';
+      } else if (tela === 'ia-nomes' || tela === 'ia-jogo' || tela === 'ia-fim') {
+        newJogo = 'imagem-acao';
+      } else if (tela === 'memo-nomes' || tela === 'memo-jogo' || tela === 'memo-fim') {
+        newJogo = 'memoria';
+      } else if (tela === 'duelo-online-lobby' || tela === 'duelo-online-game' || tela === 'duelo-online-fim') {
+        newJogo = dueloModoJogo === 'cabodeguerra' ? 'cabo-guerra' : 'duelo';
+      }
+      
+      if (newJogo) {
+        params.set('jogo', newJogo);
+      } else {
+        params.delete('jogo');
+      }
+      
+      const newSearch = params.toString();
+      const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '');
+      window.history.replaceState(null, '', newUrl);
+    } catch (e) {
+      console.error("Erro ao atualizar URL:", e);
+    }
+  }, [tela, dueloModoJogo]);
+
+  // Verifica se o jogo foi acessado diretamente por parâmetro e exige login do professor
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const jogoParam = params.get('jogo');
+      const isAuth = sessionStorage.getItem('dm_teacher_auth') === 'true';
+      if (jogoParam && !isAuth) {
+        let target = 'menu';
+        if (jogoParam === 'imagem-acao') target = 'ia-nomes';
+        else if (jogoParam === 'pistas') target = 'pistas-nomes';
+        else if (jogoParam === 'memoria') target = 'memo-nomes';
+        else if (jogoParam === 'quiz') target = 'selecao';
+        
+        if (target !== 'menu') {
+          setTargetScreenAfterAuth(target);
+          setShowPasswordModal(true);
+        }
+      }
+    } catch (e) {}
+  }, []);
 
   // Efeitos dos timers do Duelo Online (Azul e Rosa na tela do Professor)
   useEffect(() => {
