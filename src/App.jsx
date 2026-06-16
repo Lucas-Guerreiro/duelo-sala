@@ -3433,6 +3433,71 @@ export default function App() {
       }
     }
 
+    // 2. Lógica do Duelo Online com Gamepad Físico (Nova visualização consolidada com tanques)
+    if (tela === 'duelo-online-game' && dueloModoControle === 'fisico') {
+      if (!dueloEstado || dueloEstado.phase !== 'playing') return;
+
+      for (let jg = 0; jg < 2; jg++) {
+        if (ctrl[jg].gpIdx === gpIdx) {
+          const slotG = ctrl[jg].map.indexOf(btnIdx);
+          if (slotG === -1) continue; // Botão pressionado não mapeado para este jogador
+
+          const teamState = dueloEstado.teams[jg];
+          if (!teamState || teamState.phase !== 'question' || !teamState.currentQ) continue;
+
+          // Botões de alternativas (slotG < 4: A, B, C, D)
+          if (slotG < 4) {
+            const currentQ = teamState.currentQ;
+            const optIdx = slotG;
+            const correct = optIdx === currentQ.correct;
+
+            // Calcular bônus de velocidade local
+            const QTIME = dueloEstado.qtime || 30;
+            const elapsed = Math.max(0.1, (Date.now() - timestampPerguntaRef.current[jg]) / 1000);
+            const speedRatio = Math.max(0, (QTIME - elapsed) / QTIME);
+            const speedBonus = correct ? Math.round(speedRatio * 5 * 10) / 10 : 0;
+
+            const pidSimulado = `fisico_team_${jg}`;
+            const nomeAlunoSimulado = `Gamepad ${jg === 0 ? 'Azul' : 'Rosa'}`;
+
+            const respostaSimulada = {
+              pid: pidSimulado,
+              team: jg,
+              optIdx: optIdx,
+              correct: correct,
+              speedBonus: speedBonus,
+              nomeAluno: nomeAlunoSimulado,
+              qIndex: currentQ.qIndex,
+              timestamp: Date.now()
+            };
+
+            // Atualiza localmente e de forma reativa instantânea para funcionamento híbrido/offline
+            setDueloRespostasRodada(prev => {
+              const filtrados = prev.filter(r => !(r.pid === pidSimulado && r.qIndex === currentQ.qIndex));
+              return [...filtrados, respostaSimulada];
+            });
+
+            // Envia ao Firestore em background
+            enviarRespostaDueloOnline(
+              codigoSalaOnline.trim().toUpperCase(),
+              pidSimulado,
+              jg,
+              optIdx,
+              correct,
+              speedBonus,
+              nomeAlunoSimulado,
+              currentQ.qIndex
+            ).catch(err => {
+              console.warn('Erro ao sincronizar resposta física no Firebase (funcionamento offline mantido):', err);
+            });
+
+            playSound(correct ? 'success' : 'error');
+          }
+        }
+      }
+      return;
+    }
+
     // 2. Lógica do Jogo Ativo
     if (tela === 'jogo') {
       const p = fila[rodAtual - 1];
@@ -5488,63 +5553,87 @@ export default function App() {
     // Reset de tempos individuais
     temposRespRef.current = [null, null];
 
-    if (dueloModoControle === 'celular') {
-      if (!codigoSalaOnline || !codigoSalaOnline.trim()) {
-        alert('Por favor, digite ou gere um Código de Acesso da Sala Online antes de começar!');
-        return;
-      }
-      
-      const novoEstado = {
-        teams: [
-          { 
-            name: nomeJ1 || 'Meninos', 
-            score: dueloModoJogo === 'cabodeguerra' ? 50 : 0,
-            phase: 'waiting',
-            currentQ: null,
-            timerEnd: null,
-            qIndex: 0
-          },
-          { 
-            name: nomeJ2 || 'Meninas', 
-            score: dueloModoJogo === 'cabodeguerra' ? 50 : 0,
-            phase: 'waiting',
-            currentQ: null,
-            timerEnd: null,
-            qIndex: 0
-          }
-        ],
-        qtime: globalTimerEnabled ? globalTempo : 30,
-        usedQs: [],
-        phase: 'waiting',
-        winnerIndex: null,
-        questions: poolEmbaralhadoCompleto.map((q, idx) => ({
-          qIndex: idx,
-          cat: q.mat || 'Geral',
-          q: q.txt,
-          opts: q.tipo === 'mc' ? (Array.isArray(q.alts) ? q.alts : []) : (q.tipo === 'vf' ? ['Verdadeiro', 'Falso'] : ['Resposta Única']),
-          correct: typeof q.resp === 'number' ? q.resp : (q.tipo === 'mc' ? ['a', 'b', 'c', 'd'].indexOf(String(q.resp || 'a').toLowerCase()) : (String(q.resp || 'v').toLowerCase() === 'f' || String(q.resp || 'v').toLowerCase() === 'falso' ? 1 : 0)),
-          tipo: q.tipo || 'mc',
-          tempo: q.tempo || null
-        })),
-        ...(dueloModoJogo === 'cabodeguerra' && { cordaPos: 50 })
-      };
+    // Unificar inicialização do dueloEstado e do Firebase para celular e físico (usando tanques)
+    let salaUpper = codigoSalaOnline.trim().toUpperCase();
+    if (!salaUpper) {
+      salaUpper = 'FISICO' + Math.floor(1000 + Math.random() * 9000);
+      setCodigoSalaOnline(salaUpper);
+    }
 
-      setDueloEstado(novoEstado);
-      dueloMaxJogadoresRef.current = [0, 0];
-      setDueloConectados([0, 0]);
-      setDueloRespostasRodada([]);
-
-      publicarEstadoDueloOnline(codigoSalaOnline, novoEstado)
-        .then(() => limparRespostasDueloOnline(codigoSalaOnline))
-        .catch(err => {
-          console.error('Erro de inicialização no Firebase:', err);
-          setFirebaseErroMsg('Inicialização de Sala: ' + (err.message || String(err)));
-        });
-
-      irParaTela('duelo-qr');
-      playSound('click');
+    if (dueloModoControle === 'celular' && (!codigoSalaOnline || !codigoSalaOnline.trim())) {
+      alert('Por favor, digite ou gere um Código de Acesso da Sala Online antes de começar!');
       return;
     }
+
+    const primQ = poolEmbaralhadoCompleto[0];
+    const alts = primQ.tipo === 'mc' ? (Array.isArray(primQ.alts) ? primQ.alts : []) : (primQ.tipo === 'vf' ? ['Verdadeiro', 'Falso'] : ['Resposta Única']);
+    const correctIdx = typeof primQ.resp === 'number' ? primQ.resp : (primQ.tipo === 'mc' ? ['a', 'b', 'c', 'd'].indexOf(String(primQ.resp || 'a').toLowerCase()) : (String(primQ.resp || 'v').toLowerCase() === 'f' || String(primQ.resp || 'v').toLowerCase() === 'falso' ? 1 : 0));
+    
+    const initialCurrentQ = {
+      cat: primQ.mat || 'Geral',
+      q: primQ.txt,
+      opts: alts,
+      correct: correctIdx,
+      qIndex: 0,
+      tipo: primQ.tipo || 'mc'
+    };
+
+    const novoEstado = {
+      teams: [
+        { 
+          name: nomeJ1 || 'Equipe Azul', 
+          score: dueloModoJogo === 'cabodeguerra' ? 50 : 0,
+          phase: dueloModoControle === 'fisico' ? 'question' : 'waiting',
+          currentQ: dueloModoControle === 'fisico' ? initialCurrentQ : null,
+          timerEnd: null,
+          qIndex: dueloModoControle === 'fisico' ? 1 : 0
+        },
+        { 
+          name: nomeJ2 || 'Equipe Rosa', 
+          score: dueloModoJogo === 'cabodeguerra' ? 50 : 0,
+          phase: dueloModoControle === 'fisico' ? 'question' : 'waiting',
+          currentQ: dueloModoControle === 'fisico' ? initialCurrentQ : null,
+          timerEnd: null,
+          qIndex: dueloModoControle === 'fisico' ? 1 : 0
+        }
+      ],
+      qtime: globalTimerEnabled ? globalTempo : 30,
+      usedQs: [],
+      phase: dueloModoControle === 'fisico' ? 'playing' : 'waiting',
+      winnerIndex: null,
+      questions: poolEmbaralhadoCompleto.map((q, idx) => ({
+        qIndex: idx,
+        cat: q.mat || 'Geral',
+        q: q.txt,
+        opts: q.tipo === 'mc' ? (Array.isArray(q.alts) ? q.alts : []) : (q.tipo === 'vf' ? ['Verdadeiro', 'Falso'] : ['Resposta Única']),
+        correct: typeof q.resp === 'number' ? q.resp : (q.tipo === 'mc' ? ['a', 'b', 'c', 'd'].indexOf(String(q.resp || 'a').toLowerCase()) : (String(q.resp || 'v').toLowerCase() === 'f' || String(q.resp || 'v').toLowerCase() === 'falso' ? 1 : 0)),
+        tipo: q.tipo || 'mc',
+        tempo: q.tempo || null
+      })),
+      ...(dueloModoJogo === 'cabodeguerra' && { cordaPos: 50 })
+    };
+
+    setDueloEstado(novoEstado);
+    dueloMaxJogadoresRef.current = [0, 0];
+    setDueloConectados([0, 0]);
+    setDueloRespostasRodada([]);
+
+    publicarEstadoDueloOnline(salaUpper, novoEstado)
+      .then(() => limparRespostasDueloOnline(salaUpper))
+      .catch(err => {
+        console.error('Erro de inicialização no Firebase:', err);
+        setFirebaseErroMsg('Inicialização de Sala: ' + (err.message || String(err)));
+      });
+
+    if (dueloModoControle === 'fisico') {
+      timestampPerguntaRef.current = [Date.now(), Date.now()];
+      qIndexAnteriorRef.current = [1, 1];
+      irParaTela('duelo-online-game');
+    } else {
+      irParaTela('duelo-qr');
+    }
+    playSound('click');
+    return;
 
     // Reset de poderes para nova partida
     setPoderes([
