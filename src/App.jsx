@@ -3472,6 +3472,10 @@ export default function App() {
           if (slotG < 4) {
             const currentQ = teamState.currentQ;
             const optIdx = slotG;
+            
+            // Ignorar se a alternativa correspondente não existir na pergunta (ex: C ou D em perguntas V/F)
+            if (optIdx >= currentQ.opts.length) continue;
+            
             const correct = optIdx === currentQ.correct;
 
             // Calcular bônus de velocidade local
@@ -12108,7 +12112,7 @@ export default function App() {
                   <span style={{ color: '#64748b', fontSize: '0.8rem', fontStyle: 'italic' }}>Ninguém conectado ainda...</span>
                 ) : (
                   dueloRespostasRodada.filter(r => Number(r.team) === 0).map((r, i) => (
-                    <span key={r.pid || i} className="badge-aluno blue">
+                    <span key={`${r.pid}_${r.qIndex || i}`} className="badge-aluno blue">
                       {r.nomeAluno || `Aluno #${(r.pid || '').substring(1, 5)}`}
                     </span>
                   ))
@@ -12129,7 +12133,7 @@ export default function App() {
                   <span style={{ color: '#64748b', fontSize: '0.8rem', fontStyle: 'italic' }}>Ninguém conectado ainda...</span>
                 ) : (
                   dueloRespostasRodada.filter(r => Number(r.team) === 1).map((r, i) => (
-                    <span key={r.pid || i} className="badge-aluno pink">
+                    <span key={`${r.pid}_${r.qIndex || i}`} className="badge-aluno pink">
                       {r.nomeAluno || `Aluno #${(r.pid || '').substring(1, 5)}`}
                     </span>
                   ))
