@@ -180,7 +180,8 @@ export async function enviarRespostaDueloOnline(codigoSala, pid, equipe, optIdx,
   }
   try {
     const chave = codigoSala.trim().toUpperCase();
-    const ref = doc(db, 'salas', chave, 'duelo_respostas', pid);
+    const docId = qIndex !== -1 ? `${pid}_${qIndex}` : pid;
+    const ref = doc(db, 'salas', chave, 'duelo_respostas', docId);
     
     console.log(`[Firebase] Iniciando setDoc no caminho: salas/${chave}/duelo_respostas/${pid} para o aluno "${nomeAluno}", qIndex: ${qIndex}`);
 
