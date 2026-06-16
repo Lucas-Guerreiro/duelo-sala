@@ -12157,13 +12157,26 @@ export default function App() {
         <style>{`
           .duelo-online-layout {
             display: flex;
-            gap: 20px;
-            flex: 1;
+            gap: 30px;
             width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
             align-items: stretch;
-            justify-content: space-between;
+            min-width: 0;
+          }
+          @media (max-width: 1024px) {
+            .duelo-online-layout {
+              flex-direction: column;
+              align-items: stretch;
+            }
+            .duelo-side-col-azul {
+              border-right: none !important;
+              border-bottom: 1px solid rgba(255,255,255,0.08);
+              padding-right: 0 !important;
+              padding-bottom: 20px;
+            }
+            .duelo-side-col-rosa {
+              padding-left: 0 !important;
+              padding-top: 20px;
+            }
           }
           .duelo-side {
             display: flex;
@@ -12291,6 +12304,7 @@ export default function App() {
             border-radius: 20px;
             padding: 30px;
             width: 100%;
+            min-width: 0;
             box-sizing: border-box;
             box-shadow: 0 15px 40px rgba(0,0,0,0.5);
             backdrop-filter: blur(12px);
@@ -12333,10 +12347,10 @@ export default function App() {
             opacity: 0.6;
           }
         `}</style>
-          <div style={{ display: 'flex', gap: '30px', width: '100%', alignItems: 'stretch' }}>
+          <div className="duelo-online-layout">
             
             {/* LADO AZUL */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', borderRight: '1px solid rgba(255,255,255,0.08)', paddingRight: '15px' }}>
+            <div className="duelo-side-col-azul" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', borderRight: '1px solid rgba(255,255,255,0.08)', paddingRight: '15px', minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: 0, color: '#3b82f6', fontFamily: 'Outfit', fontSize: '1.45rem', fontWeight: 900 }}>🔵 {nomeJ1 || 'Equipe Azul'}</h3>
               </div>
@@ -12348,7 +12362,7 @@ export default function App() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flex: 1 }}>
+              <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flex: 1, minWidth: 0 }}>
                 {/* O TANQUE AZUL (à esquerda do card) */}
                 {(() => {
                   const score = Math.round(dueloEstado?.teams?.[0]?.score || 0);
@@ -12416,7 +12430,7 @@ export default function App() {
                                 }}>
                                   {String.fromCharCode(65 + oIdx)}
                                 </span>
-                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{opt}</span>
+                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{opt}</span>
                               </div>
                             );
                           })}
@@ -12448,7 +12462,7 @@ export default function App() {
             </div>
 
             {/* LADO ROSA */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', paddingLeft: '15px' }}>
+            <div className="duelo-side-col-rosa" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', paddingLeft: '15px', minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: 0, color: '#ec4899', fontFamily: 'Outfit', fontSize: '1.45rem', fontWeight: 900 }}>🩷 {nomeJ2 || 'Equipe Rosa'}</h3>
               </div>
@@ -12460,7 +12474,7 @@ export default function App() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flex: 1 }}>
+              <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flex: 1, minWidth: 0 }}>
                 {/* Card de pergunta do time Rosa */}
                 {(() => {
                   const tState = dueloEstado?.teams?.[1];
@@ -12512,7 +12526,7 @@ export default function App() {
                                 }}>
                                   {String.fromCharCode(65 + oIdx)}
                                 </span>
-                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{opt}</span>
+                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{opt}</span>
                               </div>
                             );
                           })}
