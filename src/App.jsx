@@ -3487,7 +3487,7 @@ export default function App() {
             console.log(`[Gamepad Test J${jg + 1}] Resposta CORRETA? ${correct ? 'SIM ✅' : 'NÃO ❌'} | Speed Bonus: ${speedBonus}`);
 
             const pidSimulado = `fisico_team_${jg}`;
-            const nomeAlunoSimulado = `Gamepad ${jg === 0 ? 'Azul' : 'Rosa'}`;
+            const nomeAlunoSimulado = jg === 0 ? 'Jogador 1' : 'Jogador 2';
 
             const respostaSimulada = {
               pid: pidSimulado,
