@@ -858,7 +858,13 @@ export default function App() {
       return 'p' + Math.random().toString(36).substring(2, 10);
     }
   });
-  const [dueloApelidoAluno, setDueloApelidoAluno] = useState('');
+  const [dueloApelidoAluno, setDueloApelidoAluno] = useState(() => {
+    try {
+      return localStorage.getItem('duelo_apelido') || '';
+    } catch (e) {
+      return '';
+    }
+  });
   const [dueloRespondida, setDueloRespondida] = useState(false);
   const [dueloOpcaoSelecionada, setDueloOpcaoSelecionada] = useState(null);
   const [dueloRespostaCorreta, setDueloRespostaCorreta] = useState(null);
@@ -12581,6 +12587,73 @@ export default function App() {
           </div>
         ) : (
           <>
+            {/* Caso o estado do duelo ainda não tenha carregado */}
+            {!dueloEstado && (
+              <div className="aluno-content-card" style={{ padding: '30px' }}>
+                <div style={{
+                  width: '50px',
+                  height: '50px',
+                  border: '5px solid rgba(139, 92, 246, 0.2)',
+                  borderTop: '5px solid #8b5cf6',
+                  borderRadius: '50%',
+                  animation: 'spin 1.2s linear infinite',
+                  marginBottom: '20px'
+                }} />
+                <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.4rem', margin: '0 0 10px' }}>Conectando à sala...</h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>Buscando informações da sala online. Aguarde um instante.</p>
+              </div>
+            )}
+
+            {/* Fase de Espera no Lobby (Lobby de Conexão dos Alunos) */}
+            {dueloEstado?.phase === 'waiting' && (
+              <div className="aluno-content-card" style={{
+                padding: '30px',
+                border: dueloMeuTime === 0 ? '2px solid rgba(59, 130, 246, 0.4)' : '2px solid rgba(236, 72, 153, 0.4)',
+                background: dueloMeuTime === 0 ? 'rgba(59, 130, 246, 0.03)' : 'rgba(236, 72, 153, 0.03)'
+              }}>
+                <div style={{
+                  fontSize: '4rem',
+                  animation: 'pulse-aluno 2s infinite',
+                  marginBottom: '15px'
+                }}>
+                  {dueloMeuTime === 0 ? '🔵' : '🩷'}
+                </div>
+                <h3 style={{
+                  fontFamily: 'Outfit',
+                  fontWeight: 900,
+                  fontSize: '1.6rem',
+                  margin: '0 0 5px',
+                  color: dueloMeuTime === 0 ? '#60a5fa' : '#f472b6'
+                }}>
+                  {dueloMeuTime === 0 ? nomeJ1 || 'Equipe Azul' : nomeJ2 || 'Equipe Rosa'}
+                </h3>
+                <p style={{ color: '#cbd5e1', fontSize: '1rem', fontWeight: 'bold', margin: '0 0 20px' }}>
+                  Jogador: {dueloApelidoAluno}
+                </p>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'rgba(255,255,255,0.05)',
+                  padding: '10px 20px',
+                  borderRadius: '20px',
+                  border: '1px solid rgba(255,255,255,0.1)'
+                }}>
+                  <div style={{
+                    width: '18px',
+                    height: '18px',
+                    border: '3px solid rgba(255,255,255,0.1)',
+                    borderTop: '3px solid #fff',
+                    borderRadius: '50%',
+                    animation: 'spin 1.2s linear infinite'
+                  }} />
+                  <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 'bold' }}>
+                    Aguardando o professor iniciar a disputa...
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Fase de Pergunta Ativa */}
             {dueloEstado?.phase === 'playing' && dueloEstado.questions && alunoQIndex < dueloEstado.questions.length && (() => {
               const currentQ = dueloEstado.questions[alunoQIndex];
