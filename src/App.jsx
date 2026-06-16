@@ -12408,7 +12408,7 @@ export default function App() {
                         </div>
 
                         <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', lineHeight: 1.4, margin: '0 0 15px', minHeight: '60px' }}>
-                          {currentQ.q}
+                          <MathText text={currentQ.q} />
                         </h2>
 
                         <div className="duelo-opt-row" style={{ gridTemplateColumns: '1fr', gap: '8px', marginTop: '10px' }}>
@@ -12430,7 +12430,7 @@ export default function App() {
                                 }}>
                                   {String.fromCharCode(65 + oIdx)}
                                 </span>
-                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{opt}</span>
+                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}><MathText text={opt} /></span>
                               </div>
                             );
                           })}
@@ -12504,7 +12504,7 @@ export default function App() {
                         </div>
 
                         <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', lineHeight: 1.4, margin: '0 0 15px', minHeight: '60px' }}>
-                          {currentQ.q}
+                          <MathText text={currentQ.q} />
                         </h2>
 
                         <div className="duelo-opt-row" style={{ gridTemplateColumns: '1fr', gap: '8px', marginTop: '10px' }}>
@@ -12526,7 +12526,7 @@ export default function App() {
                                 }}>
                                   {String.fromCharCode(65 + oIdx)}
                                 </span>
-                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{opt}</span>
+                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}><MathText text={opt} /></span>
                               </div>
                             );
                           })}
