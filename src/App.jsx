@@ -3087,6 +3087,10 @@ export default function App() {
     const maxQAzul = respostasAzul.length > 0 ? Math.max(...respostasAzul.map(r => r.qIndex)) : -1;
     const maxQRosa = respostasRosa.length > 0 ? Math.max(...respostasRosa.map(r => r.qIndex)) : -1;
 
+    // LOG DE DIAGNÓSTICO DO SCORE
+    console.log(`[Score Computation] J1 (Azul): respostas válidas=${respostasAzul.length} | pontos calculados=${pontosAzul} | max index respondido=${maxQAzul}`);
+    console.log(`[Score Computation] J2 (Rosa): respostas válidas=${respostasRosa.length} | pontos calculados=${pontosRosa} | max index respondido=${maxQRosa}`);
+
     // Um time terminou se algum aluno respondeu a última pergunta do banco
     const terminadoAzul = maxQAzul >= questions.length - 1;
     const terminadoRosa = maxQRosa >= questions.length - 1;
@@ -3475,6 +3479,12 @@ export default function App() {
             const elapsed = Math.max(0.1, (Date.now() - timestampPerguntaRef.current[jg]) / 1000);
             const speedRatio = Math.max(0, (QTIME - elapsed) / QTIME);
             const speedBonus = correct ? Math.round(speedRatio * 5 * 10) / 10 : 0;
+
+            // LOG DE DIAGNÓSTICO / TESTE DO GAMEPAD
+            console.log(`[Gamepad Test J${jg + 1}] Botão ${btnIdx} pressionado. Mapeado para: Slot ${slotG} (${MAP_ITEMS[slotG].name})`);
+            console.log(`[Gamepad Test J${jg + 1}] Pergunta Atual (index: ${currentQ.qIndex}): "${currentQ.q}"`);
+            console.log(`[Gamepad Test J${jg + 1}] Escolheu: Index ${optIdx} ("${currentQ.opts[optIdx]}") | Correta: Index ${currentQ.correct} ("${currentQ.opts[currentQ.correct]}")`);
+            console.log(`[Gamepad Test J${jg + 1}] Resposta CORRETA? ${correct ? 'SIM ✅' : 'NÃO ❌'} | Speed Bonus: ${speedBonus}`);
 
             const pidSimulado = `fisico_team_${jg}`;
             const nomeAlunoSimulado = `Gamepad ${jg === 0 ? 'Azul' : 'Rosa'}`;
