@@ -350,9 +350,9 @@ const KAHOOT = [
 ];
 
 const MAP_ITEMS = [
-  { name: 'Amarelo (Opção A)', icon: '🟡', isPowerUp: false },
+  { name: 'Azul (Opção A / Verdadeiro)', icon: '🔵', isPowerUp: false },
   { name: 'Vermelho (Opção B / Falso)', icon: '🔴', isPowerUp: false },
-  { name: 'Azul (Opção C / Verdadeiro)', icon: '🔵', isPowerUp: false },
+  { name: 'Amarelo (Opção C)', icon: '🟡', isPowerUp: false },
   { name: 'Verde (Opção D)', icon: '🟢', isPowerUp: false },
   { name: '🚫 Poder: Bloquear Oponente', icon: '🚫', isPowerUp: true, type: 'block' },
   { name: '💡 Poder: Dica 50/50', icon: '💡', isPowerUp: true, type: 'half' }
