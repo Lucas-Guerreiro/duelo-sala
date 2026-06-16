@@ -875,6 +875,12 @@ export default function App() {
   // Ref para acessar dueloEstado atual dentro de callbacks/timeouts sem depender de closure stale
   const dueloEstadoRef = useRef(null);
 
+  // Estados e Refs para controlar barra de tempo horizontal reativa do Host
+  const [tempoPorcentagemAzul, setTempoPorcentagemAzul] = useState(100);
+  const [tempoPorcentagemRosa, setTempoPorcentagemRosa] = useState(100);
+  const qIndexAnteriorRef = useRef([0, 0]);
+  const timestampPerguntaRef = useRef([Date.now(), Date.now()]);
+
   // Confirmação de saída para jogos ativos ao recarregar ou fechar a página
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -3185,6 +3191,55 @@ export default function App() {
       });
     }
   }, [dueloRespostasRodada, dueloEstado, tela, codigoSalaOnline, dueloModoJogo]);
+
+  // Monitora mudança de qIndex para reiniciar os timestamps do timer do Host
+  useEffect(() => {
+    if (tela !== 'duelo-online-game') return;
+    if (!dueloEstado || dueloEstado.phase !== 'playing') return;
+
+    const q0 = dueloEstado.teams[0]?.qIndex || 0;
+    const q1 = dueloEstado.teams[1]?.qIndex || 0;
+
+    let alterou = false;
+    if (q0 !== qIndexAnteriorRef.current[0]) {
+      qIndexAnteriorRef.current[0] = q0;
+      timestampPerguntaRef.current[0] = Date.now();
+      alterou = true;
+    }
+    if (q1 !== qIndexAnteriorRef.current[1]) {
+      qIndexAnteriorRef.current[1] = q1;
+      timestampPerguntaRef.current[1] = Date.now();
+      alterou = true;
+    }
+  }, [tela, dueloEstado]);
+
+  // Efeito de intervalo para atualizar a porcentagem de tempo das barras horizontais
+  useEffect(() => {
+    if (tela !== 'duelo-online-game') return;
+    if (!dueloEstado || dueloEstado.phase !== 'playing') {
+      setTempoPorcentagemAzul(100);
+      setTempoPorcentagemRosa(100);
+      return;
+    }
+
+    const QTIME = dueloEstado.qtime || 30;
+
+    const intervalId = setInterval(() => {
+      const agora = Date.now();
+      
+      // Cálculo Time Azul (0)
+      const decorridoAzul = (agora - timestampPerguntaRef.current[0]) / 1000;
+      const restanteAzul = Math.max(0, QTIME - decorridoAzul);
+      setTempoPorcentagemAzul((restanteAzul / QTIME) * 100);
+
+      // Cálculo Time Rosa (1)
+      const decorridoRosa = (agora - timestampPerguntaRef.current[1]) / 1000;
+      const restanteRosa = Math.max(0, QTIME - decorridoRosa);
+      setTempoPorcentagemRosa((restanteRosa / QTIME) * 100);
+    }, 100);
+
+    return () => clearInterval(intervalId);
+  }, [tela, dueloEstado?.phase, dueloEstado?.qtime]);
 
   // Escuta de estado do jogo (Aluno)
   useEffect(() => {
@@ -12162,6 +12217,13 @@ export default function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: 0, color: '#3b82f6', fontFamily: 'Outfit', fontSize: '1.45rem', fontWeight: 900 }}>🔵 {nomeJ1 || 'Equipe Azul'}</h3>
               </div>
+              
+              {/* Barra de Tempo Horizontal do Time Azul */}
+              {dueloEstado?.teams?.[0]?.phase === 'question' && (
+                <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden', border: '1px solid rgba(59, 130, 246, 0.2)', marginTop: '4px' }}>
+                  <div style={{ width: `${tempoPorcentagemAzul}%`, height: '100%', background: 'linear-gradient(90deg, #1d4ed8, #3b82f6)', boxShadow: '0 0 8px #3b82f6', transition: 'width 0.1s linear' }} />
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flex: 1 }}>
                 {/* O TANQUE AZUL (à esquerda do card) */}
@@ -12267,6 +12329,13 @@ export default function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: 0, color: '#ec4899', fontFamily: 'Outfit', fontSize: '1.45rem', fontWeight: 900 }}>🩷 {nomeJ2 || 'Equipe Rosa'}</h3>
               </div>
+              
+              {/* Barra de Tempo Horizontal do Time Rosa */}
+              {dueloEstado?.teams?.[1]?.phase === 'question' && (
+                <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden', border: '1px solid rgba(236, 72, 153, 0.2)', marginTop: '4px' }}>
+                  <div style={{ width: `${tempoPorcentagemRosa}%`, height: '100%', background: 'linear-gradient(90deg, #be185d, #ec4899)', boxShadow: '0 0 8px #ec4899', transition: 'width 0.1s linear' }} />
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flex: 1 }}>
                 {/* Card de pergunta do time Rosa */}
