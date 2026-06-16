@@ -2878,7 +2878,7 @@ export default function App() {
 
         const team0 = {
           ...current.teams[0],
-          qIndex: 1,
+          qIndex: 0,
           phase: 'question',
           timerEnd: temporizadorFim,
           currentQ: {
@@ -2893,7 +2893,7 @@ export default function App() {
 
         const team1 = {
           ...current.teams[1],
-          qIndex: 1,
+          qIndex: 0,
           phase: 'question',
           timerEnd: temporizadorFim,
           currentQ: {
@@ -3011,6 +3011,7 @@ export default function App() {
   // Escuta de respostas em tempo real (Professor)
   useEffect(() => {
     if (tela !== 'duelo-qr' && tela !== 'duelo-online-game') return;
+    if (dueloModoControle === 'fisico') return;
     if (!codigoSalaOnline.trim()) return;
 
     const salaNormalizada = codigoSalaOnline.trim().toUpperCase();
@@ -3033,7 +3034,7 @@ export default function App() {
     });
 
     return () => unsub();
-  }, [tela, codigoSalaOnline]);
+  }, [tela, codigoSalaOnline, dueloModoControle]);
 
   // Lógica de monitoramento e atualização automática do estado do Duelo Online no Host
   useEffect(() => {
@@ -5586,7 +5587,7 @@ export default function App() {
           phase: dueloModoControle === 'fisico' ? 'question' : 'waiting',
           currentQ: dueloModoControle === 'fisico' ? initialCurrentQ : null,
           timerEnd: null,
-          qIndex: dueloModoControle === 'fisico' ? 1 : 0
+          qIndex: 0
         },
         { 
           name: nomeJ2 || 'Equipe Rosa', 
@@ -5594,7 +5595,7 @@ export default function App() {
           phase: dueloModoControle === 'fisico' ? 'question' : 'waiting',
           currentQ: dueloModoControle === 'fisico' ? initialCurrentQ : null,
           timerEnd: null,
-          qIndex: dueloModoControle === 'fisico' ? 1 : 0
+          qIndex: 0
         }
       ],
       qtime: globalTimerEnabled ? globalTempo : 30,
@@ -5614,8 +5615,13 @@ export default function App() {
     };
 
     setDueloEstado(novoEstado);
-    dueloMaxJogadoresRef.current = [0, 0];
-    setDueloConectados([0, 0]);
+    if (dueloModoControle === 'fisico') {
+      dueloMaxJogadoresRef.current = [1, 1];
+      setDueloConectados([1, 1]);
+    } else {
+      dueloMaxJogadoresRef.current = [0, 0];
+      setDueloConectados([0, 0]);
+    }
     setDueloRespostasRodada([]);
 
     publicarEstadoDueloOnline(salaUpper, novoEstado)
@@ -5627,7 +5633,7 @@ export default function App() {
 
     if (dueloModoControle === 'fisico') {
       timestampPerguntaRef.current = [Date.now(), Date.now()];
-      qIndexAnteriorRef.current = [1, 1];
+      qIndexAnteriorRef.current = [0, 0];
       irParaTela('duelo-online-game');
     } else {
       irParaTela('duelo-qr');
@@ -12355,7 +12361,7 @@ export default function App() {
                             {currentQ.cat}
                           </span>
                           <span style={{ color: '#93c5fd', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                            Pergunta {tState.qIndex} de {fila.length}
+                            Pergunta {tState.qIndex + 1} de {fila.length}
                           </span>
                         </div>
 
@@ -12451,7 +12457,7 @@ export default function App() {
                             {currentQ.cat}
                           </span>
                           <span style={{ color: '#f9a8d4', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                            Pergunta {tState.qIndex} de {fila.length}
+                            Pergunta {tState.qIndex + 1} de {fila.length}
                           </span>
                         </div>
 
