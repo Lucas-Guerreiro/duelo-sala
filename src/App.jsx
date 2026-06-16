@@ -880,6 +880,11 @@ export default function App() {
   const [tempoPorcentagemRosa, setTempoPorcentagemRosa] = useState(100);
   const qIndexAnteriorRef = useRef([0, 0]);
   const timestampPerguntaRef = useRef([Date.now(), Date.now()]);
+  const respostasAtuaisRef = useRef([]);
+
+  useEffect(() => {
+    respostasAtuaisRef.current = dueloRespostasRodada;
+  }, [dueloRespostasRodada]);
 
   // Confirmação de saída para jogos ativos ao recarregar ou fechar a página
   useEffect(() => {
@@ -3017,8 +3022,21 @@ export default function App() {
     const salaNormalizada = codigoSalaOnline.trim().toUpperCase();
     console.log("Monitorando agora a sala: ", salaNormalizada);
 
+    let isInitialSnapshot = true;
+
     const unsub = ouvirRespostasDueloOnline(salaNormalizada, (respostas) => {
       console.log("Snapshot recebido. Total de jogadores:", respostas.length, respostas);
+      
+      const anteriores = respostasAtuaisRef.current;
+      const novas = respostas.filter(r => r.qIndex !== -1 && !anteriores.some(ant => ant.pid === r.pid && ant.qIndex === r.qIndex));
+      
+      if (!isInitialSnapshot) {
+        novas.forEach(r => {
+          playSound(r.correct ? 'success' : 'error');
+        });
+      }
+      isInitialSnapshot = false;
+
       setDueloRespostasRodada([...respostas]);
       const time0Agora = respostas.filter(r => Number(r.team) === 0).length;
       const time1Agora = respostas.filter(r => Number(r.team) === 1).length;
