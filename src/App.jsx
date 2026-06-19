@@ -2850,8 +2850,8 @@ export default function App() {
         if (!current) return current;
 
         // Limite de tempo da rodada
-        const limite = globalTimerEnabled ? globalTempo : 30;
-        const temporizadorFim = Date.now() + limite * 1000;
+        const limite = globalTimerEnabled ? globalTempo : null;
+        const temporizadorFim = limite !== null ? Date.now() + limite * 1000 : null;
 
         const sorteada = fila[0];
         if (!sorteada) return current;
@@ -3067,19 +3067,21 @@ export default function App() {
     const respostasAzul = dueloRespostasRodada.filter(r => Number(r.team) === 0 && r.qIndex !== -1);
     const respostasRosa = dueloRespostasRodada.filter(r => Number(r.team) === 1 && r.qIndex !== -1);
 
-    // Soma de pontos do Time 0
+    // Soma de pontos do Time 0 de forma proporcional ao número máximo de questões
     let pontosAzul = 0;
+    const fatorAzul = questions.length > 0 ? 100 / questions.length : 5;
     respostasAzul.forEach(r => {
       if (r.correct) {
-        pontosAzul += 5 + (r.speedBonus || 0);
+        pontosAzul += (fatorAzul + (r.speedBonus ? (r.speedBonus * (fatorAzul / 10)) : 0));
       }
     });
 
-    // Soma de pontos do Time 1
+    // Soma de pontos do Time 1 de forma proporcional ao número máximo de questões
     let pontosRosa = 0;
+    const fatorRosa = questions.length > 0 ? 100 / questions.length : 5;
     respostasRosa.forEach(r => {
       if (r.correct) {
-        pontosRosa += 5 + (r.speedBonus || 0);
+        pontosRosa += (fatorRosa + (r.speedBonus ? (r.speedBonus * (fatorRosa / 10)) : 0));
       }
     });
 
@@ -3161,7 +3163,7 @@ export default function App() {
       alterado = true;
     }
 
-    // Verificar fim do jogo
+    // Verificar fim do jogo (Apenas quando todas as perguntas selecionadas da fila acabarem)
     let novoWinnerIndex = dueloEstado.winnerIndex;
     let novaPhase = dueloEstado.phase;
 
@@ -3174,30 +3176,6 @@ export default function App() {
       novaPhase = 'winner';
       alterado = true;
       setTimeout(() => setTela('duelo-online-fim'), 3000);
-    } else if (dueloModoJogo === 'cabodeguerra') {
-      if (cordaPos <= 10 && dueloEstado.winnerIndex === null) {
-        novoWinnerIndex = 0;
-        novaPhase = 'winner';
-        alterado = true;
-        setTimeout(() => setTela('duelo-online-fim'), 3000);
-      } else if (cordaPos >= 90 && dueloEstado.winnerIndex === null) {
-        novoWinnerIndex = 1;
-        novaPhase = 'winner';
-        alterado = true;
-        setTimeout(() => setTela('duelo-online-fim'), 3000);
-      }
-    } else {
-      if (scoreAzul >= 100 && dueloEstado.winnerIndex === null) {
-        novoWinnerIndex = 0;
-        novaPhase = 'winner';
-        alterado = true;
-        setTimeout(() => setTela('duelo-online-fim'), 3000);
-      } else if (scoreRosa >= 100 && dueloEstado.winnerIndex === null) {
-        novoWinnerIndex = 1;
-        novaPhase = 'winner';
-        alterado = true;
-        setTimeout(() => setTela('duelo-online-fim'), 3000);
-      }
     }
 
     if (alterado) {
@@ -3245,7 +3223,12 @@ export default function App() {
       return;
     }
 
-    const QTIME = dueloEstado.qtime || 30;
+    const QTIME = dueloEstado.qtime;
+    if (!QTIME || QTIME <= 0) {
+      setTempoPorcentagemAzul(100);
+      setTempoPorcentagemRosa(100);
+      return;
+    }
 
     const intervalId = setInterval(() => {
       const agora = Date.now();
@@ -3345,7 +3328,11 @@ export default function App() {
     const questions = dueloEstado.questions;
     if (!questions || alunoQIndex >= questions.length) return;
 
-    const QTIME = dueloEstado.qtime || 30;
+    const QTIME = dueloEstado.qtime;
+    if (!QTIME || QTIME <= 0) {
+      setTempoRestante(null); // Sem limite de tempo
+      return;
+    }
 
     // Inicializar o tempo restante
     const initialElapsed = (Date.now() - tempoMostrado) / 1000;
@@ -3479,10 +3466,13 @@ export default function App() {
             const correct = optIdx === currentQ.correct;
 
             // Calcular bônus de velocidade local
-            const QTIME = dueloEstado.qtime || 30;
-            const elapsed = Math.max(0.1, (Date.now() - timestampPerguntaRef.current[jg]) / 1000);
-            const speedRatio = Math.max(0, (QTIME - elapsed) / QTIME);
-            const speedBonus = correct ? Math.round(speedRatio * 5 * 10) / 10 : 0;
+            const QTIME = dueloEstado.qtime;
+            let speedBonus = 0;
+            if (QTIME && QTIME > 0 && correct) {
+              const elapsed = Math.max(0.1, (Date.now() - timestampPerguntaRef.current[jg]) / 1000);
+              const speedRatio = Math.max(0, (QTIME - elapsed) / QTIME);
+              speedBonus = Math.round(speedRatio * 5 * 10) / 10;
+            }
 
             // LOG DE DIAGNÓSTICO / TESTE DO GAMEPAD
             console.log(`[Gamepad Test J${jg + 1}] Botão ${btnIdx} pressionado. Mapeado para: Slot ${slotG} (${MAP_ITEMS[slotG].name})`);
@@ -5630,7 +5620,7 @@ export default function App() {
           qIndex: 0
         }
       ],
-      qtime: globalTimerEnabled ? globalTempo : 30,
+      qtime: globalTimerEnabled ? globalTempo : null,
       usedQs: [],
       phase: dueloModoControle === 'fisico' ? 'playing' : 'waiting',
       winnerIndex: null,
@@ -12360,7 +12350,7 @@ export default function App() {
               </div>
               
               {/* Barra de Tempo Horizontal do Time Azul */}
-              {dueloEstado?.teams?.[0]?.phase === 'question' && (
+              {dueloEstado?.qtime && dueloEstado?.teams?.[0]?.phase === 'question' && (
                 <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden', border: '1px solid rgba(59, 130, 246, 0.2)', marginTop: '4px' }}>
                   <div style={{ width: `${tempoPorcentagemAzul}%`, height: '100%', background: 'linear-gradient(90deg, #1d4ed8, #3b82f6)', boxShadow: '0 0 8px #3b82f6', transition: 'width 0.1s linear' }} />
                 </div>
@@ -12472,7 +12462,7 @@ export default function App() {
               </div>
               
               {/* Barra de Tempo Horizontal do Time Rosa */}
-              {dueloEstado?.teams?.[1]?.phase === 'question' && (
+              {dueloEstado?.qtime && dueloEstado?.teams?.[1]?.phase === 'question' && (
                 <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden', border: '1px solid rgba(236, 72, 153, 0.2)', marginTop: '4px' }}>
                   <div style={{ width: `${tempoPorcentagemRosa}%`, height: '100%', background: 'linear-gradient(90deg, #be185d, #ec4899)', boxShadow: '0 0 8px #ec4899', transition: 'width 0.1s linear' }} />
                 </div>
@@ -12897,7 +12887,9 @@ export default function App() {
                   <span style={{ fontSize: '0.8rem', background: '#3b82f6', color: '#fff', padding: '4px 10px', borderRadius: '10px', fontWeight: 'bold', marginBottom: '10px' }}>
                     {currentQ.cat}
                   </span>
-                  <h4 style={{ margin: '0 0 10px', color: '#a78bfa', fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase' }}>⏱️ Tempo Restante: {tempoRestante}s</h4>
+                  <h4 style={{ margin: '0 0 10px', color: '#a78bfa', fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase' }}>
+                    {tempoRestante !== null ? `⏱️ Tempo Restante: ${tempoRestante}s` : '⏱️ Tempo Livre (Sem Limite)'}
+                  </h4>
                   <h2 style={{ fontSize: '1.3rem', fontWeight: 800, margin: '0 0 20px', fontFamily: 'Outfit', color: '#fff' }}>
                     {currentQ.q}
                   </h2>
