@@ -252,9 +252,66 @@ assert(resultadoCabo.scoreAzul === 55, `Score da Equipe Azul deve ser 55. Obtido
 assert(resultadoCabo.scoreRosa === 45, `Score da Equipe Rosa deve ser 45. Obtido: ${resultadoCabo.scoreRosa}`);
 
 
+// ==========================================
+// TESTE 4: Detecção Dual Arcade (Teclado HID / Encoder Arcade + Gamepad)
+// ==========================================
+console.log("\n--- TESTE 4: Detecção Dual Arcade (Teclado Arcade HID / IPAC & Zero Delay) ---");
+
+// Simulação de Mapeamento Dual de Teclado Arcade para J1 (A, S, D, F) e J2 (J, K, L, Semicolon)
+const ctrlTecladoSimulado = [
+  { gpIdx: null, map: [null, null, null, null, null, null], keyMap: ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyQ', 'KeyW'] }, // J1 IPAC
+  { gpIdx: null, map: [null, null, null, null, null, null], keyMap: ['KeyJ', 'KeyK', 'KeyL', 'Semicolon', 'KeyU', 'KeyI'] } // J2 IPAC
+];
+
+function processarBotaoArcadeUnificado(inputType, deviceId, btnId, currentQ) {
+  let mappedPlayer = null;
+  let mappedSlot = null;
+
+  for (let jg = 0; jg < 2; jg++) {
+    if (inputType === 'gamepad') {
+      const slot = ctrlSimulado[jg].map.indexOf(btnId);
+      if (slot !== -1) { mappedPlayer = jg; mappedSlot = slot; break; }
+    } else if (inputType === 'keyboard') {
+      const slot = ctrlTecladoSimulado[jg].keyMap.indexOf(btnId);
+      if (slot !== -1) { mappedPlayer = jg; mappedSlot = slot; break; }
+    }
+  }
+
+  if (mappedPlayer === null || mappedSlot === null) return null;
+
+  const slotG = mappedSlot;
+  if (slotG < 4) {
+    const optIdx = slotG;
+    const correct = optIdx === currentQ.correct;
+    return {
+      pid: `fisico_team_${mappedPlayer}`,
+      team: mappedPlayer,
+      optIdx,
+      correct,
+      qIndex: currentQ.qIndex,
+      timestamp: Date.now()
+    };
+  }
+  return null;
+}
+
+// Testar J1 pressionando tecla de Arcade 'KeyA' (mapeada para slot 0 -> Opção A)
+const respKeyJ1 = processarBotaoArcadeUnificado('keyboard', 'keyboard', 'KeyA', questionsDuelo[0]);
+assert(respKeyJ1 !== null, "Teclas de Arcade (Encoder Keyboard) devem ser detectadas.");
+assert(respKeyJ1.optIdx === 0, "Tecla 'KeyA' deve responder a opção 0 (A).");
+assert(respKeyJ1.correct === true, "A resposta via Teclado Arcade deve ser CORRETA.");
+
+// Testar J2 pressionando tecla de Arcade 'KeyL' (mapeada para slot 2 -> Opção C)
+const respKeyJ2 = processarBotaoArcadeUnificado('keyboard', 'keyboard', 'KeyL', questionsDuelo[0]);
+assert(respKeyJ2 !== null, "Teclas de Arcade do Jogador 2 devem ser detectadas.");
+assert(respKeyJ2.optIdx === 2, "Tecla 'KeyL' do J2 deve responder a opção 2 (C).");
+assert(respKeyJ2.correct === false, "A resposta de J2 via Teclado Arcade deve ser INCORRETA.");
+
+
 console.log("\n===============================================================================");
 console.log("🎉 TODOS OS TESTES PASSARAM COM SUCESSO!");
-console.log("Os botões físicos mapeiam corretamente para as alternativas da pergunta.");
+console.log("Os botões físicos (Gamepad + Teclado Arcade) mapeiam corretamente para as alternativas.");
 console.log("Os acertos são computados, incrementam a pontuação e avançam a pergunta do time.");
 console.log("Os erros são computados, não alteram o placar e avançam a pergunta do time.");
 console.log("===============================================================================");
+

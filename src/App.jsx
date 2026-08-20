@@ -2797,19 +2797,29 @@ export default function App() {
     const saved0 = localStorage.getItem('dm_ctrl_0');
     const saved1 = localStorage.getItem('dm_ctrl_1');
     const parseMap = (saved) => {
-      if (!saved) return { gpIdx: null, map: [null, null, null, null, null, null] };
+      const defaultObj = {
+        gpIdx: null,
+        map: [null, null, null, null, null, null],
+        keyMap: [null, null, null, null, null, null]
+      };
+      if (!saved) return defaultObj;
       try {
         const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.map)) {
-          while (parsed.map.length < 6) {
-            parsed.map.push(null);
-          }
-          return parsed;
+        if (parsed) {
+          if (!Array.isArray(parsed.map)) parsed.map = [null, null, null, null, null, null];
+          while (parsed.map.length < 6) parsed.map.push(null);
+          if (!Array.isArray(parsed.keyMap)) parsed.keyMap = [null, null, null, null, null, null];
+          while (parsed.keyMap.length < 6) parsed.keyMap.push(null);
+          return {
+            gpIdx: parsed.gpIdx !== undefined ? parsed.gpIdx : null,
+            map: parsed.map,
+            keyMap: parsed.keyMap
+          };
         }
       } catch (e) {
         console.error(e);
       }
-      return { gpIdx: null, map: [null, null, null, null, null, null] };
+      return defaultObj;
     };
     return [parseMap(saved0), parseMap(saved1)];
   });
@@ -3355,16 +3365,17 @@ export default function App() {
     return () => clearInterval(intervalId);
   }, [alunoQIndex, tempoMostrado, dueloEstado?.phase, tela]);
 
-  // --- ESTADOS DO GAMEPAD E DETECÇÃO ---
+  // --- ESTADOS DO GAMEPAD E BOTÕES ARCADE ---
   const [gamepadsConectados, setGamepadsConectados] = useState([]);
-  const [detectMode, setDetectMode] = useState(null); // null | { jogador: 0|1, fase: 'detect'|'map', slot: 0|1|2|3 }
+  const [detectMode, setDetectMode] = useState(null); // null | { jogador: 0|1, fase: 'detect'|'map'|'auto', slot: 0..5 }
   const [feedbackControles, setFeedbackControles] = useState(null); // { txt: string, tipo: 'ok'|'err'|'warn' }
+  const [lastArcadeBtn, setLastArcadeBtn] = useState(null); // Monitor em tempo real: { inputType, deviceId, btnId, player, slot, timestamp }
 
-  // Refs de botões de Gamepad para debouncing
+  // Refs de botões de Gamepad e Teclado para debouncing
   const prevBtnsRef = useRef({});
   const animationFrameRef = useRef(null);
 
-  // Escutar gamepads
+  // Escutar conexões de gamepads
   useEffect(() => {
     const updateGamepads = () => {
       const gps = Array.from(navigator.getGamepads()).filter(Boolean);
@@ -3398,193 +3409,273 @@ export default function App() {
       }
     };
 
-    // checa logo após o primeiro render e novamente um pouco depois (por segurança)
     const t1 = setTimeout(checkActiveTela, 50);
     const t2 = setTimeout(checkActiveTela, 350);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  const handleGamepadButtonPress = (gpIdx, btnIdx, gpId) => {
-    // 1. Modo de Detecção de Controles
+  // Presets rápidos para gabinetes e botões arcade
+  const aplicarPresetControles = (tipoPreset) => {
+    let novos = [
+      { gpIdx: 0, map: [null, null, null, null, null, null], keyMap: [null, null, null, null, null, null] },
+      { gpIdx: 0, map: [null, null, null, null, null, null], keyMap: [null, null, null, null, null, null] }
+    ];
+
+    if (tipoPreset === 'zero_delay') {
+      novos[0].map = [0, 1, 2, 3, 4, 5];
+      novos[1].map = [6, 7, 8, 9, 10, 11];
+      setFeedbackControles({ txt: '⚡ Preset Arcade USB Zero Delay aplicado (J1: Botões 0-5, J2: Botões 6-11)!', tipo: 'ok' });
+    } else if (tipoPreset === 'ipac_arcade') {
+      novos[0].keyMap = ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyQ', 'KeyW'];
+      novos[1].keyMap = ['KeyJ', 'KeyK', 'KeyL', 'Semicolon', 'KeyU', 'KeyI'];
+      setFeedbackControles({ txt: '⚡ Preset Teclado Arcade IPAC aplicado (J1: A/S/D/F/Q/W, J2: J/K/L/;/U/I)!', tipo: 'ok' });
+    } else if (tipoPreset === 'numerico_arcade') {
+      novos[0].keyMap = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'];
+      novos[1].keyMap = ['Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal'];
+      setFeedbackControles({ txt: '⚡ Preset Arcade Numérico aplicado (J1: Teclas 1-6, J2: Teclas 7-=)!', tipo: 'ok' });
+    } else if (tipoPreset === 'wasd_setas') {
+      novos[0].keyMap = ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyQ', 'KeyE'];
+      novos[1].keyMap = ['ArrowLeft', 'ArrowDown', 'ArrowRight', 'ArrowUp', 'ShiftRight', 'Enter'];
+      setFeedbackControles({ txt: '⚡ Preset WASD / Setas Arcade aplicado!', tipo: 'ok' });
+    }
+
+    salvarControles(novos);
+    try { playSound('success'); } catch (e) {}
+  };
+
+  // Processamento unificado de acionamento de botão arcade (Gamepad API ou Keydown)
+  const handleArcadeButtonPress = (inputType, deviceId, btnId, gpIdName = '') => {
+    // inputType: 'gamepad' | 'keyboard'
+    // deviceId: gpIdx (number) or 'keyboard' (string)
+    // btnId: number (button index) or string (key code: 'KeyA', 'Digit1', etc.)
+
+    // Mapear se este botão pertence a algum jogador/slot
+    let mappedPlayer = null;
+    let mappedSlot = null;
+
+    for (let jg = 0; jg < 2; jg++) {
+      if (inputType === 'gamepad') {
+        const slot = ctrl[jg]?.map ? ctrl[jg].map.indexOf(btnId) : -1;
+        if (slot !== -1 && (ctrl[jg].gpIdx === null || ctrl[jg].gpIdx === deviceId)) {
+          mappedPlayer = jg;
+          mappedSlot = slot;
+          break;
+        }
+      } else if (inputType === 'keyboard') {
+        const slot = ctrl[jg]?.keyMap ? ctrl[jg].keyMap.indexOf(btnId) : -1;
+        if (slot !== -1) {
+          mappedPlayer = jg;
+          mappedSlot = slot;
+          break;
+        }
+      }
+    }
+
+    // Atualiza monitorador em tempo real para o testador de botões
+    setLastArcadeBtn({
+      inputType,
+      deviceId,
+      btnId,
+      player: mappedPlayer,
+      slot: mappedSlot,
+      timestamp: Date.now()
+    });
+
+    // 1. Modo de Detecção / Mapeamento de Controles
     if (detectMode) {
       const { jogador, fase, slot } = detectMode;
+
       if (fase === 'detect') {
-        const novos = [
-          { gpIdx: gpIdx, map: [null, null, null, null, null, null] },
-          { gpIdx: gpIdx, map: [null, null, null, null, null, null] }
-        ];
+        const novos = [...ctrl];
+        if (inputType === 'gamepad') {
+          novos[0].gpIdx = deviceId;
+          novos[1].gpIdx = deviceId;
+        }
         salvarControles(novos);
         setDetectMode(null);
-        setFeedbackControles({ txt: `✅ Controle compartilhado detectado (${gpId.substring(0, 35)}...)! Mapeie os botões de cada jogador.`, tipo: 'ok' });
+        setFeedbackControles({
+          txt: `✅ Dispositivo de Botões Arcade detectado (${inputType === 'gamepad' ? 'USB Gamepad #' + deviceId : 'Teclado Encoder Arcade'})!`,
+          tipo: 'ok'
+        });
+        try { playSound('success'); } catch (e) {}
         return;
       }
-      if (fase === 'map') {
-        if (ctrl[jogador].gpIdx !== gpIdx) {
-          setFeedbackControles({ txt: '❌ Pressione o botão no controle compartilhado detectado!', tipo: 'err' });
-          return;
-        }
-        // Validar se o botão físico já está em uso por outra cor/jogador/função
+
+      if (fase === 'map' || fase === 'auto') {
+        // Validar duplicidade
         for (let j = 0; j < 2; j++) {
           for (let s = 0; s < 6; s++) {
             if (j === jogador && s === slot) continue;
-            if (ctrl[j].map[s] === btnIdx) {
-              setFeedbackControles({ txt: `❌ O Botão ${btnIdx} já está em uso pelo ${j === 0 ? 'Jogador 1' : 'Jogador 2'} (${MAP_ITEMS[s].name})!`, tipo: 'err' });
+            if (inputType === 'gamepad' && ctrl[j]?.map && ctrl[j].map[s] === btnId) {
+              setFeedbackControles({
+                txt: `❌ Botão Gamepad ${btnId} já está em uso pelo ${j === 0 ? 'Jogador 1' : 'Jogador 2'} (${MAP_ITEMS[s].name})!`,
+                tipo: 'err'
+              });
+              try { playSound('error'); } catch (e) {}
+              return;
+            }
+            if (inputType === 'keyboard' && ctrl[j]?.keyMap && ctrl[j].keyMap[s] === btnId) {
+              setFeedbackControles({
+                txt: `❌ Tecla Arcade '${btnId}' já está em uso pelo ${j === 0 ? 'Jogador 1' : 'Jogador 2'} (${MAP_ITEMS[s].name})!`,
+                tipo: 'err'
+              });
+              try { playSound('error'); } catch (e) {}
               return;
             }
           }
         }
 
         const novos = [...ctrl];
-        novos[jogador].map[slot] = btnIdx;
+        if (!novos[jogador].map) novos[jogador].map = [null, null, null, null, null, null];
+        if (!novos[jogador].keyMap) novos[jogador].keyMap = [null, null, null, null, null, null];
+
+        if (inputType === 'gamepad') {
+          novos[jogador].map[slot] = btnId;
+          novos[jogador].gpIdx = deviceId;
+        } else {
+          novos[jogador].keyMap[slot] = btnId;
+        }
+
         salvarControles(novos);
-        setDetectMode(null);
-        setFeedbackControles({ txt: `✅ ${MAP_ITEMS[slot].name} do ${jogador === 0 ? 'Jogador 1' : 'Jogador 2'} mapeado para o Botão ${btnIdx}!`, tipo: 'ok' });
+        try { playSound('success'); } catch (e) {}
+
+        if (fase === 'auto' && slot < 5) {
+          setDetectMode({ jogador, fase: 'auto', slot: slot + 1 });
+          setFeedbackControles({
+            txt: `✅ Mapeado! Pressione o próximo botão Arcade para: ${MAP_ITEMS[slot + 1].name}...`,
+            tipo: 'ok'
+          });
+        } else {
+          setDetectMode(null);
+          const nomeBtnStr = inputType === 'gamepad' ? `Botão ${btnId}` : `Tecla '${btnId}'`;
+          setFeedbackControles({
+            txt: `✅ ${MAP_ITEMS[slot].name} do ${jogador === 0 ? 'Jogador 1' : 'Jogador 2'} mapeado para ${nomeBtnStr}!`,
+            tipo: 'ok'
+          });
+        }
         return;
       }
     }
 
-    // 2. Lógica do Duelo Online com Gamepad Físico (Nova visualização consolidada com tanques)
-    if (tela === 'duelo-online-game' && dueloModoControle === 'fisico') {
-      if (!dueloEstado || dueloEstado.phase !== 'playing') return;
+    // 2. Lógica do Jogo Ativo (Duelo Online ou Jogo Padrão)
+    if (mappedPlayer !== null && mappedSlot !== null) {
+      const jg = mappedPlayer;
+      const slotG = mappedSlot;
 
-      for (let jg = 0; jg < 2; jg++) {
-        if (ctrl[jg].gpIdx === gpIdx) {
-          const slotG = ctrl[jg].map.indexOf(btnIdx);
-          if (slotG === -1) continue; // Botão pressionado não mapeado para este jogador
+      // 2A. Duelo Online
+      if (tela === 'duelo-online-game' && dueloModoControle === 'fisico') {
+        if (!dueloEstado || dueloEstado.phase !== 'playing') return;
 
-          const teamState = dueloEstado.teams[jg];
-          if (!teamState || teamState.phase !== 'question' || !teamState.currentQ) continue;
+        const teamState = dueloEstado.teams[jg];
+        if (!teamState || teamState.phase !== 'question' || !teamState.currentQ) return;
 
-          // Botões de alternativas (slotG < 4: A, B, C, D)
-          if (slotG < 4) {
-            const currentQ = teamState.currentQ;
-            const optIdx = slotG;
-            
-            // Ignorar se a alternativa correspondente não existir na pergunta (ex: C ou D em perguntas V/F)
-            if (optIdx >= currentQ.opts.length) continue;
-            
-            const correct = optIdx === currentQ.correct;
+        if (slotG < 4) {
+          const currentQ = teamState.currentQ;
+          const optIdx = slotG;
+          if (optIdx >= currentQ.opts.length) return;
 
-            // Calcular bônus de velocidade local
-            const QTIME = dueloEstado.qtime;
-            let speedBonus = 0;
-            if (QTIME && QTIME > 0 && correct) {
-              const elapsed = Math.max(0.1, (Date.now() - timestampPerguntaRef.current[jg]) / 1000);
-              const speedRatio = Math.max(0, (QTIME - elapsed) / QTIME);
-              speedBonus = Math.round(speedRatio * 5 * 10) / 10;
-            }
+          const correct = optIdx === currentQ.correct;
 
-            // LOG DE DIAGNÓSTICO / TESTE DO GAMEPAD
-            console.log(`[Gamepad Test J${jg + 1}] Botão ${btnIdx} pressionado. Mapeado para: Slot ${slotG} (${MAP_ITEMS[slotG].name})`);
-            console.log(`[Gamepad Test J${jg + 1}] Pergunta Atual (index: ${currentQ.qIndex}): "${currentQ.q}"`);
-            console.log(`[Gamepad Test J${jg + 1}] Escolheu: Index ${optIdx} ("${currentQ.opts[optIdx]}") | Correta: Index ${currentQ.correct} ("${currentQ.opts[currentQ.correct]}")`);
-            console.log(`[Gamepad Test J${jg + 1}] Resposta CORRETA? ${correct ? 'SIM ✅' : 'NÃO ❌'} | Speed Bonus: ${speedBonus}`);
-
-            const pidSimulado = `fisico_team_${jg}`;
-            const nomeAlunoSimulado = jg === 0 ? 'Jogador 1' : 'Jogador 2';
-
-            const respostaSimulada = {
-              pid: pidSimulado,
-              team: jg,
-              optIdx: optIdx,
-              correct: correct,
-              speedBonus: speedBonus,
-              nomeAluno: nomeAlunoSimulado,
-              qIndex: currentQ.qIndex,
-              timestamp: Date.now()
-            };
-
-            // Atualiza localmente e de forma reativa instantânea para funcionamento híbrido/offline
-            setDueloRespostasRodada(prev => {
-              const filtrados = prev.filter(r => !(r.pid === pidSimulado && r.qIndex === currentQ.qIndex));
-              return [...filtrados, respostaSimulada];
-            });
-
-            // Envia ao Firestore em background
-            enviarRespostaDueloOnline(
-              codigoSalaOnline.trim().toUpperCase(),
-              pidSimulado,
-              jg,
-              optIdx,
-              correct,
-              speedBonus,
-              nomeAlunoSimulado,
-              currentQ.qIndex
-            ).catch(err => {
-              console.warn('Erro ao sincronizar resposta física no Firebase (funcionamento offline mantido):', err);
-            });
-
-            playSound(correct ? 'success' : 'error');
+          const QTIME = dueloEstado.qtime;
+          let speedBonus = 0;
+          if (QTIME && QTIME > 0 && correct) {
+            const elapsed = Math.max(0.1, (Date.now() - timestampPerguntaRef.current[jg]) / 1000);
+            const speedRatio = Math.max(0, (QTIME - elapsed) / QTIME);
+            speedBonus = Math.round(speedRatio * 5 * 10) / 10;
           }
+
+          console.log(`[Arcade Input J${jg + 1}] (${inputType} ${btnId}) -> Slot ${slotG} (${MAP_ITEMS[slotG].name}) | Correta? ${correct}`);
+
+          const pidSimulado = `fisico_team_${jg}`;
+          const nomeAlunoSimulado = jg === 0 ? 'Jogador 1' : 'Jogador 2';
+
+          const respostaSimulada = {
+            pid: pidSimulado,
+            team: jg,
+            optIdx: optIdx,
+            correct: correct,
+            speedBonus: speedBonus,
+            nomeAluno: nomeAlunoSimulado,
+            qIndex: currentQ.qIndex,
+            timestamp: Date.now()
+          };
+
+          setDueloRespostasRodada(prev => {
+            const filtrados = prev.filter(r => !(r.pid === pidSimulado && r.qIndex === currentQ.qIndex));
+            return [...filtrados, respostaSimulada];
+          });
+
+          enviarRespostaDueloOnline(
+            codigoSalaOnline.trim().toUpperCase(),
+            pidSimulado,
+            jg,
+            optIdx,
+            correct,
+            speedBonus,
+            nomeAlunoSimulado,
+            currentQ.qIndex
+          ).catch(err => {
+            console.warn('Erro ao sincronizar resposta física no Firebase:', err);
+          });
+
+          try { playSound(correct ? 'success' : 'error'); } catch (e) {}
         }
+        return;
       }
-      return;
-    }
 
-    // 2. Lógica do Jogo Ativo
-    if (tela === 'jogo') {
-      const p = fila[rodAtual - 1];
-      if (!p || rodDescanso) return; // Nenhuma rodada ativa ou em tela de feedback
+      // 2B. Jogo Local Padrão
+      if (tela === 'jogo') {
+        const p = fila[rodAtual - 1];
+        if (!p || rodDescanso) return;
 
-      for (let jg = 0; jg < 2; jg++) {
-        if (ctrl[jg].gpIdx === gpIdx) {
-          const slotG = ctrl[jg].map.indexOf(btnIdx);
-          if (slotG === -1) continue; // Botão pressionado não mapeado para este jogador
+        if (efeitosRodada.bloqueado === jg) return;
 
-          // Se o jogador estiver bloqueado nesta rodada, ele não pode acionar NENHUM botão do gamepad
-          if (efeitosRodada.bloqueado === jg) continue;
+        if (faseJogo === 'aposta') {
+          if (slotG < 4 && !apostasConfirmadas[jg] && !revelandoApostas) {
+            const valoresAposta = [0.5, 1.0, 2.0, 3.0];
+            const valorApostado = valoresAposta[slotG];
 
-          // INTERCEPÇÃO DO MODO APOSTAS
-          if (faseJogo === 'aposta') {
-            if (slotG < 4 && !apostasConfirmadas[jg] && !revelandoApostas) {
-              const valoresAposta = [0.5, 1.0, 2.0, 3.0];
-              const valorApostado = valoresAposta[slotG];
-              
-              const novasApostas = [...apostasRodada];
-              novasApostas[jg] = valorApostado;
-              setApostasRodada(novasApostas);
-              
-              const novasConfirmadas = [...apostasConfirmadas];
-              novasConfirmadas[jg] = true;
-              setApostasConfirmadas(novasConfirmadas);
-              
-              playSound('click');
-              
-              if (novasConfirmadas[0] && novasConfirmadas[1]) {
-                revelarELiberarPergunta();
-              }
+            const novasApostas = [...apostasRodada];
+            novasApostas[jg] = valorApostado;
+            setApostasRodada(novasApostas);
+
+            const novasConfirmadas = [...apostasConfirmadas];
+            novasConfirmadas[jg] = true;
+            setApostasConfirmadas(novasConfirmadas);
+
+            try { playSound('click'); } catch (e) {}
+
+            if (novasConfirmadas[0] && novasConfirmadas[1]) {
+              revelarELiberarPergunta();
             }
-            continue;
           }
+          return;
+        }
 
-          if (slotG < 4) {
-            // Botões de alternativas de resposta
-            if (p.tipo === 'mc') {
-              responderPerguntaMC(jg, slotG);
-            } else if (p.tipo === 'vf') {
-              if (slotG === 2) responderPerguntaVF(jg, 'v');
-              if (slotG === 1) responderPerguntaVF(jg, 'f');
-            } else if (p.tipo === 'veloc') {
-              baterVelocidade(jg);
-            }
-          } else if (slotG === 4) {
-            // Botão físico Especial 1: Bloquear Oponente
-            usarPoder(jg, 'block');
-          } else if (slotG === 5) {
-            // Botão físico Especial 2: Dica 50/50
-            usarPoder(jg, 'half');
+        if (slotG < 4) {
+          if (p.tipo === 'mc') {
+            responderPerguntaMC(jg, slotG);
+          } else if (p.tipo === 'vf') {
+            if (slotG === 2) responderPerguntaVF(jg, 'v');
+            if (slotG === 1) responderPerguntaVF(jg, 'f');
+          } else if (p.tipo === 'veloc') {
+            baterVelocidade(jg);
           }
+        } else if (slotG === 4) {
+          usarPoder(jg, 'block');
+        } else if (slotG === 5) {
+          usarPoder(jg, 'half');
         }
       }
     }
   };
 
-  const handleGamepadButtonPressRef = useRef(null);
+  const handleArcadeButtonPressRef = useRef(null);
   useEffect(() => {
-    handleGamepadButtonPressRef.current = handleGamepadButtonPress;
+    handleArcadeButtonPressRef.current = handleArcadeButtonPress;
   });
 
-  // Loop de escuta de Gamepad em React usando requestAnimationFrame
+  // Loop de escuta de Gamepad (Zero Delay Arcade Encoders)
   useEffect(() => {
     const pollGamepad = () => {
       const gps = Array.from(navigator.getGamepads()).filter(Boolean);
@@ -3592,7 +3683,9 @@ export default function App() {
         const prev = prevBtnsRef.current[gp.index] || gp.buttons.map(() => false);
         gp.buttons.forEach((btn, bi) => {
           if (btn.pressed && !prev[bi]) {
-            handleGamepadButtonPressRef.current(gp.index, bi, gp.id);
+            if (handleArcadeButtonPressRef.current) {
+              handleArcadeButtonPressRef.current('gamepad', gp.index, bi, gp.id);
+            }
           }
         });
         prevBtnsRef.current[gp.index] = gp.buttons.map(b => b.pressed);
@@ -3606,6 +3699,35 @@ export default function App() {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
+  }, [detectMode, tela, ctrl]);
+
+  // Escutar eventos keydown globais para Teclados / Encoders Arcade Keyboard (IPAC, Xin-Mo, Arduino)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignorar digitação em campos de formulário a menos que esteja no modo de detecção
+      if (!detectMode && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) {
+        return;
+      }
+
+      const keyId = e.code || e.key;
+      if (!keyId) return;
+
+      // Se em modo de detecção ou tela relevante para o controle físico
+      if (detectMode || tela === 'controles' || tela === 'duelo-online-game' || tela === 'jogo') {
+        const isMapped = detectMode || ctrl.some(c => c.keyMap && c.keyMap.includes(keyId));
+        if (isMapped) {
+          if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) {
+            e.preventDefault();
+          }
+          if (handleArcadeButtonPressRef.current) {
+            handleArcadeButtonPressRef.current('keyboard', 'keyboard', keyId);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [detectMode, tela, ctrl]);
 
   // --- ESTADOS DO IA DE GERAÇÃO ---
@@ -3737,6 +3859,19 @@ export default function App() {
   };
 
   const gerarPerguntasIA = async () => {
+    const fetchWithTimeout = async (url, options = {}, timeoutMs = 12000) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(timeoutId);
+        return response;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+    };
+
     if (iaSourceMode === 'file' && !iaFileData) {
       setIaFeedback({ txt: '❌ Envie uma imagem ou arquivo PDF primeiro.', tipo: 'err' });
       return;
@@ -3768,7 +3903,7 @@ export default function App() {
         try {
           if (isPDFUrl || isImgUrl) {
             setIaFeedback({ txt: `⏳ Baixando arquivo da URL (${isPDFUrl ? 'PDF' : 'Imagem'})...`, tipo: 'warn' });
-            const res = await fetch(urlNormalizada);
+            const res = await fetchWithTimeout(urlNormalizada);
             if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
             const blob = await res.blob();
             
@@ -3787,7 +3922,7 @@ export default function App() {
             setIaFeedback({ txt: '⏳ Conectando ao link e extraindo texto...', tipo: 'warn' });
             let html = '';
             try {
-              const res = await fetch(urlNormalizada);
+              const res = await fetchWithTimeout(urlNormalizada);
               if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
               html = await res.text();
             } catch (directErr) {
@@ -3795,7 +3930,7 @@ export default function App() {
               setIaFeedback({ txt: '⏳ Conectando ao link via proxy de compatibilidade (AllOrigins)...', tipo: 'warn' });
               
               const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(urlNormalizada)}`;
-              const proxyRes = await fetch(proxyUrl);
+              const proxyRes = await fetchWithTimeout(proxyUrl);
               if (!proxyRes.ok) throw new Error(`Falha no proxy CORS: ${proxyRes.status}`);
               const proxyData = await proxyRes.json();
               html = proxyData.contents;
@@ -4022,17 +4157,11 @@ export default function App() {
               }
             };
 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 50000); // 50 segundos de limite
-
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${geminiKey.trim()}`, {
+            const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${geminiKey.trim()}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(reqBody),
-              signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
+              body: JSON.stringify(reqBody)
+            }, 12000);
 
             if (!response.ok) {
               const errData = await response.json().catch(() => ({}));
@@ -7082,7 +7211,7 @@ export default function App() {
       {/* 2. TELA GERADOR IA */}
 
 
-      {/* 3. TELA CONTROLES */}
+      {/* 3. TELA CONTROLES E BOTÕES ARCADE */}
       <div id="tela-controles" className={`tela ${tela === 'controles' ? 'ativa' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
           <button className="btn-volta" onClick={() => {
@@ -7094,52 +7223,96 @@ export default function App() {
           }}>
             ← Voltar ao {origemConfig ? 'Lobby' : 'Menu'}
           </button>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: 900 }}>🎮 Configurar Controle Compartilhado</h2>
+          <h2 style={{ fontSize: '1.6rem', fontWeight: 900, color: '#fff', fontFamily: 'Outfit' }}>
+            🕹️ Configurar Botões Arcade & Gamepad
+          </h2>
         </div>
 
-        <div className="info-box" style={{ marginBottom: '14px' }}>
-          <strong>Mapeamento de 12 botões (6 botões para cada jogador):</strong><br />
-          1. Conecte o controle compartilhado na máquina e clique em <em>"🔌 Detectar controle compartilhado"</em>.<br />
-          2. Pressione qualquer botão no controle para que o sistema identifique a sua ID.<br />
-          3. Mapeie <strong style={{ color: '#60a5fa' }}>6 botões para o Jogador 1</strong> e <strong style={{ color: '#f472b6' }}>6 botões para o Jogador 2</strong> correspondentes às cores e cartas de poderes especiais abaixo.
+        <div className="info-box" style={{ marginBottom: '16px', background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+          <strong style={{ color: '#a78bfa', fontSize: '1.05rem' }}>🕹️ Suporte Completo a Botões Físicos de Arcade:</strong><br />
+          - **Placas Zero Delay USB (Gamepad API)**: Encoders USB de arcade reconhecidos como Joystick/Gamepad.<br />
+          - **Placas Encoder Teclado / IPAC / Arduino (HID Keyboard)**: Botões de arcade mapeados como teclas do teclado.<br />
+          - Clique em <em>"Detectar Botão Arcade"</em> ou escolha um **Preset de 1-Clique** abaixo para mapear automaticamente!
         </div>
 
+        {/* PRESETS RÁPIDOS DE 1-CLIQUE */}
+        <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '14px 18px', borderRadius: '14px', border: '1px solid rgba(147, 51, 234, 0.25)', marginBottom: '18px' }}>
+          <div style={{ fontSize: '0.92rem', fontWeight: 'bold', color: '#c084fc', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>⚡ Presets Rápidos para Gabinetes Arcade:</span>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button className="btn-menu" style={{ flex: 1, minWidth: '160px', padding: '8px 12px', fontSize: '0.8rem', background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#93c5fd', borderRadius: '8px' }} onClick={() => aplicarPresetControles('zero_delay')}>
+              🕹️ Zero Delay USB (0-11)
+            </button>
+            <button className="btn-menu" style={{ flex: 1, minWidth: '160px', padding: '8px 12px', fontSize: '0.8rem', background: 'rgba(168, 85, 247, 0.2)', border: '1px solid #a855f7', color: '#e9d5ff', borderRadius: '8px' }} onClick={() => aplicarPresetControles('ipac_arcade')}>
+              ⌨️ IPAC Arcade (A-F / J-I)
+            </button>
+            <button className="btn-menu" style={{ flex: 1, minWidth: '160px', padding: '8px 12px', fontSize: '0.8rem', background: 'rgba(16, 185, 129, 0.2)', border: '1px solid #10b981', color: '#6ee7b7', borderRadius: '8px' }} onClick={() => aplicarPresetControles('numerico_arcade')}>
+              🔢 Teclas Numéricas (1-6 / 7-=)
+            </button>
+            <button className="btn-menu" style={{ flex: 1, minWidth: '160px', padding: '8px 12px', fontSize: '0.8rem', background: 'rgba(245, 158, 11, 0.2)', border: '1px solid #f59e0b', color: '#fde68a', borderRadius: '8px' }} onClick={() => aplicarPresetControles('wasd_setas')}>
+              🎮 WASD / Setas Arcade
+            </button>
+          </div>
+        </div>
+
+        {/* PAINEL PRINCIPAL DE CONTROLES */}
         <div className="ctrl-single">
-          <div className="ctrl-titulo-single">🎮 Gamepad Compartilhado</div>
-          <div className={`ctrl-status ${(ctrl[0].gpIdx !== null) ? 'ok' : ''}`}>
-            {ctrl[0].gpIdx !== null ? `✅ Controle mapeado e ativo (Porta #${ctrl[0].gpIdx})` : 'Nenhum controle associado'}
+          <div className="ctrl-titulo-single">🕹️ Mapeamento de Botões por Jogador</div>
+          <div className={`ctrl-status ${(ctrl[0].gpIdx !== null || (ctrl[0].keyMap && ctrl[0].keyMap.some(k => k !== null))) ? 'ok' : ''}`}>
+            {(ctrl[0].gpIdx !== null || (ctrl[0].keyMap && ctrl[0].keyMap.some(k => k !== null))) 
+              ? '✅ Botões Arcade Mapeados e Ativos' 
+              : 'Nenhum botão de arcade associado'}
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', margin: '12px 0', flexWrap: 'wrap' }}>
+            <button className="btn-conectar" style={{ flex: 1, maxWidth: '240px' }} onClick={() => setDetectMode({ jogador: 0, fase: 'detect', slot: null })}>
+              🔌 Detectar Dispositivo Arcade
+            </button>
+            <button className="btn-conectar" style={{ flex: 1, maxWidth: '240px', background: 'linear-gradient(90deg, #3b82f6, #60a5fa)' }} onClick={() => setDetectMode({ jogador: 0, fase: 'auto', slot: 0 })}>
+              ⚡ Mapear 6 Botões J1 (Sequencial)
+            </button>
+            <button className="btn-conectar" style={{ flex: 1, maxWidth: '240px', background: 'linear-gradient(90deg, #ec4899, #f472b6)' }} onClick={() => setDetectMode({ jogador: 1, fase: 'auto', slot: 0 })}>
+              ⚡ Mapear 6 Botões J2 (Sequencial)
+            </button>
           </div>
           
-          <button className="btn-conectar" onClick={() => setDetectMode({ jogador: 0, fase: 'detect', slot: null })}>
-            🔌 Detectar controle compartilhado
-          </button>
-          
           <div className="separador-ctrl"></div>
-          <div style={{ fontSize: '0.8rem', color: '#9ca3af', textAlign: 'center', fontWeight: 600 }}>
-            Clique na cor/função desejada e pressione o respectivo botão físico no seu controle para mapear
+          <div style={{ fontSize: '0.82rem', color: '#9ca3af', textAlign: 'center', fontWeight: 600, marginBottom: '14px' }}>
+            Clique na cor/função desejada e pressione o botão físico de arcade (ou tecla) para atribuir
           </div>
 
           <div className="ctrl-players-grid">
             {/* JOGADOR 1 */}
             <div className="ctrl-player-col">
               <div className="ctrl-player-titulo ctrl-j1-title">🔵 Jogador 1 (Equipe A)</div>
-              {MAP_ITEMS.map((item, idx) => (
-                <button 
-                  key={idx} 
-                  className={`btn-ctrl ${ctrl[0].map[idx] !== null ? 'mapeado' : ''} ${(detectMode?.jogador === 0 && detectMode?.slot === idx) ? 'ativo' : ''}`}
-                  disabled={ctrl[0].gpIdx === null}
-                  onClick={() => setDetectMode({ jogador: 0, fase: 'map', slot: idx })}
-                >
-                  <span className="alt-label">
-                    <span style={{ marginRight: '6px' }}>{item.icon}</span>
-                    {item.name}
-                  </span>
-                  <span className="btn-idx">{ctrl[0].map[idx] !== null ? `Botão ${ctrl[0].map[idx]}` : '— Mapear'}</span>
-                </button>
-              ))}
+              {MAP_ITEMS.map((item, idx) => {
+                const isMappedGp = ctrl[0].map && ctrl[0].map[idx] !== null;
+                const isMappedKey = ctrl[0].keyMap && ctrl[0].keyMap[idx] !== null;
+                const isAtivo = detectMode?.jogador === 0 && detectMode?.slot === idx;
+
+                let labelStr = '— Mapear';
+                if (isMappedGp) labelStr = `🎮 Botão #${ctrl[0].map[idx]}`;
+                else if (isMappedKey) labelStr = `⌨️ Tecla '${ctrl[0].keyMap[idx].replace('Key', '').replace('Digit', '')}'`;
+
+                return (
+                  <button 
+                    key={idx} 
+                    className={`btn-ctrl ${(isMappedGp || isMappedKey) ? 'mapeado' : ''} ${isAtivo ? 'ativo' : ''}`}
+                    onClick={() => setDetectMode({ jogador: 0, fase: 'map', slot: idx })}
+                  >
+                    <span className="alt-label">
+                      <span style={{ marginRight: '6px' }}>{item.icon}</span>
+                      {item.name}
+                    </span>
+                    <span className="btn-idx">{labelStr}</span>
+                  </button>
+                );
+              })}
               <button className="btn-resetar" onClick={() => {
                 const novos = [...ctrl];
                 novos[0].map = [null, null, null, null, null, null];
+                novos[0].keyMap = [null, null, null, null, null, null];
                 salvarControles(novos);
               }}>
                 ↺ Resetar J1
@@ -7149,23 +7322,33 @@ export default function App() {
             {/* JOGADOR 2 */}
             <div className="ctrl-player-col">
               <div className="ctrl-player-titulo ctrl-j2-title">🩷 Jogador 2 (Equipe B)</div>
-              {MAP_ITEMS.map((item, idx) => (
-                <button 
-                  key={idx} 
-                  className={`btn-ctrl ${ctrl[1].map[idx] !== null ? 'mapeado' : ''} ${(detectMode?.jogador === 1 && detectMode?.slot === idx) ? 'ativo' : ''}`}
-                  disabled={ctrl[1].gpIdx === null}
-                  onClick={() => setDetectMode({ jogador: 1, fase: 'map', slot: idx })}
-                >
-                  <span className="alt-label">
-                    <span style={{ marginRight: '6px' }}>{item.icon}</span>
-                    {item.name}
-                  </span>
-                  <span className="btn-idx">{ctrl[1].map[idx] !== null ? `Botão ${ctrl[1].map[idx]}` : '— Mapear'}</span>
-                </button>
-              ))}
+              {MAP_ITEMS.map((item, idx) => {
+                const isMappedGp = ctrl[1].map && ctrl[1].map[idx] !== null;
+                const isMappedKey = ctrl[1].keyMap && ctrl[1].keyMap[idx] !== null;
+                const isAtivo = detectMode?.jogador === 1 && detectMode?.slot === idx;
+
+                let labelStr = '— Mapear';
+                if (isMappedGp) labelStr = `🎮 Botão #${ctrl[1].map[idx]}`;
+                else if (isMappedKey) labelStr = `⌨️ Tecla '${ctrl[1].keyMap[idx].replace('Key', '').replace('Digit', '')}'`;
+
+                return (
+                  <button 
+                    key={idx} 
+                    className={`btn-ctrl ${(isMappedGp || isMappedKey) ? 'mapeado' : ''} ${isAtivo ? 'ativo' : ''}`}
+                    onClick={() => setDetectMode({ jogador: 1, fase: 'map', slot: idx })}
+                  >
+                    <span className="alt-label">
+                      <span style={{ marginRight: '6px' }}>{item.icon}</span>
+                      {item.name}
+                    </span>
+                    <span className="btn-idx">{labelStr}</span>
+                  </button>
+                );
+              })}
               <button className="btn-resetar" onClick={() => {
                 const novos = [...ctrl];
                 novos[1].map = [null, null, null, null, null, null];
+                novos[1].keyMap = [null, null, null, null, null, null];
                 salvarControles(novos);
               }}>
                 ↺ Resetar J2
@@ -7174,20 +7357,141 @@ export default function App() {
           </div>
         </div>
 
+        {/* MONITOR E TESTADOR DE BOTÕES ARCADE EM TEMPO REAL */}
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(26, 16, 60, 0.95) 100%)',
+          border: '1.5px solid rgba(168, 85, 247, 0.4)',
+          borderRadius: '16px',
+          padding: '20px',
+          marginTop: '20px',
+          boxShadow: '0 0 25px rgba(168, 85, 247, 0.15)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+            <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#c084fc', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'Outfit' }}>
+              🧪 Monitor e Testador de Botões Arcade em Tempo Real
+            </div>
+            <span style={{ fontSize: '0.78rem', padding: '4px 10px', borderRadius: '12px', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#4ade80', fontWeight: 'bold' }}>
+              ● Escuta Ativa
+            </span>
+          </div>
+
+          <p style={{ fontSize: '0.83rem', color: '#cbd5e1', margin: '0 0 16px' }}>
+            Pressione os botões do gabinete arcade no seu controle físico para testar o acionamento em tempo real. Os botões virtuais abaixo piscarão instantaneamente ao serem pressionados.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            {/* CABINET TESTER J1 */}
+            <div style={{ background: 'rgba(30, 41, 59, 0.5)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(96, 165, 250, 0.3)' }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#60a5fa', marginBottom: '12px', textAlign: 'center' }}>
+                🔵 Painel Arcade J1 (Equipe A)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                {MAP_ITEMS.map((item, idx) => {
+                  const isPressed = lastArcadeBtn && lastArcadeBtn.player === 0 && lastArcadeBtn.slot === idx && (Date.now() - lastArcadeBtn.timestamp < 400);
+                  const isMapped = (ctrl[0].map && ctrl[0].map[idx] !== null) || (ctrl[0].keyMap && ctrl[0].keyMap[idx] !== null);
+                  return (
+                    <div 
+                      key={idx}
+                      style={{
+                        padding: '10px 6px',
+                        borderRadius: '10px',
+                        textAlign: 'center',
+                        background: isPressed 
+                          ? 'linear-gradient(135deg, #2563eb, #60a5fa)' 
+                          : (isMapped ? 'rgba(30, 58, 138, 0.35)' : 'rgba(15, 23, 42, 0.6)'),
+                        border: isPressed 
+                          ? '2px solid #60a5fa' 
+                          : (isMapped ? '1.5px solid rgba(96, 165, 250, 0.4)' : '1px dashed rgba(148, 163, 184, 0.2)'),
+                        boxShadow: isPressed ? '0 0 18px #3b82f6' : 'none',
+                        transform: isPressed ? 'scale(1.06)' : 'scale(1)',
+                        transition: 'all 0.12s ease',
+                        cursor: 'default'
+                      }}
+                    >
+                      <div style={{ fontSize: '1.4rem' }}>{item.icon}</div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: isPressed ? '#fff' : '#93c5fd', marginTop: '4px' }}>
+                        {item.name.split(' ')[0]}
+                      </div>
+                      <div style={{ fontSize: '0.65rem', color: isPressed ? '#e0f2fe' : '#64748b', marginTop: '2px' }}>
+                        {isPressed ? '⚡ ATIVO!' : (isMapped ? 'Pronto' : '—')}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* CABINET TESTER J2 */}
+            <div style={{ background: 'rgba(30, 41, 59, 0.5)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(244, 114, 182, 0.3)' }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#f472b6', marginBottom: '12px', textAlign: 'center' }}>
+                🩷 Painel Arcade J2 (Equipe B)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                {MAP_ITEMS.map((item, idx) => {
+                  const isPressed = lastArcadeBtn && lastArcadeBtn.player === 1 && lastArcadeBtn.slot === idx && (Date.now() - lastArcadeBtn.timestamp < 400);
+                  const isMapped = (ctrl[1].map && ctrl[1].map[idx] !== null) || (ctrl[1].keyMap && ctrl[1].keyMap[idx] !== null);
+                  return (
+                    <div 
+                      key={idx}
+                      style={{
+                        padding: '10px 6px',
+                        borderRadius: '10px',
+                        textAlign: 'center',
+                        background: isPressed 
+                          ? 'linear-gradient(135deg, #db2777, #f472b6)' 
+                          : (isMapped ? 'rgba(131, 24, 67, 0.35)' : 'rgba(15, 23, 42, 0.6)'),
+                        border: isPressed 
+                          ? '2px solid #f472b6' 
+                          : (isMapped ? '1.5px solid rgba(244, 114, 182, 0.4)' : '1px dashed rgba(148, 163, 184, 0.2)'),
+                        boxShadow: isPressed ? '0 0 18px #ec4899' : 'none',
+                        transform: isPressed ? 'scale(1.06)' : 'scale(1)',
+                        transition: 'all 0.12s ease',
+                        cursor: 'default'
+                      }}
+                    >
+                      <div style={{ fontSize: '1.4rem' }}>{item.icon}</div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: isPressed ? '#fff' : '#fbcfe8', marginTop: '4px' }}>
+                        {item.name.split(' ')[0]}
+                      </div>
+                      <div style={{ fontSize: '0.65rem', color: isPressed ? '#fce7f3' : '#64748b', marginTop: '2px' }}>
+                        {isPressed ? '⚡ ATIVO!' : (isMapped ? 'Pronto' : '—')}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* ÚLTIMO SINAL REGISTRADO */}
+          {lastArcadeBtn && (
+            <div style={{ marginTop: '14px', padding: '10px 14px', background: 'rgba(15, 23, 42, 0.7)', borderRadius: '10px', border: '1px solid rgba(168, 85, 247, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ fontSize: '0.82rem', color: '#e9d5ff' }}>
+                🕹️ <strong>Último Sinal Capturado:</strong> Origem: <span style={{ color: '#38bdf8' }}>{lastArcadeBtn.inputType.toUpperCase()}</span> | Identificador: <span style={{ color: '#facc15' }}>{String(lastArcadeBtn.btnId)}</span>
+              </div>
+              <div style={{ fontSize: '0.78rem', color: lastArcadeBtn.player !== null ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
+                {lastArcadeBtn.player !== null 
+                  ? `✅ Mapeado para ${lastArcadeBtn.player === 0 ? 'Jogador 1' : 'Jogador 2'} (${MAP_ITEMS[lastArcadeBtn.slot]?.name})` 
+                  : '⚠️ Não Mapeado'}
+              </div>
+            </div>
+          )}
+        </div>
+
         {feedbackControles && (
-          <div className={feedbackControles.tipo === 'ok' ? 'msg-ok' : 'msg-err'}>
+          <div className={feedbackControles.tipo === 'ok' ? 'msg-ok' : 'msg-err'} style={{ marginTop: '16px' }}>
             {feedbackControles.txt}
           </div>
         )}
 
-        <button className="btn-menu btn-play" style={{ margin: '16px auto 0', width: 'fit-content' }} onClick={() => {
+        <button className="btn-menu btn-play" style={{ margin: '20px auto 0', width: 'fit-content' }} onClick={() => {
           if (origemConfig) {
             irParaTela(origemConfig);
           } else {
             irParaTela('menu');
           }
         }}>
-          ✅ Mapeamento concluído
+          ✅ Configuração de Arcade Concluída
         </button>
       </div>
 
