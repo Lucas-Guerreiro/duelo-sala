@@ -564,17 +564,20 @@ export default function App() {
   const [cartasPistas, setCartasPistas] = useState(() => {
     const saved = localStorage.getItem('dm_pistas');
     const brutas = saved ? JSON.parse(saved) : PISTAS_PADRAO;
-    return brutas.map(carta => {
+    if (!Array.isArray(brutas)) return PISTAS_PADRAO;
+    return brutas.filter(Boolean).map(carta => {
       const pistas = [...(carta.pistas || [])];
       while (pistas.length < 10) {
         pistas.push({
-          txt: `Dica extra sobre o segredo: ${carta.resp}`,
+          txt: `Dica extra sobre o segredo: ${carta.resp || ''}`,
           efeito: null
         });
       }
       return {
-        ...carta,
-        pistas: pistas.slice(0, 10)
+        cat: carta.cat || 'Geral',
+        resp: carta.resp || 'Sem resposta',
+        pistas: pistas.slice(0, 10),
+        pistaBonusIdx: carta.pistaBonusIdx !== undefined ? carta.pistaBonusIdx : null
       };
     });
   });
@@ -595,18 +598,22 @@ export default function App() {
   const [pistasCategoriasSelecionadas, setPistasCategoriasSelecionadas] = useState([]);
 
   const categoriasUnicasPistas = useMemo(() => {
-    const cats = cartasPistas.map(c => c.cat).filter(Boolean);
+    if (!Array.isArray(cartasPistas)) return [];
+    const cats = cartasPistas.filter(c => c && c.cat).map(c => c.cat);
     return Array.from(new Set(cats));
   }, [cartasPistas]);
 
   const poolPistasFiltrada = useMemo(() => {
-    if (pistasCategoriasSelecionadas.length === 0) return cartasPistas;
-    return cartasPistas.filter(c => pistasCategoriasSelecionadas.includes(c.cat));
+    if (!Array.isArray(cartasPistas)) return [];
+    const validas = cartasPistas.filter(Boolean);
+    if (pistasCategoriasSelecionadas.length === 0) return validas;
+    return validas.filter(c => c.cat && pistasCategoriasSelecionadas.includes(c.cat));
   }, [cartasPistas, pistasCategoriasSelecionadas]);
 
   useEffect(() => {
-    if (pistasQtdRodadas > poolPistasFiltrada.length) {
-      setPistasQtdRodadas(Math.max(1, poolPistasFiltrada.length));
+    const len = poolPistasFiltrada.length;
+    if (pistasQtdRodadas > len) {
+      setPistasQtdRodadas(Math.max(1, len));
     }
   }, [poolPistasFiltrada, pistasQtdRodadas]);
 
