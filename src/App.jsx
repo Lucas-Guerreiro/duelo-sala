@@ -596,6 +596,14 @@ export default function App() {
   const [pistasTimerSeg, setPistasTimerSeg] = useState(null);
   const pistasTimerIntRef = useRef(null);
   const [pistasCategoriasSelecionadas, setPistasCategoriasSelecionadas] = useState([]);
+  const [pistasCategorias, setPistasCategorias] = useState(() => {
+    const saved = localStorage.getItem('dm_categorias_pistas');
+    return saved ? JSON.parse(saved) : ['Pessoa', 'Lugar', 'Objeto', 'Animal', 'Ano', 'Coisa', 'Geral'];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dm_categorias_pistas', JSON.stringify(pistasCategorias));
+  }, [pistasCategorias]);
 
   const categoriasUnicasPistas = useMemo(() => {
     if (!Array.isArray(cartasPistas)) return [];
@@ -2105,6 +2113,7 @@ export default function App() {
   // --- ESTADOS DO CADASTRO MANUAL DO TRÊS PISTAS ---
   const [cadGerenciadorAba, setCadGerenciadorAba] = useState('duelo'); // 'duelo' | 'pistas' | 'imacao'
   const [cadPistasCat, setCadPistasCat] = useState('');
+  const [cadPistasCategoriaText, setCadPistasCategoriaText] = useState('');
   const [cadPistasResp, setCadPistasResp] = useState('');
   const [cadPistasTextos, setCadPistasTextos] = useState(['', '', '', '', '', '', '', '', '', '']);
   const [cadPistasEfeitos, setCadPistasEfeitos] = useState([null, null, null, null, null, null, null, null, null, null]);
@@ -4657,6 +4666,7 @@ export default function App() {
     } else {
       setCartasPistas(prev => [...prev, ...iaPistasGeradas]);
     }
+    sincPistasCategorias(iaPistasGeradas);
     setIaFeedback({ txt: `✅ ${iaPistasGeradas.length} cartas de Jogo das Pistas importadas com sucesso ao banco!`, tipo: 'ok' });
     setIaPistasGeradas([]);
   };
@@ -4692,6 +4702,38 @@ export default function App() {
     const matNome = materias[idx];
     setMaterias(materias.filter((_, i) => i !== idx));
     setPerguntas(perguntas.filter(p => p.mat !== matNome));
+  };
+
+  const adicionarPistasCategoriaManual = () => {
+    const text = cadPistasCategoriaText.trim();
+    if (!text) {
+      alert('Por favor, digite o nome da categoria!');
+      return;
+    }
+    if (pistasCategorias.includes(text)) {
+      alert('Essa categoria já está cadastrada!');
+      return;
+    }
+    setPistasCategorias([...pistasCategorias, text]);
+    setCadPistasCategoriaText('');
+  };
+
+  const deletarPistasCategoria = (idx) => {
+    if (!window.confirm('Aviso: Isso excluirá todas as cartas de pistas vinculadas a esta categoria. Prosseguir?')) return;
+    const catNome = pistasCategorias[idx];
+    setPistasCategorias(pistasCategorias.filter((_, i) => i !== idx));
+    setCartasPistas(cartasPistas.filter(c => c.cat !== catNome));
+  };
+
+  const sincPistasCategorias = (novasCartas) => {
+    const catsDeCartas = novasCartas.map(c => c.cat).filter((v, i, a) => a.indexOf(v) === i && v);
+    setPistasCategorias(prev => {
+      const novas = [...prev];
+      catsDeCartas.forEach(c => {
+        if (!novas.includes(c)) novas.push(c);
+      });
+      return novas;
+    });
   };
 
   const adicionarPerguntaManual = () => {
@@ -4930,7 +4972,8 @@ export default function App() {
       const backupObj = {
         jogo: 'trespistas',
         dataBackup: new Date().toISOString(),
-        cartasPistas: cartasPistas
+        cartasPistas: cartasPistas,
+        categoriasPistas: pistasCategorias
       };
       const jsonStr = JSON.stringify(backupObj, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -4969,11 +5012,26 @@ export default function App() {
 
         if (confirmacao) {
           setCartasPistas([...cartasPistas, ...importadas]);
+          if (Array.isArray(json.categoriasPistas)) {
+            setPistasCategorias(prev => {
+              const novas = [...prev];
+              json.categoriasPistas.forEach(c => {
+                if (!novas.includes(c)) novas.push(c);
+              });
+              return novas;
+            });
+          }
+          sincPistasCategorias(importadas);
           alert('Cartas de Jogo das Pistas mescladas com sucesso!');
         } else {
           const subConfirm = window.confirm('ATENÇÃO: Você escolheu substituir. Todas as cartas de Jogo das Pistas atuais serão permanentemente apagadas. Continuar?');
           if (subConfirm) {
             setCartasPistas(importadas);
+            if (Array.isArray(json.categoriasPistas)) {
+              setPistasCategorias(json.categoriasPistas);
+            } else {
+              sincPistasCategorias(importadas);
+            }
             alert('Banco de Jogo das Pistas substituído com sucesso!');
           }
         }
@@ -5170,6 +5228,7 @@ export default function App() {
         perguntas: perguntas,
         materias: materias,
         cartasPistas: cartasPistas,
+        categoriasPistas: pistasCategorias,
         cartasImAcao: cartasImAcao,
         memoImagensPool: memoImagensPool,
         imagensSurpresas: {
@@ -5237,6 +5296,18 @@ export default function App() {
         if (Array.isArray(dados.cartasPistas)) {
           setCartasPistas([...cartasPistas, ...dados.cartasPistas]);
         }
+        if (Array.isArray(dados.categoriasPistas)) {
+          setPistasCategorias(prev => {
+            const novas = [...prev];
+            dados.categoriasPistas.forEach(c => {
+              if (!novas.includes(c)) novas.push(c);
+            });
+            return novas;
+          });
+        }
+        if (Array.isArray(dados.cartasPistas)) {
+          sincPistasCategorias(dados.cartasPistas);
+        }
         if (Array.isArray(dados.cartasImAcao)) {
           setCartasImAcao([...cartasImAcao, ...dados.cartasImAcao]);
         }
@@ -5274,6 +5345,13 @@ export default function App() {
           setMaterias(dados.materias || []);
           setCartasPistas(dados.cartasPistas || []);
           setCartasImAcao(dados.cartasImAcao || []);
+          
+          if (Array.isArray(dados.categoriasPistas)) {
+            setPistasCategorias(dados.categoriasPistas);
+          } else if (Array.isArray(dados.cartasPistas)) {
+            const catsDeCartas = dados.cartasPistas.map(c => c.cat).filter((v, i, a) => a.indexOf(v) === i && v);
+            setPistasCategorias(catsDeCartas.length > 0 ? catsDeCartas : ['Pessoa', 'Lugar', 'Objeto', 'Animal', 'Ano', 'Coisa', 'Geral']);
+          }
           
           const normalizarImagem = (img) => {
             if (typeof img === 'string') return { url: img, mat: '' };
@@ -8194,6 +8272,7 @@ export default function App() {
           <div className="tab-panel ativa">
             <div className="tabs">
               <button className={`tab ${cadTab === 'manual' ? 'ativa' : ''}`} onClick={() => setCadTab('manual')}>✏️ Manual</button>
+              <button className={`tab ${cadTab === 'categorias' ? 'ativa' : ''}`} onClick={() => setCadTab('categorias')}>🏷️ Categorias</button>
               <button className={`tab ${cadTab === 'importar' ? 'ativa' : ''}`} onClick={() => setCadTab('importar')}>📥 Importar Planilha</button>
               <button className={`tab ${cadTab === 'lista' ? 'ativa' : ''}`} onClick={() => setCadTab('lista')}>📋 Cartas ({cartasPistas.length})</button>
               <button className={`tab ${cadTab === 'ia' ? 'ativa' : ''}`} onClick={() => { setCadTab('ia'); setIaAba('pistas'); if (iaQtd > 10) setIaQtd(10); setIaFeedback(null); }}>✨ Gerar com IA</button>
@@ -8207,12 +8286,28 @@ export default function App() {
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                 <div>
-                  <label>Categoria</label>
-                  <input 
-                    placeholder="Ex: Pessoa, Lugar, Animal, Coisa, Ano..." 
-                    value={cadPistasCat}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label style={{ margin: 0 }}>Categoria</label>
+                    <button 
+                      onClick={() => setCadTab('categorias')}
+                      style={{ background: 'transparent', border: 'none', color: '#a78bfa', fontSize: '0.75rem', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+                    >
+                      ⚙️ Gerenciar
+                    </button>
+                  </div>
+                  <select 
+                    value={cadPistasCat || (pistasCategorias[0] || '')}
                     onChange={(e) => setCadPistasCat(e.target.value)}
-                  />
+                    style={{ width: '100%', height: '42px', padding: '10px 16px', background: 'rgba(0, 0, 0, 0.3)', color: '#fff', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px' }}
+                  >
+                    {pistasCategorias.length === 0 ? (
+                      <option value="">Nenhuma categoria cadastrada</option>
+                    ) : (
+                      pistasCategorias.map((c, i) => (
+                        <option key={i} value={c}>{c}</option>
+                      ))
+                    )}
+                  </select>
                 </div>
                 <div>
                   <label>Resposta / Segredo</label>
@@ -8313,6 +8408,117 @@ export default function App() {
               </div>
             </div>
             </div>
+            )}
+
+            {cadTab === 'categorias' && (
+              <div className="tab-panel ativa">
+                {/* BLOCO: GERENCIAR CATEGORIAS DE PISTAS */}
+                <div className="card" style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '14px', 
+                  padding: '16px 20px', 
+                  background: 'rgba(15, 23, 42, 0.4)', 
+                  border: '1px solid rgba(255, 255, 255, 0.08)', 
+                  borderRadius: '16px', 
+                  margin: '0 0 16px 0',
+                  boxSizing: 'border-box'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', fontWeight: 900, color: '#fff', fontFamily: 'Outfit', textAlign: 'left' }}>
+                    <span style={{ color: '#db2777' }}>🏷️</span>
+                    <span>Categorias do Jogo das Pistas</span>
+                  </div>
+                  
+                  <p style={{ color: '#94a3b8', fontSize: '0.8rem', textAlign: 'left', margin: 0 }}>
+                    Cadastre categorias para agrupar suas cartas. Cada carta deve pertencer a uma categoria cadastrada.
+                  </p>
+
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', width: '100%' }}>
+                    <input 
+                      placeholder="Nome da nova categoria (Ex: Filmes, Ciências...)" 
+                      value={cadPistasCategoriaText}
+                      onChange={(e) => setCadPistasCategoriaText(e.target.value)}
+                      style={{ 
+                        flex: 1.5, 
+                        minWidth: '200px',
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        color: '#fff',
+                        border: '1px solid rgba(219, 39, 119, 0.35)',
+                        borderRadius: '10px',
+                        padding: '10px 16px',
+                        fontSize: '0.88rem',
+                        height: '42px',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                    <button 
+                      className="btn-ia" 
+                      onClick={adicionarPistasCategoriaManual}
+                      style={{ 
+                        flex: 0.5, 
+                        minWidth: '130px', 
+                        height: '42px', 
+                        background: 'linear-gradient(90deg, #db2777, #be185d)', 
+                        boxShadow: '0 4px 15px rgba(219, 39, 119, 0.25)',
+                        padding: '0 16px',
+                        fontSize: '0.88rem',
+                        fontWeight: 'bold',
+                        margin: 0
+                      }}
+                    >
+                      ➕ Adicionar
+                    </button>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '14px', width: '100%' }}>
+                    <label style={{ fontSize: '0.78rem', color: '#db2777', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', display: 'block', textAlign: 'left', marginBottom: '8px' }}>
+                      Categorias Ativas ({pistasCategorias.length})
+                    </label>
+                    
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', width: '100%' }}>
+                      {pistasCategorias.map((cat, idx) => {
+                        const count = cartasPistas.filter(c => c.cat === cat).length;
+                        return (
+                          <div 
+                            key={idx}
+                            style={{ 
+                              background: 'rgba(255, 255, 255, 0.03)', 
+                              border: '1px solid rgba(255, 255, 255, 0.06)', 
+                              borderRadius: '20px', 
+                              padding: '6px 14px', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '10px',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <span style={{ fontSize: '0.85rem', color: '#e5e7eb', fontWeight: 'bold' }}>
+                              {cat} <span style={{ color: '#9ca3af', fontWeight: 'normal', fontSize: '0.75rem' }}>({count} cartas)</span>
+                            </span>
+                            <button 
+                              onClick={() => deletarPistasCategoria(idx)}
+                              style={{ 
+                                background: 'transparent', 
+                                border: 'none', 
+                                color: '#ef4444', 
+                                cursor: 'pointer', 
+                                fontSize: '0.9rem', 
+                                padding: '2px', 
+                                display: 'flex', 
+                                alignItems: 'center',
+                                transition: 'color 0.2s'
+                              }}
+                              title="Excluir Categoria"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* TAB: IMPORTAR PLANILHA PISTAS */}
@@ -10744,10 +10950,10 @@ export default function App() {
               Selecionar categorias a incluir na partida:
             </span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
-              {categoriasUnicasPistas.length === 0 ? (
+              {pistasCategorias.length === 0 ? (
                 <span style={{ fontSize: '0.82rem', color: '#9ca3af', fontStyle: 'italic' }}>Nenhuma categoria disponível no banco.</span>
               ) : (
-                categoriasUnicasPistas.map(cat => {
+                pistasCategorias.map(cat => {
                   const selecionada = pistasCategoriasSelecionadas.includes(cat);
                   const count = cartasPistas.filter(c => c.cat === cat).length;
                   return (
