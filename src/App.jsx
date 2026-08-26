@@ -4788,10 +4788,11 @@ export default function App() {
   };
 
   const adicionarCartaPistasManual = () => {
-    const cat = cadPistasCat.trim();
+    // Usa o estado ou cai para a primeira categoria cadastrada (select controlado)
+    const cat = (cadPistasCat.trim()) || (pistasCategorias[0] || '');
     const resp = cadPistasResp.trim();
     if (!cat) {
-      alert('Por favor, informe a Categoria do segredo (ex: Pessoa, Lugar)!');
+      alert('Por favor, informe a Categoria do segredo (ex: Pessoa, Lugar)! Cadastre uma categoria primeiro na aba 🏷️ Categorias.');
       return;
     }
     if (!resp) {
@@ -4814,8 +4815,8 @@ export default function App() {
 
     setCartasPistas([...cartasPistas, novaCarta]);
     
-    // Reseta formulário
-    setCadPistasCat('');
+    // Reseta formulário mantendo categoria selecionada (primeira da lista)
+    setCadPistasCat(pistasCategorias[0] || '');
     setCadPistasResp('');
     setCadPistasTextos(['', '', '', '', '', '', '', '', '', '']);
     setCadPistasEfeitos([null, null, null, null, null, null, null, null, null, null]);
