@@ -592,6 +592,23 @@ export default function App() {
   const [pistasQtdRodadas, setPistasQtdRodadas] = useState(5);
   const [pistasTimerSeg, setPistasTimerSeg] = useState(null);
   const pistasTimerIntRef = useRef(null);
+  const [pistasCategoriasSelecionadas, setPistasCategoriasSelecionadas] = useState([]);
+
+  const categoriasUnicasPistas = useMemo(() => {
+    const cats = cartasPistas.map(c => c.cat).filter(Boolean);
+    return Array.from(new Set(cats));
+  }, [cartasPistas]);
+
+  const poolPistasFiltrada = useMemo(() => {
+    if (pistasCategoriasSelecionadas.length === 0) return cartasPistas;
+    return cartasPistas.filter(c => pistasCategoriasSelecionadas.includes(c.cat));
+  }, [cartasPistas, pistasCategoriasSelecionadas]);
+
+  useEffect(() => {
+    if (pistasQtdRodadas > poolPistasFiltrada.length) {
+      setPistasQtdRodadas(Math.max(1, poolPistasFiltrada.length));
+    }
+  }, [poolPistasFiltrada, pistasQtdRodadas]);
 
   // --- ESTADOS DO NOVO JOGO: IMAGEM E AÇÃO ---
   const [cartasImAcao, setCartasImAcao] = useState(() => {
@@ -6284,8 +6301,8 @@ export default function App() {
   };
 
   const iniciarPartidaPistas = () => {
-    if (cartasPistas.length === 0) {
-      alert('Nenhuma carta de pistas cadastrada no banco de dados! Cadastre no menu primeiro.');
+    if (poolPistasFiltrada.length === 0) {
+      alert('Nenhuma carta de pistas cadastrada no banco de dados para as categorias selecionadas!');
       return;
     }
     
@@ -6294,14 +6311,14 @@ export default function App() {
     setPistasTimerSeg(null);
 
     // Embaralhar cartas usando o algoritmo Fisher-Yates e limitar à quantidade de rodadas escolhida
-    const cartasCopiadas = [...cartasPistas];
+    const cartasCopiadas = [...poolPistasFiltrada];
     for (let i = cartasCopiadas.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       const temp = cartasCopiadas[i];
       cartasCopiadas[i] = cartasCopiadas[j];
       cartasCopiadas[j] = temp;
     }
-    const totalRodadasDesejadas = Math.min(pistasQtdRodadas, cartasPistas.length);
+    const totalRodadasDesejadas = Math.min(pistasQtdRodadas, poolPistasFiltrada.length);
     const filaEmbaralhada = cartasCopiadas.slice(0, totalRodadasDesejadas);
     
     // Configurar pistas bônus dinamicamente nas rodadas pares de forma revezada
@@ -10710,6 +10727,69 @@ export default function App() {
           </div>
         </div>
 
+        {/* Painel de Seleção de Categorias */}
+        <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '0 auto 24px', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'left', border: '1px solid rgba(236, 72, 153, 0.15)' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f472b6', marginBottom: '10px', borderLeft: '3px solid #ec4899', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            🏷️ Categorias de Cartas
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <span style={{ fontSize: '0.88rem', color: '#c4b5fd', fontWeight: 'bold' }}>
+              Selecionar categorias a incluir na partida:
+            </span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+              {categoriasUnicasPistas.length === 0 ? (
+                <span style={{ fontSize: '0.82rem', color: '#9ca3af', fontStyle: 'italic' }}>Nenhuma categoria disponível no banco.</span>
+              ) : (
+                categoriasUnicasPistas.map(cat => {
+                  const selecionada = pistasCategoriasSelecionadas.includes(cat);
+                  const count = cartasPistas.filter(c => c.cat === cat).length;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        if (selecionada) {
+                          setPistasCategoriasSelecionadas(pistasCategoriasSelecionadas.filter(c => c !== cat));
+                        } else {
+                          setPistasCategoriasSelecionadas([...pistasCategoriasSelecionadas, cat]);
+                        }
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        border: selecionada ? '1.5px solid #db2777' : '1.5px solid rgba(255,255,255,0.15)',
+                        background: selecionada ? 'rgba(219, 39, 119, 0.2)' : 'rgba(255,255,255,0.03)',
+                        color: selecionada ? '#f472b6' : '#d1d5db',
+                        fontSize: '0.82rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      {cat} <span style={{ opacity: 0.6, fontSize: '0.75rem' }}>({count})</span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+            {pistasCategoriasSelecionadas.length > 0 && (
+              <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                <button 
+                  onClick={() => setPistasCategoriasSelecionadas([])}
+                  style={{ fontSize: '0.75rem', background: 'transparent', border: 'none', color: '#a78bfa', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+                >
+                  Limpar Filtros (Incluir Todas)
+                </button>
+              </div>
+            )}
+            <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontStyle: 'italic', marginTop: '2px' }}>
+              * Se nenhuma categoria estiver selecionada, todas as cartas serão incluídas na pool.
+            </span>
+          </div>
+        </div>
+
         {/* Painel de Configuração do Número de Rodadas */}
         <div className="card" style={{ width: '100%', maxWidth: '500px', margin: '0 auto 24px', padding: '16px', background: 'rgba(22, 33, 62, 0.45)', textAlign: 'left', border: '1px solid rgba(236, 72, 153, 0.15)' }}>
           <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f472b6', marginBottom: '10px', borderLeft: '3px solid #ec4899', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -10722,14 +10802,14 @@ export default function App() {
             <input 
               type="range" 
               min="1" 
-              max={Math.max(1, cartasPistas.length)} 
+              max={Math.max(1, poolPistasFiltrada.length)} 
               step="1"
               value={pistasQtdRodadas}
               onChange={(e) => setPistasQtdRodadas(Number(e.target.value))}
               style={{ accentColor: '#ec4899', height: '6px', background: 'rgba(255, 255, 255, 0.1)', border: 'none', cursor: 'pointer' }}
             />
             <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontStyle: 'italic' }}>
-              * Selecione quantas cartas de pistas aleatórias serão sorteadas da pool total do banco de dados (máximo de {cartasPistas.length} cadastradas).
+              * Selecione quantas cartas de pistas aleatórias serão sorteadas da pool filtrada do banco de dados (máximo de {poolPistasFiltrada.length} cartas filtradas).
             </span>
           </div>
         </div>
