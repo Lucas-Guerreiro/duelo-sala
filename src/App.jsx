@@ -5588,17 +5588,12 @@ export default function App() {
           }
 
           const pistas = [];
-          for (let i = 1; i <= 5; i++) {
-            const pistaKey = `pista_${i}` || `pista${i}` || `p${i}`;
-            const efeitoKey = `efeito_${i}` || `efeito${i}`;
-            
+          for (let i = 1; i <= 10; i++) {
             const pistaText = r[`pista_${i}`] || r[`pista${i}`] || r[`p${i}`] || '';
-            const efeitoText = r[`efeito_${i}`] || r[`efeito${i}`] || '';
-
             if (pistaText) {
               pistas.push({
                 txt: pistaText,
-                efeito: efeitoText || null
+                efeito: null
               });
             }
           }
@@ -5608,10 +5603,18 @@ export default function App() {
             return;
           }
 
+          // Garante exatamente 10 pistas por carta (defensivo)
+          while (pistas.length < 10) {
+            pistas.push({
+              txt: `Dica extra sobre o segredo: ${resposta}`,
+              efeito: null
+            });
+          }
+
           const novaCarta = {
             cat: categoria,
             resp: resposta,
-            pistas: pistas
+            pistas: pistas.slice(0, 10)
           };
 
           novas.push(novaCarta);
@@ -5751,6 +5754,43 @@ export default function App() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Modelo_Duelo');
     XLSX.writeFile(wb, 'modelo_perguntas_duelo.xlsx');
+  };
+
+  const baixarModeloExcelPistas = () => {
+    const data = [
+      {
+        categoria: 'Pessoa',
+        resposta: 'Albert Einstein',
+        pista_1: 'Nasci na Alemanha em 1879 e sou considerado um dos maiores físicos da história.',
+        pista_2: 'Minha fórmula mais famosa relaciona energia, massa e velocidade da luz: E=mc².',
+        pista_3: 'Ganhei o Prêmio Nobel de Física em 1921 pela minha explicação do efeito fotoelétrico.',
+        pista_4: 'Recusei formalmente a presidência do Estado de Israel em 1952.',
+        pista_5: 'Publiquei quatro artigos revolucionários no meu "Ano Miraculoso" de 1905.',
+        pista_6: 'Tive cidadania alemã, suíça, austríaca e, por fim, americana.',
+        pista_7: 'Meu cérebro foi removido e preservado para estudos científicos sem a autorização da minha família.',
+        pista_8: 'Toquei violino desde a infância e era apaixonado por música clássica.',
+        pista_9: 'Ajudei a alertar o presidente Roosevelt sobre o potencial de armas nucleares.',
+        pista_10: 'Desenvolvi a Teoria da Relatividade Geral.'
+      },
+      {
+        categoria: 'Lugar',
+        resposta: 'Paris',
+        pista_1: 'Sou a capital da França e conhecida como a Cidade Luz.',
+        pista_2: 'Meu monumento mais famoso foi construído para a Exposição Universal de 1889.',
+        pista_3: 'O Rio Sena corta o meu território urbano.',
+        pista_4: 'Fui o cenário principal da Revolução Francesa em 1789.',
+        pista_5: 'Meu museu mais célebre é o Louvre, que abriga a famosa pintura Mona Lisa.',
+        pista_6: 'Tenho uma famosa avenida chamada Champs-Élysées.',
+        pista_7: 'Sediarei os Jogos Olímpicos de Verão em 2024.',
+        pista_8: 'Tenho uma catedral histórica que sofreu um grave incêndio em 2019 chamada Notre-Dame.',
+        pista_9: 'Possuo um monumento napoleônico chamado Arco do Triunfo.',
+        pista_10: 'Fiquei mundialmente conhecida por ser um símbolo de romance e alta costura.'
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Modelo_Pistas');
+    XLSX.writeFile(wb, 'modelo_cartas_pistas.xlsx');
   };
 
   // --- SELEÇÃO E INICIALIZAÇÃO DO JOGO ---
@@ -8525,19 +8565,27 @@ export default function App() {
             {cadTab === 'importar' && (
             <div className="tab-panel ativa">
             <div className="card">
-              <div className="sec">📥 Importar Cartas de Pistas via Planilha Excel</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                <div className="sec" style={{ margin: 0 }}>📥 Importar Cartas de Pistas via Planilha Excel</div>
+                <button 
+                  className="btn-ia" 
+                  style={{ background: 'linear-gradient(90deg, #db2777, #be185d)', fontSize: '0.8rem', padding: '6px 14px', margin: 0, width: 'auto' }}
+                  onClick={baixarModeloExcelPistas}
+                >
+                  ⬇ Baixar Planilha de Exemplo (.xlsx)
+                </button>
+              </div>
               <p style={{ color: '#c4b5fd', fontSize: '0.85rem', marginBottom: '14px' }}>
                 O sistema lê arquivos Excel (.xlsx, .xls) ou arquivos texto delimitados (.csv).
               </p>
 
               <div className="msg-warn" style={{ marginTop: '14px' }}>
                 <strong>Regras de Colunas:</strong><br />
-                A planilha precisa ter as seguintes colunas:<br />
-                <code>categoria | resposta | pista_1 | efeito_1 | pista_2 | efeito_2 | ... | pista_5 | efeito_5</code><br />
-                • categoria: Ex: Pessoa, Lugar, Coisa<br />
-                • resposta: O segredo/resposta correta<br />
-                • pista_X: O texto da pista (1 a 5)<br />
-                • efeito_X: Opcional - nenhum efeito, avance_1, avance_2, recue_1, recue_2, oponente_avance_1, oponente_recue_1, oponente_recue_2
+                A planilha precisa ter exatamente as seguintes colunas (sem colunas de efeitos):<br />
+                <code>categoria | resposta | pista_1 | pista_2 | pista_3 | ... | pista_10</code><br />
+                • categoria: Categoria da carta (Ex: Pessoa, Lugar, Objeto)<br />
+                • resposta: O segredo/resposta da rodada<br />
+                • pista_X: O texto da dica correspondente (1 a 10)
               </div>
 
               <div 
