@@ -377,6 +377,11 @@ const PISTAS_PADRAO = [
       { txt: 'Minha fórmula mais famosa relaciona energia, massa e velocidade da luz: E=mc².', efeito: 'avance_1' },
       { txt: 'Ganhei o Prêmio Nobel de Física em 1921 pela minha explicação do efeito fotoelétrico.', efeito: null },
       { txt: 'Recusei formalmente a presidência do Estado de Israel em 1952.', efeito: 'recue_1' },
+      { txt: 'Publiquei quatro artigos revolucionários no meu "Ano Miraculoso" de 1905.', efeito: null },
+      { txt: 'Tive cidadania alemã, suíça, austríaca e, por fim, americana.', efeito: 'avance_2' },
+      { txt: 'Meu cérebro foi removido e preservado para estudos científicos sem a autorização da minha família.', efeito: null },
+      { txt: 'Toquei violino desde a infância e era apaixonado por música clássica, especialmente Mozart.', efeito: 'oponente_recue_1' },
+      { txt: 'Ajudei a alertar o presidente Roosevelt sobre o potencial de armas nucleares em uma famosa carta.', efeito: null },
       { txt: 'Desenvolvi a Teoria da Relatividade Geral e sou famoso pelo meu cabelo despenteado e foto mostrando a língua.', efeito: null }
     ]
   },
@@ -384,11 +389,16 @@ const PISTAS_PADRAO = [
     cat: 'Lugar',
     resp: 'Paris',
     pistas: [
-      { txt: 'Sou uma capital europeia cortada pelo Rio Sena.', efeito: null },
+      { txt: 'Sou uma capital europeia cortada pelo charmoso Rio Sena.', efeito: null },
       { txt: 'Tenho um monumento de ferro construído originalmente para a Exposição Universal de 1889.', efeito: 'avance_2' },
       { txt: 'Sou mundialmente conhecida como a "Cidade Luz" e centro global de arte, moda e gastronomia.', efeito: null },
       { txt: 'Abrigo o Museu do Louvre, onde está exposta a famosa Mona Lisa de Leonardo da Vinci.', efeito: 'oponente_recue_1' },
-      { txt: 'Minha avenida mais charmosa é a Champs-Élysées e possuo o Arco do Triunfo.', efeito: null }
+      { txt: 'Meu monumento mais visitado é a Torre Eiffel, mas também possuo a Catedral de Notre-Dame.', efeito: null },
+      { txt: 'Fui palco de eventos históricos cruciais como a Queda da Bastilha na Revolução Francesa.', efeito: 'avance_1' },
+      { txt: 'Sou dividida historicamente entre a Margem Esquerda (Rive Gauche) e a Margem Direita (Rive Droite).', efeito: null },
+      { txt: 'Tenho um famoso arco triunfal encomendado por Napoleão Bonaparte após a vitória em Austerlitz.', efeito: 'recue_1' },
+      { txt: 'Sediarei e sediei importantes tratados de paz mundiais e jogos olímpicos ao longo da história moderna.', efeito: null },
+      { txt: 'Minha avenida mais charmosa e famosa é a Champs-Élysées e possuo o Arco do Triunfo.', efeito: null }
     ]
   },
   {
@@ -399,29 +409,44 @@ const PISTAS_PADRAO = [
       { txt: 'Meu primeiro modelo de grande sucesso moderno foi apresentado por Steve Jobs em 2007 (iPhone).', efeito: 'avance_1' },
       { txt: 'Minha tela é sensível ao toque (touchscreen) e rodo aplicativos (apps) diversos.', efeito: null },
       { txt: 'Muitas pessoas me desbloqueiam dezenas de vezes ao dia por reconhecimento facial ou biometria.', efeito: 'recue_1' },
-      { txt: 'Substituí câmeras fotográficas, calculadoras, agendas e tocadores de música em um único bolso.', efeito: null }
+      { txt: 'Substituí câmeras fotográficas, calculadoras, agendas e tocadores de música em um único bolso.', efeito: null },
+      { txt: 'Minhas baterias modernas são feitas de íons de lítio e costumam durar cerca de um ou dois dias de uso intenso.', efeito: 'avance_2' },
+      { txt: 'Consumo a maior parte do tempo diário de lazer da população através de redes sociais e vídeos curtos.', efeito: null },
+      { txt: 'Posso ser conectado a redes sem fio móveis como 4G e a moderna tecnologia 5G.', efeito: 'oponente_recue_2' },
+      { txt: 'Utilizo lojas virtuais como a Google Play Store e a Apple App Store para baixar softwares adicionais.', efeito: null },
+      { txt: 'Sou o dispositivo eletrônico de acesso à internet mais popular do planeta terra na atualidade.', efeito: null }
     ]
   },
   {
     cat: 'Ano',
     resp: '1969',
     pistas: [
-      { txt: 'Sou um ano da década de 60 do século XX.', efeito: null },
-      { txt: 'Neste ano ocorreu o lentário festival de música de Woodstock nos EUA.', efeito: 'avance_2' },
+      { txt: 'Sou um ano da década de 60 do século XX marcado por revoluções culturais e científicas.', efeito: null },
+      { txt: 'Neste ano ocorreu o lendário festival de música de Woodstock nos EUA.', efeito: 'avance_2' },
       { txt: 'O homem pisou na Lua pela primeira vez com a missão Apollo 11 de Neil Armstrong.', efeito: null },
       { txt: 'Foi o ano em que a rede precursora da internet, a ARPANET, realizou sua primeira conexão.', efeito: 'oponente_recue_2' },
-      { txt: 'No Brasil, foi editado o Ato Institucional Número Cinco (AI-5) no final do ano anterior, marcando este ano pelo auge da ditadura.', efeito: null }
+      { txt: 'No Brasil, foi quando o ditador Costa e Silva se afastou por doença e governou uma junta militar sob vigência do AI-5.', efeito: null },
+      { txt: 'Foi o ano do lançamento do álbum "Abbey Road" dos Beatles, com a icônica foto na faixa de pedestres.', efeito: 'avance_1' },
+      { txt: 'Ocorreu o histórico levante de Stonewall em Nova York, marco na luta pelos direitos LGBTQIA+.', efeito: null },
+      { txt: 'Foi fundada a emissora pública de televisão americana PBS neste mesmo ano.', efeito: 'recue_1' },
+      { txt: 'Teve início a construção do avião supersônico de passageiros Concorde, realizando seu voo inaugural.', efeito: null },
+      { txt: 'Fiquei eternamente conhecido na cultura pop pelo pouso lunar comandado pela frase "Um pequeno passo para o homem, um salto gigante para a humanidade".', efeito: null }
     ]
   },
   {
     cat: 'Animal',
     resp: 'Ornitorrinco',
     pistas: [
-      { txt: 'Sou um mamífero semiaquático nativo do leste da Austrália.', efeito: null },
+      { txt: 'Sou um mamífero semiaquático fascinante nativo do leste da Austrália.', efeito: null },
       { txt: 'Sou uma das poucas espécies de mamíferos que põem ovos (monotremados).', efeito: 'avance_2' },
       { txt: 'Os machos possuem um esporão venenoso nas patas traseiras capaz de causar dores intensas.', efeito: null },
       { txt: 'Possuo bico de pato, rabo de castor e patas com membranas interdigitais.', efeito: 'recue_2' },
-      { txt: 'Inspirei o famoso agente secreto "Perry" em um desenho animado moderno da Disney.', efeito: null }
+      { txt: 'Sou um animal carnívoro que se alimenta de larvas, insectos e pequenos crustáceos no fundo dos rios.', efeito: null },
+      { txt: 'Sou um dos símbolos animais mais conhecidos do continente australiano e ilustro uma moeda de 20 centavos lá.', efeito: 'avance_1' },
+      { txt: 'Não possuo mamas convencionais; meu leite escorre pelos poros da pele da barriga para os filhotes lamberem.', efeito: null },
+      { txt: 'Utilizo a eletrorrecepção para detectar presas na água escura sem precisar abrir os olhos ou ouvidos.', efeito: 'oponente_recue_1' },
+      { txt: 'Meu genoma é um quebra-cabeça evolutivo contendo traços de répteis, aves e mamíferos.', efeito: null },
+      { txt: 'Inspirei o famoso agente secreto e detetive "Perry" em um desenho animado moderno da Disney.', efeito: null }
     ]
   }
 ];
@@ -538,13 +563,26 @@ export default function App() {
   const [modoJogo, setModoJogo] = useState('duelo'); // 'duelo' | 'pistas' | 'imacao'
   const [cartasPistas, setCartasPistas] = useState(() => {
     const saved = localStorage.getItem('dm_pistas');
-    return saved ? JSON.parse(saved) : PISTAS_PADRAO;
+    const brutas = saved ? JSON.parse(saved) : PISTAS_PADRAO;
+    return brutas.map(carta => {
+      const pistas = [...(carta.pistas || [])];
+      while (pistas.length < 10) {
+        pistas.push({
+          txt: `Dica extra sobre o segredo: ${carta.resp}`,
+          efeito: null
+        });
+      }
+      return {
+        ...carta,
+        pistas: pistas.slice(0, 10)
+      };
+    });
   });
   const [cartaPistaAtual, setCartaPistaAtual] = useState(0);
   const [pistasFila, setPistasFila] = useState([]);
   const [pistasPontuacao, setPistasPontuacao] = useState([1, 1]); // Posições no tabuleiro (1 a 30)
   const [pistasEquipeVez, setPistasEquipeVez] = useState(0); // 0 ou 1
-  const [pistasReveladas, setPistasReveladas] = useState([false, false, false, false, false]);
+  const [pistasReveladas, setPistasReveladas] = useState([false, false, false, false, false, false, false, false, false, false]);
   const [pistasTentouAdivinhar, setPistasTentouAdivinhar] = useState([false, false]);
   const [pistasEfeitoAtivo, setPistasEfeitoAtivo] = useState(null); // { equipe, desc, tipo }
   const [pistasFluxoPalpite, setPistasFluxoPalpite] = useState(null); // null | 'palpite' | 'revelado'
@@ -690,10 +728,10 @@ export default function App() {
       dueloMaxJogadoresRef.current = [0, 0];
       setDueloConectados([0, 0]);
 
-      // Resetar Três Pistas
+      // Resetar Jogo de Pistas
       setPistasPontuacao([1, 1]);
       setPistasEquipeVez(0);
-      setPistasReveladas([false, false, false, false, false]);
+      setPistasReveladas([false, false, false, false, false, false, false, false, false, false]);
       setPistasTentouAdivinhar([false, false]);
       setPistasEfeitoAtivo(null);
       setPistasFluxoPalpite(null);
@@ -2044,8 +2082,8 @@ export default function App() {
   const [cadGerenciadorAba, setCadGerenciadorAba] = useState('duelo'); // 'duelo' | 'pistas' | 'imacao'
   const [cadPistasCat, setCadPistasCat] = useState('');
   const [cadPistasResp, setCadPistasResp] = useState('');
-  const [cadPistasTextos, setCadPistasTextos] = useState(['', '', '', '', '']);
-  const [cadPistasEfeitos, setCadPistasEfeitos] = useState([null, null, null, null, null]);
+  const [cadPistasTextos, setCadPistasTextos] = useState(['', '', '', '', '', '', '', '', '', '']);
+  const [cadPistasEfeitos, setCadPistasEfeitos] = useState([null, null, null, null, null, null, null, null, null, null]);
 
   // --- ESTADOS DO CADASTRO MANUAL DO IMAGEM E AÇÃO ---
   const [cadImAcaoNome, setCadImAcaoNome] = useState('');
@@ -4003,9 +4041,9 @@ export default function App() {
         + `  }\n`
         + `]`;
 
-      // Prompt de Três Pistas
-      const promptBasePistas = `Analise o conteúdo fornecido (ou o tema informado) e gere exatamente ${iaQtd} cartas de pistas estruturadas para o jogo de tabuleiro clássico Três Pistas (estilo Perfil) sobre o tema "${materia}".\n`
-        + `Cada carta deve possuir uma Categoria ampla (ex: Pessoa, Lugar, Animal, Coisa, Ano, Objeto, Evento), um Segredo/Resposta exata e exatamente 5 pistas textuais associadas, organizadas em ordem de dificuldade estritamente decrescente (a Pista 1 é muito difícil/misteriosa, a Pista 5 é muito fácil e quase entrega a resposta de bandeja).\n\n`
+      // Prompt do Jogo das Pistas
+      const promptBasePistas = `Analise o conteúdo fornecido (ou o tema informado) e gere exatamente ${iaQtd} cartas de pistas estruturadas para o jogo de tabuleiro clássico Jogo das Pistas (estilo Perfil) sobre o tema "${materia}".\n`
+        + `Cada carta deve possuir uma Categoria ampla (ex: Pessoa, Lugar, Animal, Coisa, Ano, Objeto, Evento), um Segredo/Resposta exata e exatamente 10 pistas textuais associadas, organizadas em ordem de dificuldade estritamente decrescente (a Pista 1 é extremamente difícil/misteriosa, a Pista 10 é muito fácil e quase entrega a resposta de bandeja).\n\n`
         + (iaPromptInstrucao.trim() ? `INSTRUÇÃO DE PERSONALIZAÇÃO ADICIONAL DO USUÁRIO QUE DEVE SER SEGUIDA RIGOROSAMENTE:\n"${iaPromptInstrucao.trim()}"\n\n` : '')
         + `Você também pode, opcionalmente, associar um efeito clássico de tabuleiro a algumas pistas normais da carta para criar pistas bônus ou penalidades surpresa! Os efeitos válidos em JSON são: "avance_1", "avance_2", "recue_1", "recue_2", "oponente_avance_1", "oponente_recue_1", "oponente_recue_2". Se uma pista for apenas dica normal sem efeito, defina-a com "efeito": null.\n\n`
         + `Responda unicamente no formato JSON estrito, sem markdown, sem textos adicionais, respeitando esta estrutura exata:\n`
@@ -4014,11 +4052,16 @@ export default function App() {
         + `    "cat": "Categoria",\n`
         + `    "resp": "Segredo/Resposta",\n`
         + `    "pistas": [\n`
-        + `      { "txt": "Pista 1 super difícil", "efeito": null },\n`
-        + `      { "txt": "Pista 2 difícil", "efeito": "avance_1" },\n`
-        + `      { "txt": "Pista 3 média", "efeito": null },\n`
-        + `      { "txt": "Pista 4 fácil", "efeito": "recue_1" },\n`
-        + `      { "txt": "Pista 5 muito óbvia", "efeito": null }\n`
+        + `      { "txt": "Pista 1 extremamente difícil", "efeito": null },\n`
+        + `      { "txt": "Pista 2 muito difícil", "efeito": "avance_1" },\n`
+        + `      { "txt": "Pista 3 difícil", "efeito": null },\n`
+        + `      { "txt": "Pista 4 um pouco difícil", "efeito": null },\n`
+        + `      { "txt": "Pista 5 média", "efeito": "recue_1" },\n`
+        + `      { "txt": "Pista 6 regular", "efeito": null },\n`
+        + `      { "txt": "Pista 7 fácil", "efeito": null },\n`
+        + `      { "txt": "Pista 8 mais fácil", "efeito": "avance_2" },\n`
+        + `      { "txt": "Pista 9 muito fácil", "efeito": null },\n`
+        + `      { "txt": "Pista 10 muito óbvia", "efeito": null }\n`
         + `    ]\n`
         + `  }\n`
         + `]`;
@@ -4194,7 +4237,7 @@ export default function App() {
               const validadasPistas = parsed.map(c => {
                 if (!c.cat || !c.resp || !Array.isArray(c.pistas) || c.pistas.length < 3) return null;
                 
-                // Normaliza as pistas (devem ser pelo menos 3 válidas, idealmente 5)
+                // Normaliza as pistas (devem ser pelo menos 3 válidas, idealmente 10)
                 const pistasNormalizadas = c.pistas.map(p => {
                   if (!p || !p.txt) return null;
                   return {
@@ -4205,8 +4248,8 @@ export default function App() {
 
                 if (pistasNormalizadas.length < 3) return null;
 
-                // Preenche se tiver menos que 5 pistas
-                while (pistasNormalizadas.length < 5) {
+                // Preenche se tiver menos que 10 pistas
+                while (pistasNormalizadas.length < 10) {
                   pistasNormalizadas.push({
                     txt: `Dica extra sobre o segredo: ${c.resp}`,
                     efeito: null
@@ -4216,14 +4259,14 @@ export default function App() {
                 return {
                   cat: String(c.cat).trim(),
                   resp: String(c.resp).trim(),
-                  pistas: pistasNormalizadas.slice(0, 5)
+                  pistas: pistasNormalizadas.slice(0, 10)
                 };
               }).filter(Boolean);
 
               if (!validadasPistas.length) throw new Error('Nenhuma carta de pistas gerada atendeu aos critérios de validação.');
 
               setIaPistasGeradas(validadasPistas);
-              setIaFeedback({ txt: `✅ ${validadasPistas.length} cartas de Três Pistas geradas com sucesso pelo modelo ${modelo}!`, tipo: 'ok' });
+              setIaFeedback({ txt: `✅ ${validadasPistas.length} cartas de Jogo das Pistas geradas com sucesso pelo modelo ${modelo}!`, tipo: 'ok' });
               setIaLoading(false);
               return;
             } else if (iaAba === 'imacao') {
@@ -4590,7 +4633,7 @@ export default function App() {
     } else {
       setCartasPistas(prev => [...prev, ...iaPistasGeradas]);
     }
-    setIaFeedback({ txt: `✅ ${iaPistasGeradas.length} cartas de Três Pistas importadas com sucesso ao banco!`, tipo: 'ok' });
+    setIaFeedback({ txt: `✅ ${iaPistasGeradas.length} cartas de Jogo das Pistas importadas com sucesso ao banco!`, tipo: 'ok' });
     setIaPistasGeradas([]);
   };
 
@@ -4690,7 +4733,7 @@ export default function App() {
       return;
     }
     if (cadPistasTextos.some(t => !t.trim())) {
-      alert('Por favor, preencha o texto de todas as 5 pistas!');
+      alert('Por favor, preencha o texto de todas as 10 pistas!');
       return;
     }
 
@@ -4708,8 +4751,8 @@ export default function App() {
     // Reseta formulário
     setCadPistasCat('');
     setCadPistasResp('');
-    setCadPistasTextos(['', '', '', '', '']);
-    setCadPistasEfeitos([null, null, null, null, null]);
+    setCadPistasTextos(['', '', '', '', '', '', '', '', '', '']);
+    setCadPistasEfeitos([null, null, null, null, null, null, null, null, null, null]);
     
     alert('Carta de pistas cadastrada com sucesso!');
   };
@@ -4876,7 +4919,7 @@ export default function App() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e) {
-      alert('Erro ao exportar backup de Três Pistas: ' + e.message);
+      alert('Erro ao exportar backup de Jogo das Pistas: ' + e.message);
     }
   };
 
@@ -4889,12 +4932,12 @@ export default function App() {
       try {
         const json = JSON.parse(evt.target.result);
         if (!json || !Array.isArray(json.cartasPistas)) {
-          throw new Error('Arquivo de backup inválido para Três Pistas.');
+          throw new Error('Arquivo de backup inválido para Jogo das Pistas.');
         }
 
         const importadas = json.cartasPistas;
         const confirmacao = window.confirm(
-          `Backup de Três Pistas lido com sucesso!\n` +
+          `Backup de Jogo das Pistas lido com sucesso!\n` +
           `Encontramos ${importadas.length} cartas no backup.\n\n` +
           `Clique em OK para MESCLAR estas cartas com o banco atual.\n` +
           `Clique em CANCELAR para SUBSTITUIR completamente o banco atual pelo backup.`
@@ -4902,12 +4945,12 @@ export default function App() {
 
         if (confirmacao) {
           setCartasPistas([...cartasPistas, ...importadas]);
-          alert('Cartas de Três Pistas mescladas com sucesso!');
+          alert('Cartas de Jogo das Pistas mescladas com sucesso!');
         } else {
-          const subConfirm = window.confirm('ATENÇÃO: Você escolheu substituir. Todas as cartas de Três Pistas atuais serão permanentemente apagadas. Continuar?');
+          const subConfirm = window.confirm('ATENÇÃO: Você escolheu substituir. Todas as cartas de Jogo das Pistas atuais serão permanentemente apagadas. Continuar?');
           if (subConfirm) {
             setCartasPistas(importadas);
-            alert('Banco de Três Pistas substituído com sucesso!');
+            alert('Banco de Jogo das Pistas substituído com sucesso!');
           }
         }
       } catch (err) {
@@ -5148,7 +5191,7 @@ export default function App() {
         `Atualizado em: ${dados.updatedAt ? new Date(dados.updatedAt).toLocaleString() : 'N/A'}\n\n` +
         `Matérias cadastradas: ${dados.materias?.length || 0}\n` +
         `Perguntas do Quiz: ${dados.perguntas?.length || 0}\n` +
-        `Cartas de Três Pistas: ${dados.cartasPistas?.length || 0}\n` +
+        `Cartas do Jogo das Pistas: ${dados.cartasPistas?.length || 0}\n` +
         `Cartas de Imagem e Ação: ${dados.cartasImAcao?.length || 0}\n` +
         `Imagens da Memória: ${dados.memoImagensPool?.length || 0}\n\n` +
         `Clique em OK para MESCLAR estes dados online aos seus dados locais do navegador.\n` +
@@ -5201,7 +5244,7 @@ export default function App() {
         alert('Dados da nuvem mesclados com sucesso!');
       } else {
         // SUBSTITUIR
-        const subConfirm = window.confirm('ATENÇÃO: Você escolheu SUBSTITUIR. Todos os dados atuais do navegador (Perguntas, Três Pistas, Imagem e Ação e Memória) serão permanentemente apagados e substituídos pelos dados da nuvem. Continuar?');
+        const subConfirm = window.confirm('ATENÇÃO: Você escolheu SUBSTITUIR. Todos os dados atuais do navegador (Perguntas, Jogo das Pistas, Imagem e Ação e Memória) serão permanentemente apagados e substituídos pelos dados da nuvem. Continuar?');
         if (subConfirm) {
           setPerguntas(dados.perguntas || []);
           setMaterias(dados.materias || []);
@@ -6270,8 +6313,8 @@ export default function App() {
           ...carta,
           pistaBonusIdx: indexRevezado
         };
-        // Revesa o index da pista bônus (0 a 4) em ciclo para a próxima
-        indexRevezado = (indexRevezado + 1) % 5;
+        // Revesa o index da pista bônus (0 a 9) em ciclo para a próxima
+        indexRevezado = (indexRevezado + 1) % 10;
         return cartaComBonus;
       } else {
         return {
@@ -6288,7 +6331,7 @@ export default function App() {
     
     // Configura a primeira carta e limpa estados (Nenhuma pista começa revelada)
     setCartaPistaAtual(1);
-    setPistasReveladas([false, false, false, false, false]);
+    setPistasReveladas([false, false, false, false, false, false, false, false, false, false]);
     setPistasTentouAdivinhar([false, false]);
     setPistasEfeitoAtivo(null);
     setPistasFluxoPalpite(null);
@@ -6417,8 +6460,8 @@ export default function App() {
     const carta = pistasFila[cartaPistaAtual - 1] || cartasPistas[0];
     const temBonus = carta && carta.pistaBonusIdx !== null && carta.pistaBonusIdx !== undefined;
     
-    // Total de pistas normais de dica (4 se tem bônus, 5 se não)
-    const totalPistasNormais = temBonus ? 4 : 5;
+    // Total de pistas normais de dica (9 se tem bônus, 10 se não)
+    const totalPistasNormais = temBonus ? 9 : 10;
     
     // Quantidade de pistas normais que foram de fato reveladas
     const totalPistasNormaisReveladas = pistasReveladas.filter((rev, idx) => {
@@ -6472,7 +6515,7 @@ export default function App() {
     const oponenteIndex = pistasEquipeVez === 0 ? 1 : 0;
     const carta = pistasFila[cartaPistaAtual - 1] || cartasPistas[0];
     const temBonus = carta && carta.pistaBonusIdx !== null && carta.pistaBonusIdx !== undefined;
-    const totalPistasNormais = temBonus ? 4 : 5;
+    const totalPistasNormais = temBonus ? 9 : 10;
     const totalPistasNormaisReveladas = pistasReveladas.filter((rev, idx) => {
       if (!rev) return false;
       if (temBonus && idx === carta.pistaBonusIdx) return false;
@@ -6496,19 +6539,23 @@ export default function App() {
     if (pistasTimerIntRef.current) clearInterval(pistasTimerIntRef.current);
     setPistasTimerSeg(15); // 15 segundos regulamentares para resposta oral
     pistasTimerIntRef.current = setInterval(() => {
-      setPistasTimerSeg(prev => {
-        if (prev === null) return null;
-        if (prev <= 1) {
-          clearInterval(pistasTimerIntRef.current);
-          tratarEsgotamentoTempoPalpitePistas();
-          return 0;
-        }
-        if (prev <= 6) {
-          playSound('tick');
-        }
-        return prev - 1;
-      });
+      setPWPistasTimerSeg();
     }, 1000);
+  };
+
+  const setPWPistasTimerSeg = () => {
+    setPistasTimerSeg(prev => {
+      if (prev === null) return null;
+      if (prev <= 1) {
+        clearInterval(pistasTimerIntRef.current);
+        tratarEsgotamentoTempoPalpitePistas();
+        return 0;
+      }
+      if (prev <= 6) {
+        playSound('tick');
+      }
+      return prev - 1;
+    });
   };
 
   const passarVezPistas = () => {
@@ -6527,7 +6574,7 @@ export default function App() {
       finalizarPartidaPistas();
     } else {
       setCartaPistaAtual(prev => prev + 1);
-      setPistasReveladas([false, false, false, false, false]);
+      setPistasReveladas([false, false, false, false, false, false, false, false, false, false]);
       setPistasTentouAdivinhar([false, false]);
       setPistasEfeitoAtivo(null);
       setPistasVezPassada(false);
@@ -6786,7 +6833,7 @@ export default function App() {
         {iaAba === 'pistas' && iaPistasGeradas.length > 0 && (
           <div className="card" id="ia-pistas-resultado" style={{ marginTop: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'space-between', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <div className="sec" style={{ margin: 0 }}>Cartas de Três Pistas Formuladas pela IA</div>
+              <div className="sec" style={{ margin: 0 }}>Cartas de Jogo das Pistas Formuladas pela IA</div>
               <div className="ia-counter" style={{ background: '#7c3aed', color: '#fff', padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>
                 {iaPistasGeradas.length} carta(s) prontas
               </div>
@@ -7032,7 +7079,7 @@ export default function App() {
             </div>
 
 
-            {/* Card Três Pistas */}
+            {/* Card Jogo das Pistas */}
             <div className="card" style={{ 
               flex: 1, 
               minWidth: '280px', 
@@ -7050,9 +7097,9 @@ export default function App() {
             }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                 <div style={{ fontSize: '2.6rem', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(219, 39, 119, 0.3))' }}>🗺️</div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#db2777', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo das Três Pistas</h3>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#db2777', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo das Pistas</h3>
                 <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 16px', minHeight: '66px' }}>
-                  Jogo clássico de tabuleiro estilo Perfil. Revele até 5 pistas, movimente seus peões e tome cuidado com bônus e penalidades!
+                  Jogo clássico de tabuleiro estilo Perfil. Revele até 10 pistas, movimente seus peões e tome cuidado com bônus e penalidades!
                 </p>
               </div>
               <button 
@@ -7074,9 +7121,9 @@ export default function App() {
                   gap: '6px',
                   margin: 0
                 }} 
-                onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('pistas-nomes'); }}
+                onClick={() => { playSound('click'); setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('pistas-nomes'); }}
               >
-                ▶ Jogar Três Pistas
+                ▶ Jogar Jogo das Pistas
               </button>
             </div>
 
@@ -7658,7 +7705,7 @@ export default function App() {
               style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'pistas' ? '#7c3aed' : 'transparent', color: cadGerenciadorAba === 'pistas' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
               onClick={() => setCadGerenciadorAba('pistas')}
             >
-              🗺️ Cartas de Três Pistas
+              🗺️ Cartas de Pistas
             </button>
             <button 
               style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'imacao' ? '#10b981' : 'transparent', color: cadGerenciadorAba === 'imacao' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
@@ -8132,7 +8179,7 @@ export default function App() {
             {cadTab === 'manual' && (
             <div className="tab-panel ativa">
             <div className="card">
-              <div className="sec">➕ Cadastrar Carta de Três Pistas</div>
+              <div className="sec">➕ Cadastrar Carta de Pistas</div>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                 <div>
@@ -8153,12 +8200,12 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 5 inputs para as pistas */}
+              {/* 10 inputs para as pistas */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {Array.from({ length: 5 }).map((_, idx) => (
+                {Array.from({ length: 10 }).map((_, idx) => (
                   <div key={idx} style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#a78bfa' }}>Pista {idx + 1} (Vale {5 - idx} casas)</span>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#a78bfa' }}>Pista {idx + 1} (Vale {10 - idx} casas)</span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
                       <input 
@@ -8378,9 +8425,9 @@ export default function App() {
             {cadTab === 'backup' && (
               <div className="tab-panel ativa">
                 <div className="card">
-                  <div className="sec">💾 Backup e Restauração de Três Pistas</div>
+                  <div className="sec">💾 Backup e Restauração de Pistas</div>
                   <p style={{ color: '#c4b5fd', fontSize: '0.85rem', marginBottom: '20px' }}>
-                    Exporte todo o seu banco de cartas personalizadas de Três Pistas para salvaguardar o seu trabalho ou compartilhe com outros computadores.
+                    Exporte todo o seu banco de cartas personalizadas de Pistas para salvaguardar o seu trabalho ou compartilhe com outros computadores.
                   </p>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
@@ -8388,7 +8435,7 @@ export default function App() {
                     <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
                       <h3 style={{ fontSize: '1.2rem', color: '#60a5fa', margin: '0 0 10px 0' }}>📤 Exportar Backup</h3>
                       <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginBottom: '16px' }}>
-                        Gera um arquivo JSON contendo todas as suas {cartasPistas.length} cartas de Três Pistas cadastradas.
+                        Gera um arquivo JSON contendo todas as suas {cartasPistas.length} cartas de Jogo das Pistas cadastradas.
                       </p>
                       <button 
                         className="btn-start" 
@@ -10632,7 +10679,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* 9. TELA CONFIGURAÇÃO DE NOMES TRÊS PISTAS */}
+      {/* 9. TELA CONFIGURAÇÃO DE NOMES JOGO DE PISTAS */}
       <div id="tela-pistas-nomes" className={`tela ${tela === 'pistas-nomes' ? 'ativa' : ''}`} style={{ alignItems: 'center', textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginBottom: '14px' }}>
           <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ margin: 0 }}>← Voltar ao Menu</button>
@@ -10641,7 +10688,7 @@ export default function App() {
           </button>
         </div>
         <div style={{ fontSize: '4rem', filter: 'drop-shadow(0 0 25px rgba(236, 72, 153, 0.45))', margin: '20px 0', width: '100%' }}>🗺️</div>
-        <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%' }}>Configurar Equipes (Três Pistas)</h2>
+        <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%' }}>Configurar Equipes (Jogo das Pistas)</h2>
         <p style={{ color: '#c4b5fd', fontSize: '1.05rem', textAlign: 'center', width: '100%', marginTop: '4px' }}>Informe o nome das duas equipes rivais que disputarão o tabuleiro</p>
 
         <div className="dupla" style={{ margin: '30px auto', width: '100%', maxWidth: '600px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
@@ -10773,7 +10820,7 @@ export default function App() {
               <div className="pl-pts">Casa {pistasPontuacao[0]} / 30</div>
             </div>
             <div className="rod-info">
-              Três Pistas 🗺️
+              Jogo das Pistas 🗺️
             </div>
             <div className="pl-bloco pl-j2">
               <div className="pl-nome">🩷 {nomeJ2}</div>
@@ -10853,7 +10900,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Grid das 5 Pistas */}
+                    {/* Grid das 10 Pistas */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
                       {carta.pistas.map((p, idx) => {
                         const revelada = pistasReveladas[idx];
@@ -10942,7 +10989,7 @@ export default function App() {
                       
                       {(() => {
                         const temBonus = carta.pistaBonusIdx !== null && carta.pistaBonusIdx !== undefined;
-                        const totalPistasNormais = temBonus ? 4 : 5;
+                        const totalPistasNormais = temBonus ? 9 : 10;
                         const totalPistasNormaisReveladas = pistasReveladas.filter((rev, idx) => {
                           if (!rev) return false;
                           if (temBonus && idx === carta.pistaBonusIdx) return false;
@@ -11081,7 +11128,7 @@ export default function App() {
                         className="btn-resetar" 
                         style={{ width: 'auto', padding: '6px 16px', fontSize: '0.8rem', marginTop: '10px' }}
                         onClick={() => {
-                          if (window.confirm('Deseja realmente abandonar a partida atual de Três Pistas e voltar ao menu?')) {
+                          if (window.confirm('Deseja realmente abandonar a partida atual de Jogo das Pistas e voltar ao menu?')) {
                             irParaTela('menu');
                           }
                         }}

@@ -62,7 +62,7 @@ test.describe('Arena de Jogos - Testes E2E com Playwright', () => {
     const botoesAcao = [
       { text: '▶ Jogar Duelo', name: 'Jogar Duelo' },
       { text: '▶ Jogar Cabo de Guerra', name: 'Jogar Cabo de Guerra' },
-      { text: '▶ Jogar Três Pistas', name: 'Jogo das Três Pistas' },
+      { text: '▶ Jogar Jogo das Pistas', name: 'Jogo das Pistas' },
       { text: '▶ Jogar Imagem e Ação', name: 'Imagem e Ação' },
       { text: '▶ Jogar Memória', name: 'Jogo da Memória' }
     ];
