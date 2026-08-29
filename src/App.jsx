@@ -3231,21 +3231,36 @@ export default function App() {
     const respostasAzul = dueloRespostasRodada.filter(r => Number(r.team) === 0 && r.qIndex !== -1);
     const respostasRosa = dueloRespostasRodada.filter(r => Number(r.team) === 1 && r.qIndex !== -1);
 
-    // Soma de pontos do Time 0 de forma proporcional ao número máximo de questões
+    // Contagem de aparelhos conectados por equipe (evita divisão por zero)
+    const aparelhosAzul = Math.max(1, dueloConectados[0] || 1);
+    const aparelhosRosa = Math.max(1, dueloConectados[1] || 1);
+
+    // Valor base de cada questão (ex: total de 100 pontos dividido pelo total de questões)
+    const fatorPorQuestao = questions.length > 0 ? (100 / questions.length) : 5;
+
+    // Soma de pontos do Time 0 proporcional aos aparelhos conectados (acertos somam, erros subtraem)
     let pontosAzul = 0;
-    const fatorAzul = questions.length > 0 ? 100 / questions.length : 5;
     respostasAzul.forEach(r => {
       if (r.correct) {
-        pontosAzul += (fatorAzul + (r.speedBonus ? (r.speedBonus * (fatorAzul / 10)) : 0));
+        const bonus = r.speedBonus ? (r.speedBonus * (fatorPorQuestao / 10)) : 0;
+        pontosAzul += (fatorPorQuestao + bonus) / aparelhosAzul;
+      } else {
+        // Cada erro desconta pontos da equipe proporcionalmente aos aparelhos
+        const perda = (fatorPorQuestao * 0.5) / aparelhosAzul;
+        pontosAzul = Math.max(0, pontosAzul - perda);
       }
     });
 
-    // Soma de pontos do Time 1 de forma proporcional ao número máximo de questões
+    // Soma de pontos do Time 1 proporcional aos aparelhos conectados (acertos somam, erros subtraem)
     let pontosRosa = 0;
-    const fatorRosa = questions.length > 0 ? 100 / questions.length : 5;
     respostasRosa.forEach(r => {
       if (r.correct) {
-        pontosRosa += (fatorRosa + (r.speedBonus ? (r.speedBonus * (fatorRosa / 10)) : 0));
+        const bonus = r.speedBonus ? (r.speedBonus * (fatorPorQuestao / 10)) : 0;
+        pontosRosa += (fatorPorQuestao + bonus) / aparelhosRosa;
+      } else {
+        // Cada erro desconta pontos da equipe proporcionalmente aos aparelhos
+        const perda = (fatorPorQuestao * 0.5) / aparelhosRosa;
+        pontosRosa = Math.max(0, pontosRosa - perda);
       }
     });
 
@@ -3254,15 +3269,15 @@ export default function App() {
     const maxQRosa = respostasRosa.length > 0 ? Math.max(...respostasRosa.map(r => r.qIndex)) : -1;
 
     // LOG DE DIAGNÓSTICO DO SCORE
-    console.log(`[Score Computation] J1 (Azul): respostas válidas=${respostasAzul.length} | pontos calculados=${pontosAzul} | max index respondido=${maxQAzul}`);
-    console.log(`[Score Computation] J2 (Rosa): respostas válidas=${respostasRosa.length} | pontos calculados=${pontosRosa} | max index respondido=${maxQRosa}`);
+    console.log(`[Score Computation] J1 (Azul): ${respostasAzul.length} respostas, ${aparelhosAzul} aparelhos | score=${pontosAzul.toFixed(1)} | maxQ=${maxQAzul}`);
+    console.log(`[Score Computation] J2 (Rosa): ${respostasRosa.length} respostas, ${aparelhosRosa} aparelhos | score=${pontosRosa.toFixed(1)} | maxQ=${maxQRosa}`);
 
     // Um time terminou se algum aluno respondeu a última pergunta do banco
     const terminadoAzul = maxQAzul >= questions.length - 1;
     const terminadoRosa = maxQRosa >= questions.length - 1;
 
-    let scoreAzul = Math.min(100, pontosAzul);
-    let scoreRosa = Math.min(100, pontosRosa);
+    let scoreAzul = Math.max(0, Math.min(100, Math.round(pontosAzul)));
+    let scoreRosa = Math.max(0, Math.min(100, Math.round(pontosRosa)));
 
     let cordaPos = dueloEstado.cordaPos !== undefined ? dueloEstado.cordaPos : 50;
     if (dueloModoJogo === 'cabodeguerra') {
@@ -6398,6 +6413,11 @@ export default function App() {
     const limiteEficaz = limite !== null ? limite : 0;
     let alguemAcertou = false;
 
+    // Escala menor de pontuação (base 100 ao invés de 1000)
+    const basePontos = 100;
+    const basePerdaErro = 50;
+    const basePerdaTempo = 30;
+
     // Calcular quem pontua nas de Múltipla Escolha e V/F
     if (p.tipo === 'mc' || p.tipo === 'vf') {
       const respostaCerta = p.resp;
@@ -6408,12 +6428,12 @@ export default function App() {
           const acertou = String(respJ[j]) === String(respostaCerta);
           if (acertou) {
             alguemAcertou = true;
-            // Fórmula Kahoot: 1000 a 500 pontos dependendo do tempo gasto individual
-            let ganho = 1000;
+            // Fórmula proporcional ao tempo: 100 a 50 pontos
+            let ganho = basePontos;
             if (limiteEficaz > 0) {
               const tempoGasto = temposRespRef.current[j] !== null ? temposRespRef.current[j] : limiteEficaz;
               const proporcao = Math.max(0, Math.min(1, tempoGasto / limiteEficaz));
-              ganho = Math.round((1 - (proporcao / 2)) * 1000);
+              ganho = Math.round((1 - (proporcao / 2)) * basePontos);
             }
             // Dobrar se pontos duplos estiver ativo na rodada (moderador)!
             if (efeitosRodada.rodadaDupla) {
@@ -6424,16 +6444,14 @@ export default function App() {
             }
             novasPontuacoes[j] += ganho;
           } else {
-            // Errou a resposta
-            if (modoApostas) {
-              const perda = Math.round(1000 * apostaMult);
-              novasPontuacoes[j] = Math.max(0, novasPontuacoes[j] - perda);
-            }
+            // Errou a resposta: perde pontos!
+            const perda = Math.round(basePerdaErro * apostaMult);
+            novasPontuacoes[j] = Math.max(0, novasPontuacoes[j] - perda);
           }
         } else {
-          // Não respondeu (tempo esgotado no Modo Apostas)
-          if (modoApostas && efeitosRodada.bloqueado !== j) {
-            const perda = Math.round(1000 * apostaMult);
+          // Não respondeu (tempo esgotado): perde pontos se não estiver bloqueado
+          if (efeitosRodada.bloqueado !== j) {
+            const perda = Math.round(basePerdaTempo * apostaMult);
             novasPontuacoes[j] = Math.max(0, novasPontuacoes[j] - perda);
           }
         }
@@ -6576,10 +6594,12 @@ export default function App() {
     setRodDescanso(true);
     const p = fila[rodAtual - 1];
     const novasPontuacoes = [...pts];
+    const baseVelocidade = 120; // Escala menor de velocidade (120 em vez de 1200)
+    const basePerdaVelocidade = 60;
 
     if (acertou && velocBateu !== null) {
       playSound('success');
-      let ganho = 1200; // Pontuação fixa de velocidade
+      let ganho = baseVelocidade;
       // Dobrar se pontos duplos estiver ativo na rodada (moderador)!
       if (efeitosRodada.rodadaDupla) {
         ganho *= 2;
@@ -6592,9 +6612,9 @@ export default function App() {
       setPts(novasPontuacoes);
     } else {
       playSound('error');
-      if (modoApostas && velocBateu !== null) {
-        const apostaMult = (apostasRodada[velocBateu] !== null) ? apostasRodada[velocBateu] : 1.0;
-        const perda = Math.round(1000 * apostaMult);
+      if (velocBateu !== null) {
+        const apostaMult = (modoApostas && apostasRodada[velocBateu] !== null) ? apostasRodada[velocBateu] : 1.0;
+        const perda = Math.round(basePerdaVelocidade * apostaMult);
         novasPontuacoes[velocBateu] = Math.max(0, novasPontuacoes[velocBateu] - perda);
         setPts(novasPontuacoes);
       }
@@ -6629,34 +6649,39 @@ export default function App() {
     const limite = (p && p.tempo !== undefined && p.tempo !== null) ? p.tempo : (globalTimerEnabled ? globalTempo : null);
     const limiteEficaz = limite !== null ? limite : 0;
 
+    const basePontos = 100;
+    const basePerdaErro = 50;
+
     let alguemAcertou = false;
     for (let j = 0; j < 2; j++) {
       const resp = respostasFinais[j];
       const acertou = String(resp) === String(respostaCerta);
       const apostaMult = (modoApostas && apostasRodada[j] !== null) ? apostasRodada[j] : 1.0;
 
-      if (acertou) {
-        alguemAcertou = true;
-        // Fórmula Kahoot: 1000 a 500 pontos dependendo do tempo gasto individual
-        let ganho = 1000;
-        if (limiteEficaz > 0) {
-          const tempoGastoIndiv = temposRespRef.current[j] !== null ? temposRespRef.current[j] : tempoGasto;
-          const proporcao = Math.max(0, Math.min(1, tempoGastoIndiv / limiteEficaz));
-          ganho = Math.round((1 - (proporcao / 2)) * 1000);
-        }
-        // Dobrar se pontos duplos estiver ativo na rodada (moderador)!
-        if (efeitosRodada.rodadaDupla) {
-          ganho *= 2;
-        }
-        if (modoApostas) {
-          ganho = Math.round(ganho * apostaMult);
-        }
-        novasPontuacoes[j] += ganho;
-      } else {
-        // Errou a resposta ativamente (e não estava bloqueado)
-        if (modoApostas && resp !== null && efeitosRodada.bloqueado !== j) {
-          const perda = Math.round(1000 * apostaMult);
-          novasPontuacoes[j] = Math.max(0, novasPontuacoes[j] - perda);
+      if (resp !== null) {
+        if (acertou) {
+          alguemAcertou = true;
+          // Fórmula proporcional ao tempo: 100 a 50 pontos
+          let ganho = basePontos;
+          if (limiteEficaz > 0) {
+            const tempoGastoIndiv = temposRespRef.current[j] !== null ? temposRespRef.current[j] : tempoGasto;
+            const proporcao = Math.max(0, Math.min(1, tempoGastoIndiv / limiteEficaz));
+            ganho = Math.round((1 - (proporcao / 2)) * basePontos);
+          }
+          // Dobrar se pontos duplos estiver ativo na rodada (moderador)!
+          if (efeitosRodada.rodadaDupla) {
+            ganho *= 2;
+          }
+          if (modoApostas) {
+            ganho = Math.round(ganho * apostaMult);
+          }
+          novasPontuacoes[j] += ganho;
+        } else {
+          // Errou a resposta: perde pontos! (se não estava bloqueado)
+          if (efeitosRodada.bloqueado !== j) {
+            const perda = Math.round(basePerdaErro * apostaMult);
+            novasPontuacoes[j] = Math.max(0, novasPontuacoes[j] - perda);
+          }
         }
       }
     }
