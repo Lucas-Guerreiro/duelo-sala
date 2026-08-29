@@ -558,6 +558,31 @@ const obterTituloAura = (pares) => {
   return "Pico de Aura / Deus da Aura (10000+) 🌌💫";
 };
 
+const CATEGORIAS_FORCA_PADRAO = ['Ciências', 'História', 'Geografia', 'Português', 'Geral'];
+
+const FORCA_PADRAO = [
+  { cat: 'Ciências', palavra: 'FOTOSSINTESE', dica1: 'Processo realizado pelas plantas', dica2: 'Usa luz solar e CO2', dica3: 'Produz glicose e oxigênio' },
+  { cat: 'Ciências', palavra: 'MITOCONDRIA', dica1: 'Organela celular', dica2: 'Produz energia (ATP)', dica3: 'Conhecida como a usina da célula' },
+  { cat: 'Ciências', palavra: 'EVAPORACAO', dica1: 'Mudança de estado físico', dica2: 'Líquido vira gás', dica3: 'Acontece com a água do mar' },
+  { cat: 'Ciências', palavra: 'GRAVITACAO', dica1: 'Força universal de Newton', dica2: 'Atrai corpos com massa', dica3: 'Mantém planetas em órbita' },
+  { cat: 'História', palavra: 'INDEPENDENCIA', dica1: 'Separação política de outro país', dica2: 'Brasil: 7 de setembro', dica3: 'Proclamada às margens do Ipiranga' },
+  { cat: 'História', palavra: 'PROCLAMACAO', dica1: 'Ato de anunciar oficialmente', dica2: 'Relacionado à República Brasileira', dica3: 'Ocorreu em 15 de novembro de 1889' },
+  { cat: 'História', palavra: 'RENASCIMENTO', dica1: 'Movimento cultural europeu', dica2: 'Valorização do ser humano', dica3: 'Séculos XIV a XVII' },
+  { cat: 'História', palavra: 'COLONIZACAO', dica1: 'Processo de domínio territorial', dica2: 'Portugal e Brasil', dica3: 'Início: 1500' },
+  { cat: 'Geografia', palavra: 'AMAZONIA', dica1: 'Maior floresta tropical do mundo', dica2: 'Rio Amazonas', dica3: 'Biodiversidade incrível' },
+  { cat: 'Geografia', palavra: 'EQUADOR', dica1: 'Linha imaginária', dica2: 'Divide o planeta em hemisférios', dica3: 'Latitude 0 grau' },
+  { cat: 'Geografia', palavra: 'CONTINENTE', dica1: 'Grande porção de terra', dica2: 'São 7 no planeta', dica3: 'África, Ásia, Europa...' },
+  { cat: 'Geografia', palavra: 'HEMISFERIO', dica1: 'Metade da esfera terrestre', dica2: 'Norte e Sul', dica3: 'Separados pelo Equador' },
+  { cat: 'Português', palavra: 'SUBSTANTIVO', dica1: 'Classe gramatical', dica2: 'Nome de pessoas, lugares, coisas', dica3: 'Próprio ou comum' },
+  { cat: 'Português', palavra: 'METAFORA', dica1: 'Figura de linguagem', dica2: 'Comparação sem "como"', dica3: '"Seus olhos são estrelas"' },
+  { cat: 'Português', palavra: 'CONJUGACAO', dica1: 'Ação com verbos', dica2: 'Tempos e modos verbais', dica3: 'Presente, passado, futuro' },
+  { cat: 'Português', palavra: 'ONOMATOPEIA', dica1: 'Palavra que imita som', dica2: 'Miau, au, boom', dica3: 'Figura de linguagem sonora' },
+  { cat: 'Geral', palavra: 'DEMOCRACIA', dica1: 'Sistema de governo', dica2: 'Poder do povo', dica3: 'Eleições livres' },
+  { cat: 'Geral', palavra: 'SUSTENTAVEL', dica1: 'Que pode ser mantido no tempo', dica2: 'Relacionado ao meio ambiente', dica3: 'Desenvolvimento responsável' },
+  { cat: 'Geral', palavra: 'TECNOLOGIA', dica1: 'Aplicação do conhecimento técnico', dica2: 'Computadores, celulares', dica3: 'Presente na vida moderna' },
+  { cat: 'Geral', palavra: 'CRIATIVIDADE', dica1: 'Capacidade de criar coisas novas', dica2: 'Arte e inovação', dica3: 'Essencial para a vida' },
+];
+
 export default function App() {
   // --- ESTADOS DO JOGO DAS TRÊS PISTAS ---
   const [modoJogo, setModoJogo] = useState('duelo'); // 'duelo' | 'pistas' | 'imacao'
@@ -624,6 +649,64 @@ export default function App() {
       setPistasQtdRodadas(Math.max(1, len));
     }
   }, [poolPistasFiltrada, pistasQtdRodadas]);
+
+  // --- ESTADOS DO JOGO DA FORCA ---
+  const [cartasForca, setCartasForca] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dm_forca');
+      const parsed = saved ? JSON.parse(saved) : FORCA_PADRAO;
+      return Array.isArray(parsed) ? parsed : FORCA_PADRAO;
+    } catch (e) { return FORCA_PADRAO; }
+  });
+  const [forcaCategorias, setForcaCategorias] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dm_categorias_forca');
+      return saved ? JSON.parse(saved) : CATEGORIAS_FORCA_PADRAO;
+    } catch (e) { return CATEGORIAS_FORCA_PADRAO; }
+  });
+  const [forcaCategoriasSelecionadas, setForcaCategoriasSelecionadas] = useState([]);
+  const [forcaPalavraAtual, setForcaPalavraAtual] = useState(null); // { cat, palavra, dica1, dica2, dica3 }
+  const [forcaFila, setForcaFila] = useState([]);
+  const [forcaFilaIndex, setForcaFilaIndex] = useState(0);
+  const [forcaLetrasChutadas, setForcaLetrasChutadas] = useState([]);
+  const [forcaErros, setForcaErros] = useState(0);
+  const [forcaEquipeVez, setForcaEquipeVez] = useState(0); // 0 ou 1
+  const [forcaPontuacao, setForcaPontuacao] = useState([0, 0]);
+  const [forcaModo, setForcaModo] = useState('classico'); // 'classico' | 'dica' | 'corrida'
+  const [forcaDicasReveladas, setForcaDicasReveladas] = useState([]); // [1, 2, 3] das dicas usadas
+  const [forcaTimer, setForcaTimer] = useState(null);
+  const [forcaRodada, setForcaRodada] = useState(1);
+  const [forcaQtdRodadas, setForcaQtdRodadas] = useState(5);
+  const [forcaFluxo, setForcaFluxo] = useState('jogando'); // 'jogando' | 'acertou' | 'errou'
+  const [forcaHistorico, setForcaHistorico] = useState([]);
+  // Estados de cadastro da forca
+  const [cadForcaPalavra, setCadForcaPalavra] = useState('');
+  const [cadForcaCategoria, setCadForcaCategoria] = useState('');
+  const [cadForcaDica1, setCadForcaDica1] = useState('');
+  const [cadForcaDica2, setCadForcaDica2] = useState('');
+  const [cadForcaDica3, setCadForcaDica3] = useState('');
+  const [cadForcaCategoriaText, setCadForcaCategoriaText] = useState('');
+  const forcaTimerRef = useRef(null);
+
+  useEffect(() => {
+    try { localStorage.setItem('dm_forca', JSON.stringify(cartasForca)); } catch (e) {}
+  }, [cartasForca]);
+
+  useEffect(() => {
+    try { localStorage.setItem('dm_categorias_forca', JSON.stringify(forcaCategorias)); } catch (e) {}
+  }, [forcaCategorias]);
+
+  const poolForcaFiltrada = useMemo(() => {
+    const validas = cartasForca.filter(Boolean);
+    if (forcaCategoriasSelecionadas.length === 0) return validas;
+    return validas.filter(c => c.cat && forcaCategoriasSelecionadas.includes(c.cat));
+  }, [cartasForca, forcaCategoriasSelecionadas]);
+
+  useEffect(() => {
+    if (forcaQtdRodadas > poolForcaFiltrada.length && poolForcaFiltrada.length > 0) {
+      setForcaQtdRodadas(poolForcaFiltrada.length);
+    }
+  }, [poolForcaFiltrada, forcaQtdRodadas]);
 
   // --- ESTADOS DO NOVO JOGO: IMAGEM E AÇÃO ---
   const [cartasImAcao, setCartasImAcao] = useState(() => {
@@ -713,9 +796,9 @@ export default function App() {
     // Lista de telas reservadas para moderação/controle do professor
     const TELAS_PROFESSOR = [
       'selecao', 'nomes', 'cadastro', 'controles',
-      'pistas-nomes', 'ia-nomes', 'memo-nomes',
+      'pistas-nomes', 'ia-nomes', 'memo-nomes', 'forca-nomes',
       'jogo', 'duelo-online-game', 'duelo-qr',
-      'pistas-jogo', 'memo-jogo', 'ia-jogo'
+      'pistas-jogo', 'memo-jogo', 'ia-jogo', 'forca-jogo'
     ];
 
     if (TELAS_PROFESSOR.includes(dest) && !isAutenticadoProfessor) {
@@ -4736,6 +4819,242 @@ export default function App() {
     });
   };
 
+  // --- FUNÇÕES DO JOGO DA FORCA ---
+  const MAX_ERROS_FORCA = 6;
+  const LETRAS_TECLADO = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
+
+  const normalizarPalavraForca = (str) =>
+    String(str).toUpperCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  const iniciarPartidaForca = () => {
+    if (poolForcaFiltrada.length === 0) {
+      alert('Nenhuma palavra cadastrada para as categorias selecionadas!');
+      return;
+    }
+    if (forcaTimerRef.current) clearInterval(forcaTimerRef.current);
+    // Embaralha e corta a fila
+    const copia = [...poolForcaFiltrada];
+    for (let i = copia.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copia[i], copia[j]] = [copia[j], copia[i]];
+    }
+    const fila = copia.slice(0, Math.min(forcaQtdRodadas, copia.length));
+    setForcaFila(fila);
+    setForcaFilaIndex(0);
+    setForcaPalavraAtual(fila[0]);
+    setForcaLetrasChutadas([]);
+    setForcaErros(0);
+    setForcaDicasReveladas([]);
+    setForcaEquipeVez(0);
+    setForcaPontuacao([0, 0]);
+    setForcaRodada(1);
+    setForcaFluxo('jogando');
+    setForcaHistorico([]);
+    setModoJogo('forca');
+    irParaTela('forca-jogo');
+  };
+
+  const tentarLetraForca = (letra) => {
+    if (forcaFluxo !== 'jogando') return;
+    if (forcaLetrasChutadas.includes(letra)) return;
+    if (!forcaPalavraAtual) return;
+
+    const novasLetras = [...forcaLetrasChutadas, letra];
+    setForcaLetrasChutadas(novasLetras);
+
+    const palavraNorm = normalizarPalavraForca(forcaPalavraAtual.palavra);
+    const acertou = palavraNorm.split('').filter(c => c !== ' ').every(c => novasLetras.includes(c));
+
+    if (!palavraNorm.includes(letra)) {
+      // Erro! No modo dica, dicas já reveladas já custaram erros extras
+      const novosErros = forcaErros + 1;
+      setForcaErros(novosErros);
+      if (novosErros >= MAX_ERROS_FORCA) {
+        setForcaFluxo('errou');
+      } else if (forcaModo === 'corrida') {
+        // No modo corrida passa a vez automaticamente
+        setForcaEquipeVez(v => 1 - v);
+      }
+    } else if (acertou) {
+      setForcaFluxo('acertou');
+      setForcaPontuacao(prev => {
+        const nova = [...prev];
+        nova[forcaEquipeVez] += 1;
+        return nova;
+      });
+    }
+  };
+
+  const revelarDicaForca = (numDica) => {
+    if (forcaDicasReveladas.includes(numDica)) return;
+    if (forcaErros >= MAX_ERROS_FORCA - 1) {
+      alert('Não há vidas suficientes para revelar uma dica!');
+      return;
+    }
+    setForcaDicasReveladas(prev => [...prev, numDica]);
+    setForcaErros(prev => prev + 1); // Cada dica custa 1 vida
+  };
+
+  const avancarRodadaForca = () => {
+    const novoIndex = forcaFilaIndex + 1;
+    if (novoIndex >= forcaFila.length) {
+      // Fim do jogo
+      setForcaFluxo('fim');
+      irParaTela('forca-fim');
+      return;
+    }
+    setForcaFilaIndex(novoIndex);
+    setForcaPalavraAtual(forcaFila[novoIndex]);
+    setForcaLetrasChutadas([]);
+    setForcaErros(0);
+    setForcaDicasReveladas([]);
+    setForcaFluxo('jogando');
+    setForcaRodada(novoIndex + 1);
+    // No modo corrida, a equipe que venceu começa
+    if (forcaModo !== 'corrida') {
+      setForcaEquipeVez(v => 1 - v); // Alterna quem começa
+    }
+  };
+
+  useEffect(() => {
+    if (tela !== 'forca-jogo' || forcaFluxo !== 'jogando') return;
+    const handleForcaKey = (e) => {
+      // Ignora se estiver digitando em inputs
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName)) return;
+      const letra = e.key.toUpperCase();
+      if (LETRAS_TECLADO.includes(letra)) {
+        tentarLetraForca(letra);
+      }
+    };
+    window.addEventListener('keydown', handleForcaKey);
+    return () => window.removeEventListener('keydown', handleForcaKey);
+  }, [tela, forcaFluxo, forcaPalavraAtual, forcaLetrasChutadas, forcaErros, forcaModo, forcaEquipeVez]);
+
+  const adicionarPalavraForcaManual = () => {
+    const palavra = cadForcaPalavra.trim().toUpperCase().replace(/[^A-ZÁÉÍÓÚÂÊÎÔÛÃÕÀÈÌ ]/g, '');
+    const cat = (cadForcaCategoria.trim()) || (forcaCategorias[0] || '');
+    if (!palavra) { alert('Digite a palavra!'); return; }
+    if (palavra.length < 2) { alert('A palavra precisa ter ao menos 2 letras!'); return; }
+    if (!cat) { alert('Selecione ou cadastre uma categoria primeiro!'); return; }
+    const nova = {
+      cat,
+      palavra: normalizarPalavraForca(palavra),
+      dica1: cadForcaDica1.trim(),
+      dica2: cadForcaDica2.trim(),
+      dica3: cadForcaDica3.trim()
+    };
+    setCartasForca(prev => [...prev, nova]);
+    setCadForcaPalavra('');
+    setCadForcaDica1('');
+    setCadForcaDica2('');
+    setCadForcaDica3('');
+    setCadForcaCategoria(forcaCategorias[0] || '');
+    alert('Palavra cadastrada com sucesso!');
+  };
+
+  const deletarPalavraForca = (idx) => {
+    if (!window.confirm('Excluir esta palavra?')) return;
+    setCartasForca(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const adicionarForcaCategoriaManual = () => {
+    const text = cadForcaCategoriaText.trim();
+    if (!text) { alert('Digite o nome da categoria!'); return; }
+    if (forcaCategorias.includes(text)) { alert('Categoria já existe!'); return; }
+    setForcaCategorias(prev => [...prev, text]);
+    setCadForcaCategoriaText('');
+  };
+
+  const sincForcaCategorias = (novasPalavras) => {
+    const cats = novasPalavras.map(c => c.cat).filter((v, i, a) => a.indexOf(v) === i && v);
+    setForcaCategorias(prev => {
+      const novas = [...prev];
+      cats.forEach(c => {
+        if (!novas.includes(c)) novas.push(c);
+      });
+      return novas;
+    });
+  };
+
+  const exportarForcaBackup = () => {
+    try {
+      const backupObj = {
+        jogo: 'forca',
+        dataBackup: new Date().toISOString(),
+        cartasForca: cartasForca,
+        categoriasForca: forcaCategorias
+      };
+      const jsonStr = JSON.stringify(backupObj, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `duelo_sala_forca_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Erro ao exportar backup do Jogo da Forca: ' + e.message);
+    }
+  };
+
+  const importarForcaBackup = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const json = JSON.parse(evt.target.result);
+        if (!json || !Array.isArray(json.cartasForca)) {
+          throw new Error('Arquivo de backup inválido para o Jogo da Forca.');
+        }
+
+        const importadas = json.cartasForca;
+        const confirmacao = window.confirm(
+          `Backup de Jogo da Forca lido com sucesso!\n` +
+          `Encontramos ${importadas.length} palavras no backup.\n\n` +
+          `Clique em OK para MESCLAR estas palavras com o banco atual.\n` +
+          `Clique em CANCELAR para SUBSTITUIR completamente o banco atual pelo backup.`
+        );
+
+        if (confirmacao) {
+          setCartasForca([...cartasForca, ...importadas]);
+          if (Array.isArray(json.categoriasForca)) {
+            setForcaCategorias(prev => {
+              const novas = [...prev];
+              json.categoriasForca.forEach(c => {
+                if (!novas.includes(c)) novas.push(c);
+              });
+              return novas;
+            });
+          }
+          sincForcaCategorias(importadas);
+          alert('Palavras do Jogo da Forca mescladas com sucesso!');
+        } else {
+          const subConfirm = window.confirm('ATENÇÃO: Você escolheu substituir. Todas as palavras da Forca atuais serão permanentemente apagadas. Continuar?');
+          if (subConfirm) {
+            setCartasForca(importadas);
+            if (Array.isArray(json.categoriasForca)) {
+              setForcaCategorias(json.categoriasForca);
+            } else {
+              sincForcaCategorias(importadas);
+            }
+            alert('Banco de palavras da Forca substituído com sucesso!');
+          }
+        }
+      } catch (err) {
+        alert('Erro ao importar backup da Forca: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+
+
   const adicionarPerguntaManual = () => {
     const mat = cadMateriaSelected || materias[0] || 'Geral';
     if (!mat) {
@@ -5232,6 +5551,8 @@ export default function App() {
         categoriasPistas: pistasCategorias,
         cartasImAcao: cartasImAcao,
         memoImagensPool: memoImagensPool,
+        cartasForca: cartasForca,
+        categoriasForca: forcaCategorias,
         imagensSurpresas: {
           embaralhar: memoImgSurpresaEmbaralhar,
           olho: memoImgSurpresaOlho,
@@ -5277,7 +5598,8 @@ export default function App() {
         `Perguntas do Quiz: ${dados.perguntas?.length || 0}\n` +
         `Cartas do Jogo das Pistas: ${dados.cartasPistas?.length || 0}\n` +
         `Cartas de Imagem e Ação: ${dados.cartasImAcao?.length || 0}\n` +
-        `Imagens da Memória: ${dados.memoImagensPool?.length || 0}\n\n` +
+        `Imagens da Memória: ${dados.memoImagensPool?.length || 0}\n` +
+        `Palavras do Jogo da Forca: ${dados.cartasForca?.length || 0}\n\n` +
         `Clique em OK para MESCLAR estes dados online aos seus dados locais do navegador.\n` +
         `Clique em CANCELAR para SUBSTITUIR completamente todos os dados locais pelos dados salvos na nuvem.`
       );
@@ -5312,6 +5634,21 @@ export default function App() {
         if (Array.isArray(dados.cartasImAcao)) {
           setCartasImAcao([...cartasImAcao, ...dados.cartasImAcao]);
         }
+        if (Array.isArray(dados.cartasForca)) {
+          setCartasForca([...cartasForca, ...dados.cartasForca]);
+        }
+        if (Array.isArray(dados.categoriasForca)) {
+          setForcaCategorias(prev => {
+            const novas = [...prev];
+            dados.categoriasForca.forEach(c => {
+              if (!novas.includes(c)) novas.push(c);
+            });
+            return novas;
+          });
+        }
+        if (Array.isArray(dados.cartasForca)) {
+          sincForcaCategorias(dados.cartasForca);
+        }
         if (Array.isArray(dados.memoImagensPool)) {
           const normalizarImagem = (img) => {
             if (typeof img === 'string') return { url: img, mat: '' };
@@ -5340,18 +5677,26 @@ export default function App() {
         alert('Dados da nuvem mesclados com sucesso!');
       } else {
         // SUBSTITUIR
-        const subConfirm = window.confirm('ATENÇÃO: Você escolheu SUBSTITUIR. Todos os dados atuais do navegador (Perguntas, Jogo das Pistas, Imagem e Ação e Memória) serão permanentemente apagados e substituídos pelos dados da nuvem. Continuar?');
+        const subConfirm = window.confirm('ATENÇÃO: Você escolheu SUBSTITUIR. Todos os dados atuais do navegador (Perguntas, Jogo das Pistas, Imagem e Ação, Memória e Forca) serão permanentemente apagados e substituídos pelos dados da nuvem. Continuar?');
         if (subConfirm) {
           setPerguntas(dados.perguntas || []);
           setMaterias(dados.materias || []);
           setCartasPistas(dados.cartasPistas || []);
           setCartasImAcao(dados.cartasImAcao || []);
+          setCartasForca(dados.cartasForca || []);
           
           if (Array.isArray(dados.categoriasPistas)) {
             setPistasCategorias(dados.categoriasPistas);
           } else if (Array.isArray(dados.cartasPistas)) {
             const catsDeCartas = dados.cartasPistas.map(c => c.cat).filter((v, i, a) => a.indexOf(v) === i && v);
             setPistasCategorias(catsDeCartas.length > 0 ? catsDeCartas : ['Pessoa', 'Lugar', 'Objeto', 'Animal', 'Ano', 'Coisa', 'Geral']);
+          }
+
+          if (Array.isArray(dados.categoriasForca)) {
+            setForcaCategorias(dados.categoriasForca);
+          } else if (Array.isArray(dados.cartasForca)) {
+            const catsDeCartas = dados.cartasForca.map(c => c.cat).filter((v, i, a) => a.indexOf(v) === i && v);
+            setForcaCategorias(catsDeCartas.length > 0 ? catsDeCartas : ['Ciências', 'História', 'Geografia', 'Português', 'Geral']);
           }
           
           const normalizarImagem = (img) => {
@@ -5394,7 +5739,10 @@ export default function App() {
           perguntas: perguntas,
           materias: materias,
           cartasPistas: cartasPistas,
+          categoriasPistas: pistasCategorias,
           cartasImAcao: cartasImAcao,
+          cartasForca: cartasForca,
+          categoriasForca: forcaCategorias,
           memoImagensPool: memoImagensPool,
           imagensSurpresas: {
             embaralhar: memoImgSurpresaEmbaralhar,
@@ -5424,7 +5772,10 @@ export default function App() {
     perguntas,
     materias,
     cartasPistas,
+    pistasCategorias,
     cartasImAcao,
+    cartasForca,
+    forcaCategorias,
     memoImagensPool,
     memoImgSurpresaEmbaralhar,
     memoImgSurpresaOlho,
@@ -7373,6 +7724,55 @@ export default function App() {
               </button>
             </div>
 
+            {/* Card Jogo da Forca */}
+            <div className="card" style={{ 
+              width: 'calc(50% - 8px)',
+              minWidth: '280px',
+              maxWidth: '340px',
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              textAlign: 'center', 
+              padding: '24px 20px', 
+              justifyContent: 'space-between', 
+              background: 'rgba(15, 23, 42, 0.45)',
+              border: '1.5px solid rgba(251, 146, 60, 0.3)', 
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(251, 146, 60, 0.12)',
+              margin: 0
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                <div style={{ fontSize: '2.6rem', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(251, 146, 60, 0.3))' }}>🎯</div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#fb923c', marginBottom: '10px', fontFamily: 'Outfit' }}>Jogo da Forca</h3>
+                <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 16px', minHeight: '66px' }}>
+                  Adivinhe a palavra letra a letra! 3 variações: Clássico, Dica Rápida (troca vidas por dicas) e Corrida de Equipes com revezamento automático.
+                </p>
+              </div>
+              <button 
+                className="btn-menu btn-play" 
+                style={{ 
+                  background: 'linear-gradient(90deg, #f97316, #ea580c)', 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: '10px', 
+                  padding: '10px 24px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 'bold', 
+                  cursor: 'pointer', 
+                  width: '100%', 
+                  height: '42px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  margin: 0
+                }} 
+                onClick={() => { setNomeJ1('Equipe Azul'); setNomeJ2('Equipe Rosa'); irParaTela('forca-nomes'); }}
+              >
+                ▶ Jogar Forca
+              </button>
+            </div>
+
           </div>
           
         </div>
@@ -7861,6 +8261,12 @@ export default function App() {
               onClick={() => setCadGerenciadorAba('memoria')}
             >
               🧠 Imagens da Memória
+            </button>
+            <button 
+              style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', border: 'none', background: cadGerenciadorAba === 'forca' ? '#f97316' : 'transparent', color: cadGerenciadorAba === 'forca' ? '#fff' : '#a78bfa', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+              onClick={() => setCadGerenciadorAba('forca')}
+            >
+              🎯 Palavras da Forca
             </button>
           </div>
         )}
@@ -9753,6 +10159,335 @@ export default function App() {
 
           </div>
         )}
+
+        {/* PAINEL DE PALAVRAS DA FORCA */}
+        {cadGerenciadorAba === 'forca' && (
+          <div className="tab-panel ativa" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* BLOCO DE BACKUP JSON */}
+            <div className="card" style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '14px', 
+              padding: '16px 20px', 
+              background: 'rgba(15, 23, 42, 0.4)', 
+              border: '1px solid rgba(255, 255, 255, 0.08)', 
+              borderRadius: '16px', 
+              margin: '0 0 16px 0',
+              boxSizing: 'border-box'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.2rem', color: '#fff' }}>🎯</span>
+                  <span style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff', fontFamily: 'Outfit', letterSpacing: '0.3px' }}>Gerenciador do Jogo da Forca</span>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button 
+                    onClick={exportarForcaBackup}
+                    className="btn-menu btn-play"
+                    style={{ 
+                      padding: '8px 16px', 
+                      fontSize: '0.82rem', 
+                      fontWeight: 700, 
+                      background: 'none', 
+                      border: '1.5px solid #f97316', 
+                      color: '#fb923c', 
+                      borderRadius: '10px', 
+                      margin: 0, 
+                      width: 'auto', 
+                      height: '38px', 
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    💾 Exportar JSON
+                  </button>
+
+                  <label 
+                    className="btn-menu btn-play"
+                    style={{ 
+                      padding: '8px 16px', 
+                      fontSize: '0.82rem', 
+                      fontWeight: 700, 
+                      background: 'rgba(249, 115, 22, 0.15)', 
+                      border: '1.5px solid #f97316', 
+                      color: '#fb923c', 
+                      borderRadius: '10px', 
+                      margin: 0, 
+                      width: 'auto', 
+                      height: '38px', 
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    📂 Importar JSON
+                    <input 
+                      type="file" 
+                      accept=".json" 
+                      onChange={importarForcaBackup} 
+                      style={{ display: 'none' }} 
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-abas */}
+            <div className="tabs">
+              <button className={`tab ${cadTab === 'manual' ? 'ativa' : ''}`} onClick={() => setCadTab('manual')}>✏️ Manual</button>
+              <button className={`tab ${cadTab === 'lista' ? 'ativa' : ''}`} onClick={() => setCadTab('lista')}>📋 Lista ({cartasForca.length})</button>
+              <button className={`tab ${cadTab === 'categorias' ? 'ativa' : ''}`} onClick={() => setCadTab('categorias')}>🏷️ Categorias ({forcaCategorias.length})</button>
+            </div>
+
+            {/* Sub-aba Manual */}
+            {cadTab === 'manual' && (
+              <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fb923c', fontFamily: 'Outfit' }}>
+                  ➕ Cadastrar Nova Palavra
+                </div>
+
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 2, minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.82rem', color: '#c4b5fd', fontWeight: 'bold' }}>Palavra Secreta (letras A-Z)</label>
+                    <input 
+                      value={cadForcaPalavra} 
+                      onChange={(e) => setCadForcaPalavra(e.target.value.toUpperCase())}
+                      placeholder="Ex: FOTOSSINTESE"
+                      style={{ 
+                        background: 'rgba(0,0,0,0.3)', 
+                        border: '1px solid rgba(255,255,255,0.15)', 
+                        borderRadius: '10px', 
+                        padding: '10px 14px', 
+                        color: '#fff', 
+                        fontSize: '1.05rem', 
+                        fontFamily: 'monospace', 
+                        letterSpacing: '2px' 
+                      }} 
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '0.82rem', color: '#c4b5fd', fontWeight: 'bold', margin: 0 }}>Categoria</label>
+                      <button 
+                        onClick={() => setCadTab('categorias')}
+                        style={{ background: 'transparent', border: 'none', color: '#fb923c', fontSize: '0.75rem', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+                      >
+                        ⚙️ Gerenciar
+                      </button>
+                    </div>
+                    <select 
+                      value={cadForcaCategoria || (forcaCategorias[0] || '')} 
+                      onChange={(e) => setCadForcaCategoria(e.target.value)}
+                      style={{ 
+                        background: 'rgba(0,0,0,0.3)', 
+                        border: '1px solid rgba(255,255,255,0.15)', 
+                        borderRadius: '10px', 
+                        padding: '10px 14px', 
+                        color: '#fff', 
+                        height: '44px' 
+                      }}
+                    >
+                      {forcaCategorias.length === 0 ? (
+                        <option value="">Nenhuma categoria cadastrada</option>
+                      ) : (
+                        forcaCategorias.map((c, i) => <option key={i} value={c}>{c}</option>)
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '0.82rem', color: '#c4b5fd', fontWeight: 'bold' }}>
+                    💡 Dicas Opcionais (usadas no modo Dica Rápida)
+                  </label>
+                  <input 
+                    value={cadForcaDica1}
+                    onChange={(e) => setCadForcaDica1(e.target.value)}
+                    placeholder="Dica 1 (ex: Processo realizado pelas plantas)"
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(249,115,22,0.25)', borderRadius: '8px', padding: '9px 14px', color: '#e5e7eb', fontSize: '0.88rem' }} 
+                  />
+                  <input 
+                    value={cadForcaDica2}
+                    onChange={(e) => setCadForcaDica2(e.target.value)}
+                    placeholder="Dica 2 (ex: Usa luz solar e CO2)"
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(249,115,22,0.25)', borderRadius: '8px', padding: '9px 14px', color: '#e5e7eb', fontSize: '0.88rem' }} 
+                  />
+                  <input 
+                    value={cadForcaDica3}
+                    onChange={(e) => setCadForcaDica3(e.target.value)}
+                    placeholder="Dica 3 (ex: Produz glicose e oxigênio)"
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(249,115,22,0.25)', borderRadius: '8px', padding: '9px 14px', color: '#e5e7eb', fontSize: '0.88rem' }} 
+                  />
+                </div>
+
+                <button 
+                  onClick={adicionarPalavraForcaManual}
+                  className="btn-start"
+                  style={{ 
+                    alignSelf: 'flex-start', 
+                    padding: '12px 28px', 
+                    borderRadius: '10px', 
+                    border: 'none', 
+                    background: 'linear-gradient(90deg, #f97316, #ea580c)', 
+                    color: '#fff', 
+                    fontWeight: 700, 
+                    cursor: 'pointer', 
+                    fontSize: '0.95rem',
+                    boxShadow: '0 4px 20px rgba(249, 115, 22, 0.35)',
+                    margin: '8px 0 0 0'
+                  }}
+                >
+                  ➕ Salvar Palavra
+                </button>
+              </div>
+            )}
+
+            {/* Sub-aba Lista */}
+            {cadTab === 'lista' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {cartasForca.length === 0 ? (
+                  <div className="card" style={{ textAlign: 'center', padding: '32px', color: '#9ca3af' }}>
+                    Nenhuma palavra cadastrada no banco da Forca. Use a aba ✏️ Manual para cadastrar!
+                  </div>
+                ) : (
+                  cartasForca.map((item, idx) => (
+                    <div 
+                      key={idx} 
+                      className="card" 
+                      style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        padding: '14px 18px', 
+                        flexWrap: 'wrap', 
+                        gap: '12px',
+                        background: 'rgba(15, 23, 42, 0.45)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '12px',
+                        margin: 0
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: '1.2rem', fontWeight: 900, color: '#fb923c', letterSpacing: '2px' }}>
+                            {item.palavra}
+                          </span>
+                          <span style={{ 
+                            fontSize: '0.75rem', 
+                            fontWeight: 'bold', 
+                            color: '#fdba74', 
+                            background: 'rgba(249, 115, 22, 0.15)', 
+                            border: '1px solid rgba(249, 115, 22, 0.3)', 
+                            padding: '2px 10px', 
+                            borderRadius: '20px' 
+                          }}>
+                            {item.cat}
+                          </span>
+                        </div>
+                        {(item.dica1 || item.dica2 || item.dica3) && (
+                          <div style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                            {item.dica1 && <span>💡 1: {item.dica1}</span>}
+                            {item.dica2 && <span>• 2: {item.dica2}</span>}
+                            {item.dica3 && <span>• 3: {item.dica3}</span>}
+                          </div>
+                        )}
+                      </div>
+
+                      <button 
+                        onClick={() => deletarPalavraForca(idx)}
+                        className="btn-del"
+                        style={{ 
+                          background: 'rgba(239, 68, 68, 0.1)', 
+                          border: '1px solid rgba(239, 68, 68, 0.3)', 
+                          color: '#f87171', 
+                          borderRadius: '8px', 
+                          padding: '8px 14px', 
+                          fontSize: '0.82rem', 
+                          cursor: 'pointer', 
+                          fontWeight: 700,
+                          margin: 0
+                        }}
+                      >
+                        🗑️ Excluir
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Sub-aba Categorias */}
+            {cadTab === 'categorias' && (
+              <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fb923c', fontFamily: 'Outfit' }}>
+                  🏷️ Gerenciar Categorias da Forca
+                </div>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <input 
+                    value={cadForcaCategoriaText} 
+                    onChange={(e) => setCadForcaCategoriaText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') adicionarForcaCategoriaManual(); }}
+                    placeholder="Nome da categoria (ex: Biologia, Química, Literatura...)"
+                    style={{ flex: 1, minWidth: '200px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '10px 14px', color: '#fff' }} 
+                  />
+                  <button 
+                    onClick={adicionarForcaCategoriaManual}
+                    className="btn-start"
+                    style={{ 
+                      padding: '10px 22px', 
+                      borderRadius: '10px', 
+                      border: 'none', 
+                      background: 'linear-gradient(90deg, #f97316, #ea580c)', 
+                      color: '#fff', 
+                      fontWeight: 700, 
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 15px rgba(249, 115, 22, 0.3)',
+                      margin: 0
+                    }}
+                  >
+                    ➕ Adicionar
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '6px' }}>
+                  {forcaCategorias.map((cat, idx) => {
+                    const count = cartasForca.filter(c => c.cat === cat).length;
+                    return (
+                      <div 
+                        key={idx} 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          padding: '8px 14px', 
+                          borderRadius: '20px', 
+                          background: 'rgba(249, 115, 22, 0.1)', 
+                          border: '1px solid rgba(249, 115, 22, 0.3)' 
+                        }}
+                      >
+                        <span style={{ color: '#fb923c', fontWeight: 700, fontSize: '0.9rem' }}>{cat}</span>
+                        <span style={{ color: '#94a3b8', fontSize: '0.78rem' }}>({count})</span>
+                        <button 
+                          onClick={() => deletarForcaCategoria(idx)}
+                          style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '0.9rem', padding: '0 0 0 4px', lineHeight: 1 }}
+                          title="Excluir categoria e suas palavras"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 5. TELA SELEÇÃO DE MATÉRIA */}
@@ -10954,6 +11689,320 @@ export default function App() {
           </button>
           <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('menu')}>
             Voltar ao Menu 🏠
+          </button>
+        </div>
+      </div>
+
+
+
+
+      {/* TELA CONFIGURAÇÃO NOMES — JOGO DA FORCA */}
+      <div id="tela-forca-nomes" className={`tela ${tela === 'forca-nomes' ? 'ativa' : ''}`} style={{ alignItems: 'center', textAlign: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginBottom: '14px' }}>
+          <button className="btn-volta" onClick={() => irParaTela('menu')} style={{ margin: 0 }}>← Voltar ao Menu</button>
+          <button className="btn-menu btn-outline" style={{ fontSize: '0.85rem', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, width: 'auto' }} onClick={() => { setCadGerenciadorAba('forca'); setOrigemConfig('forca-nomes'); irParaTela('cadastro'); }}>
+            ⚙️ Gerenciar Palavras
+          </button>
+        </div>
+
+        <div style={{ fontSize: '4rem', filter: 'drop-shadow(0 0 25px rgba(251, 146, 60, 0.45))', margin: '20px 0', width: '100%' }}>🎯</div>
+        <h2 style={{ fontSize: '2.2rem', fontWeight: 900, textAlign: 'center', width: '100%', color: '#fb923c' }}>Jogo da Forca</h2>
+        <p style={{ color: '#c4b5fd', fontSize: '1.05rem', textAlign: 'center', width: '100%', marginTop: '4px' }}>Configure as equipes e o modo de jogo</p>
+
+        {/* Nomes das Equipes */}
+        <div className="dupla" style={{ margin: '24px auto', width: '100%', maxWidth: '600px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
+          <div className="jcard j1" style={{ flex: 1 }}>
+            <h3>🔵 Equipe 1</h3>
+            <input value={nomeJ1} onChange={(e) => setNomeJ1(e.target.value)} placeholder="Ex: Equipe Azul" />
+          </div>
+          <div className="jcard j2" style={{ flex: 1 }}>
+            <h3>🩷 Equipe 2</h3>
+            <input value={nomeJ2} onChange={(e) => setNomeJ2(e.target.value)} placeholder="Ex: Equipe Rosa" />
+          </div>
+        </div>
+
+        {/* Seleção do Modo de Jogo */}
+        <div className="card" style={{ width: '100%', maxWidth: '600px', margin: '0 auto 20px', padding: '16px', textAlign: 'left' }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fb923c', marginBottom: '12px', borderLeft: '3px solid #f97316', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            🎮 Modo de Jogo
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {[
+              { id: 'classico', emoji: '📖', titulo: 'Clássico', desc: 'As equipes se alternam tentando letras. Quem errar 6 vezes, perde a rodada.' },
+              { id: 'dica', emoji: '💡', titulo: 'Dica Rápida', desc: 'Revele dicas em troca de vidas! Cada dica custa 1 vida (de 6 disponíveis).' },
+              { id: 'corrida', emoji: '🏃', titulo: 'Corrida de Letras', desc: 'Cada erro passa a vez para o oponente! Quem completar a palavra primeiro vence.' }
+            ].map(modo => (
+              <div
+                key={modo.id}
+                onClick={() => setForcaModo(modo.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '10px',
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  background: forcaModo === modo.id ? 'rgba(249, 115, 22, 0.15)' : 'rgba(255,255,255,0.03)',
+                  border: `1.5px solid ${forcaModo === modo.id ? '#f97316' : 'rgba(255,255,255,0.08)'}`
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>{modo.emoji}</span>
+                <div>
+                  <div style={{ fontWeight: 700, color: forcaModo === modo.id ? '#fb923c' : '#e5e7eb', fontSize: '0.9rem' }}>{modo.titulo}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>{modo.desc}</div>
+                </div>
+                <div style={{ marginLeft: 'auto', width: '18px', height: '18px', borderRadius: '50%', border: `2px solid ${forcaModo === modo.id ? '#f97316' : '#4b5563'}`, background: forcaModo === modo.id ? '#f97316' : 'transparent', flexShrink: 0 }} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Filtro de Categorias */}
+        <div className="card" style={{ width: '100%', maxWidth: '600px', margin: '0 auto 20px', padding: '16px', textAlign: 'left' }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fb923c', marginBottom: '10px', borderLeft: '3px solid #f97316', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            🏷️ Categorias de Palavras
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+            {forcaCategorias.map(cat => {
+              const sel = forcaCategoriasSelecionadas.includes(cat);
+              const count = cartasForca.filter(c => c.cat === cat).length;
+              return (
+                <button key={cat} onClick={() => setForcaCategoriasSelecionadas(sel ? forcaCategoriasSelecionadas.filter(c => c !== cat) : [...forcaCategoriasSelecionadas, cat])}
+                  style={{ padding: '6px 12px', borderRadius: '20px', border: `1.5px solid ${sel ? '#f97316' : 'rgba(255,255,255,0.15)'}`, background: sel ? 'rgba(249,115,22,0.2)' : 'rgba(255,255,255,0.03)', color: sel ? '#fb923c' : '#d1d5db', fontSize: '0.82rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                  {cat} <span style={{ opacity: 0.6 }}>({count})</span>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: '0.78rem', color: '#6b7280', fontStyle: 'italic' }}>
+            {forcaCategoriasSelecionadas.length === 0 ? 'Todas as categorias incluídas.' : `${forcaCategoriasSelecionadas.length} categorias selecionadas.`}
+          </div>
+        </div>
+
+        {/* Quantidade de Rodadas */}
+        <div className="card" style={{ width: '100%', maxWidth: '600px', margin: '0 auto 24px', padding: '16px', textAlign: 'left' }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fb923c', marginBottom: '10px', borderLeft: '3px solid #f97316', paddingLeft: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            🔢 Quantidade de Rodadas
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <input type="range" min={1} max={Math.max(1, poolForcaFiltrada.length)} value={forcaQtdRodadas}
+              onChange={(e) => setForcaQtdRodadas(Number(e.target.value))}
+              style={{ flex: 1, accentColor: '#f97316' }} />
+            <span style={{ fontSize: '1.6rem', fontWeight: 900, color: '#fb923c', minWidth: '36px', textAlign: 'center' }}>{forcaQtdRodadas}</span>
+          </div>
+          <div style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: '4px' }}>
+            {poolForcaFiltrada.length} palavra(s) disponível(is) no banco.
+          </div>
+        </div>
+
+        <button className="btn-start" style={{ background: 'linear-gradient(90deg, #f97316, #ea580c)', boxShadow: '0 8px 30px rgba(249, 115, 22, 0.4)', width: '100%', maxWidth: '300px', margin: '0 auto' }}
+          onClick={iniciarPartidaForca}>
+          🎯 Iniciar Forca!
+        </button>
+      </div>
+
+      {/* TELA DO JOGO DA FORCA */}
+      <div id="tela-forca-jogo" className={`tela ${tela === 'forca-jogo' ? 'ativa' : ''}`} style={{ maxWidth: '900px', margin: '0 auto', padding: '16px', boxSizing: 'border-box' }}>
+        {forcaPalavraAtual && (() => {
+          const palavraNorm = normalizarPalavraForca(forcaPalavraAtual.palavra);
+          const letrasUnicas = palavraNorm.split('').filter((c, i, a) => c !== ' ' && a.indexOf(c) === i);
+          const acertou = forcaFluxo === 'acertou';
+          const errou = forcaFluxo === 'errou';
+
+          return (
+            <>
+              {/* Cabeçalho: Placar */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1px' }}>🔵 {nomeJ1}</span>
+                  <span style={{ fontSize: '2rem', fontWeight: 900, color: '#60a5fa', lineHeight: 1 }}>{forcaPontuacao[0]}</span>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    {forcaModo === 'classico' ? '📖 Clássico' : forcaModo === 'dica' ? '💡 Dica Rápida' : '🏃 Corrida'}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fb923c' }}>
+                    Rodada {forcaRodada} de {forcaFila.length}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: forcaEquipeVez === 0 ? '#60a5fa' : '#f472b6', fontWeight: 700 }}>
+                    Vez: {forcaEquipeVez === 0 ? `🔵 ${nomeJ1}` : `🩷 ${nomeJ2}`}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1px' }}>🩷 {nomeJ2}</span>
+                  <span style={{ fontSize: '2rem', fontWeight: 900, color: '#f472b6', lineHeight: 1 }}>{forcaPontuacao[1]}</span>
+                </div>
+              </div>
+
+              {/* Layout principal: forca + conteúdo */}
+              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'center' }}>
+
+                {/* Coluna Esquerda: Desenho da Forca SVG */}
+                <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                  <svg width="160" height="200" viewBox="0 0 160 200" style={{ filter: 'drop-shadow(0 0 10px rgba(251,146,60,0.25))' }}>
+                    {/* Base / Estrutura */}
+                    <line x1="10" y1="190" x2="150" y2="190" stroke="#f97316" strokeWidth="4" strokeLinecap="round" />
+                    <line x1="40" y1="190" x2="40" y2="10" stroke="#f97316" strokeWidth="4" strokeLinecap="round" />
+                    <line x1="40" y1="10" x2="110" y2="10" stroke="#f97316" strokeWidth="4" strokeLinecap="round" />
+                    <line x1="110" y1="10" x2="110" y2="35" stroke="#f97316" strokeWidth="4" strokeLinecap="round" />
+                    {/* Cabeça */}
+                    {forcaErros >= 1 && <circle cx="110" cy="50" r="15" stroke={acertou ? '#4ade80' : '#ef4444'} strokeWidth="3.5" fill="none" />}
+                    {/* Corpo */}
+                    {forcaErros >= 2 && <line x1="110" y1="65" x2="110" y2="120" stroke={acertou ? '#4ade80' : '#ef4444'} strokeWidth="3.5" strokeLinecap="round" />}
+                    {/* Braço esq */}
+                    {forcaErros >= 3 && <line x1="110" y1="80" x2="82" y2="105" stroke={acertou ? '#4ade80' : '#ef4444'} strokeWidth="3.5" strokeLinecap="round" />}
+                    {/* Braço dir */}
+                    {forcaErros >= 4 && <line x1="110" y1="80" x2="138" y2="105" stroke={acertou ? '#4ade80' : '#ef4444'} strokeWidth="3.5" strokeLinecap="round" />}
+                    {/* Perna esq */}
+                    {forcaErros >= 5 && <line x1="110" y1="120" x2="85" y2="155" stroke={acertou ? '#4ade80' : '#ef4444'} strokeWidth="3.5" strokeLinecap="round" />}
+                    {/* Perna dir */}
+                    {forcaErros >= 6 && <line x1="110" y1="120" x2="135" y2="155" stroke={acertou ? '#4ade80' : '#ef4444'} strokeWidth="3.5" strokeLinecap="round" />}
+                    {/* Expressão facial */}
+                    {acertou && forcaErros >= 1 && (
+                      <path d="M103 50 Q110 60 117 50" stroke="#4ade80" strokeWidth="2" fill="none" strokeLinecap="round" />
+                    )}
+                    {errou && forcaErros >= 1 && (
+                      <path d="M103 57 Q110 48 117 57" stroke="#ef4444" strokeWidth="2" fill="none" strokeLinecap="round" />
+                    )}
+                  </svg>
+
+                  {/* Vidas restantes */}
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {Array.from({ length: MAX_ERROS_FORCA }).map((_, i) => (
+                      <span key={i} style={{ fontSize: '1.1rem', opacity: i < forcaErros ? 0.2 : 1 }}>❤️</span>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                    {MAX_ERROS_FORCA - forcaErros} vida(s) restante(s)
+                  </div>
+
+                  {/* Dicas (modo dica) */}
+                  {forcaModo === 'dica' && (
+                    <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px', width: '160px' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#fb923c', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>💡 Dicas (custam 1 vida)</div>
+                      {[1, 2, 3].map(n => {
+                        const dicaKey = `dica${n}`;
+                        const temDica = forcaPalavraAtual[dicaKey];
+                        const revelada = forcaDicasReveladas.includes(n);
+                        return temDica ? (
+                          <button key={n} onClick={() => revelarDicaForca(n)}
+                            disabled={revelada || forcaFluxo !== 'jogando'}
+                            style={{ padding: '6px 10px', fontSize: '0.75rem', borderRadius: '8px', border: `1px solid ${revelada ? '#4ade80' : '#f97316'}`, background: revelada ? 'rgba(74,222,128,0.1)' : 'rgba(249,115,22,0.1)', color: revelada ? '#4ade80' : '#fb923c', cursor: revelada ? 'default' : 'pointer', textAlign: 'left' }}>
+                            {revelada ? `✅ Dica ${n}: ${forcaPalavraAtual[dicaKey]}` : `💡 Revelar Dica ${n}`}
+                          </button>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Coluna Direita: Palavra + Teclado */}
+                <div style={{ flex: 1, minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  
+                  {/* Categoria */}
+                  <div style={{ textAlign: 'center', padding: '8px 16px', background: 'rgba(249,115,22,0.1)', borderRadius: '10px', border: '1px solid rgba(249,115,22,0.3)' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1px' }}>Categoria: </span>
+                    <span style={{ fontWeight: 700, color: '#fb923c' }}>{forcaPalavraAtual.cat}</span>
+                  </div>
+
+                  {/* Lacunas da palavra */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center', padding: '16px 0' }}>
+                    {palavraNorm.split('').map((letra, idx) => {
+                      if (letra === ' ') return <div key={idx} style={{ width: '20px' }} />;
+                      const revelada = forcaLetrasChutadas.includes(letra);
+                      return (
+                        <div key={idx} style={{
+                          width: '36px', height: '46px', borderBottom: `3px solid ${revelada ? '#4ade80' : '#6b7280'}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '1.4rem', fontWeight: 900, color: revelada ? '#4ade80' : 'transparent'
+                        }}>
+                          {revelada ? letra : '_'}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Resultado da rodada */}
+                  {(acertou || errou) && (
+                    <div style={{ textAlign: 'center', padding: '14px', borderRadius: '12px', background: acertou ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${acertou ? '#4ade80' : '#ef4444'}` }}>
+                      <div style={{ fontSize: '2rem' }}>{acertou ? '🎉' : '💀'}</div>
+                      <div style={{ fontWeight: 800, color: acertou ? '#4ade80' : '#ef4444', fontSize: '1.1rem' }}>
+                        {acertou ? `${forcaEquipeVez === 0 ? nomeJ1 : nomeJ2} acertou! +1 ponto` : 'Ninguém acertou!'}
+                      </div>
+                      {errou && <div style={{ color: '#9ca3af', fontSize: '0.85rem', marginTop: '4px' }}>A palavra era: <strong style={{ color: '#fff' }}>{forcaPalavraAtual.palavra}</strong></div>}
+                      <button onClick={avancarRodadaForca}
+                        style={{ marginTop: '12px', padding: '10px 28px', borderRadius: '10px', border: 'none', background: 'linear-gradient(90deg, #f97316, #ea580c)', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>
+                        {forcaFilaIndex + 1 >= forcaFila.length ? '🏆 Ver Resultado Final' : '➡️ Próxima Palavra'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Letras erradas */}
+                  {forcaLetrasChutadas.filter(l => !palavraNorm.includes(l)).length > 0 && (
+                    <div style={{ textAlign: 'center' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Letras erradas: </span>
+                      {forcaLetrasChutadas.filter(l => !palavraNorm.includes(l)).map(l => (
+                        <span key={l} style={{ fontSize: '0.9rem', color: '#ef4444', fontWeight: 700, marginLeft: '4px' }}>{l}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Teclado Virtual */}
+                  {forcaFluxo === 'jogando' && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', justifyContent: 'center', maxWidth: '360px', margin: '0 auto' }}>
+                      {LETRAS_TECLADO.map(letra => {
+                        const jaChutada = forcaLetrasChutadas.includes(letra);
+                        const palavraNormAtual = normalizarPalavraForca(forcaPalavraAtual.palavra);
+                        const eCorreta = jaChutada && palavraNormAtual.includes(letra);
+                        const eErrada = jaChutada && !palavraNormAtual.includes(letra);
+                        return (
+                          <button key={letra} onClick={() => tentarLetraForca(letra)} disabled={jaChutada}
+                            style={{
+                              width: '38px', height: '42px', borderRadius: '8px', border: `1.5px solid ${eCorreta ? '#4ade80' : eErrada ? '#ef4444' : 'rgba(255,255,255,0.2)'}`,
+                              background: eCorreta ? 'rgba(74,222,128,0.15)' : eErrada ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.05)',
+                              color: eCorreta ? '#4ade80' : eErrada ? '#ef4444' : '#e5e7eb',
+                              fontWeight: 700, fontSize: '0.9rem', cursor: jaChutada ? 'default' : 'pointer',
+                              transition: 'all 0.15s', opacity: jaChutada ? 0.5 : 1
+                            }}>
+                            {letra}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Botão sair */}
+              <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                <button onClick={() => { if (window.confirm('Sair da partida?')) irParaTela('menu'); }} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: '#9ca3af', borderRadius: '8px', padding: '6px 16px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                  ← Voltar ao Menu
+                </button>
+              </div>
+            </>
+          );
+        })()}
+      </div>
+
+      {/* TELA DE RESULTADO FINAL DA FORCA */}
+      <div id="tela-forca-fim" className={`tela ${tela === 'forca-fim' ? 'ativa' : ''}`} style={{ alignItems: 'center', textAlign: 'center' }}>
+        <div style={{ fontSize: '4rem', marginBottom: '10px' }}>🏆</div>
+        <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#fb923c' }}>Fim do Jogo!</h2>
+        <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', margin: '24px 0', flexWrap: 'wrap' }}>
+          {[0, 1].map(i => (
+            <div key={i} className="card" style={{ minWidth: '160px', padding: '20px', textAlign: 'center', border: `2px solid ${i === 0 ? '#60a5fa' : '#f472b6'}`, background: `rgba(${i === 0 ? '96,165,250' : '244,114,182'},0.1)` }}>
+              <div style={{ fontSize: '1.5rem' }}>{i === 0 ? '🔵' : '🩷'}</div>
+              <div style={{ fontWeight: 700, color: '#e5e7eb', fontSize: '1rem', marginTop: '6px' }}>{i === 0 ? nomeJ1 : nomeJ2}</div>
+              <div style={{ fontSize: '2.5rem', fontWeight: 900, color: i === 0 ? '#60a5fa' : '#f472b6', lineHeight: 1 }}>{forcaPontuacao[i]}</div>
+              <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>ponto(s)</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: '1.1rem', fontWeight: 700, color: forcaPontuacao[0] === forcaPontuacao[1] ? '#fbbf24' : forcaPontuacao[0] > forcaPontuacao[1] ? '#60a5fa' : '#f472b6', marginBottom: '20px' }}>
+          {forcaPontuacao[0] === forcaPontuacao[1] ? '🤝 Empate!' : `🏅 Vencedor: ${forcaPontuacao[0] > forcaPontuacao[1] ? nomeJ1 : nomeJ2}`}
+        </div>
+        <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #f97316, #ea580c)' }} onClick={iniciarPartidaForca}>
+            🔄 Jogar Novamente
+          </button>
+          <button className="btn-start" style={{ background: 'linear-gradient(90deg, #374151, #4b5563)', boxShadow: 'none' }} onClick={() => irParaTela('menu')}>
+            🏠 Voltar ao Menu
           </button>
         </div>
       </div>
