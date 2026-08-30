@@ -5800,8 +5800,9 @@ export default function App() {
   ]);
 
   // IMPORTAÇÃO DE PLANILHA VIA XLSX
+  // IMPORTAÇÃO DE PLANILHA VIA XLSX / FORMATO KAHOOT!
   const processarPlanilha = (e) => {
-    setPlanilhaFeedback({ txt: '⏳ Analisando arquivo de planilha...', tipo: 'warn' });
+    setPlanilhaFeedback({ txt: '⏳ Analisando arquivo de planilha (Formato Kahoot)...', tipo: 'warn' });
     const file = e.target.files?.[0] || e.dataTransfer?.files?.[0];
     if (!file) return;
 
@@ -5812,76 +5813,153 @@ export default function App() {
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-        if (!rows.length) throw new Error('A planilha está vazia!');
+        if (!rawRows.length) throw new Error('A planilha está vazia!');
 
-        const norm = (s) => String(s).toLowerCase().trim().replace(/\s+/g, '_').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        // Detecção inteligente da linha de cabeçalho (suporta modelo oficial Kahoot com instruções no topo)
+        let headerIdx = -1;
+        for (let i = 0; i < rawRows.length; i++) {
+          const row = rawRows[i];
+          if (!row || row.length < 2) continue;
+          const rowStr = row.map(c => String(c).toLowerCase()).join(' ');
+          const hasQ = ['question', 'pergunta', 'questao'].some(k => rowStr.includes(k));
+          const hasA = ['answer', 'resposta', 'opcao', 'alt_a', 'correct', 'correta', 'option'].some(k => rowStr.includes(k));
+          if (hasQ && hasA) {
+            headerIdx = i;
+            break;
+          }
+        }
+        if (headerIdx === -1) headerIdx = 0;
+
+        const norm = (s) => String(s).toLowerCase().trim().replace(/[\s\-_\(\)\/]+/g, '_').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const headers = rawRows[headerIdx].map(cell => norm(cell));
+        const dataRows = rawRows.slice(headerIdx + 1);
 
         const novas = [];
         const erros = [];
 
-        rows.forEach((row, idx) => {
+        dataRows.forEach((row, idx) => {
+          if (!row || !row.some(c => String(c).trim() !== '')) return; // ignora linhas vazias
+
           const r = {};
-          Object.keys(row).forEach(k => {
-            r[norm(k)] = String(row[k]).trim();
+          row.forEach((cell, cIdx) => {
+            if (cIdx < headers.length) {
+              r[headers[cIdx]] = String(cell).trim();
+            }
           });
 
-          const mat = r['materia'] || r['mat'] || 'Geral';
-          const turma = r['turma'] || r['class'] || 'Sem Turma';
-          const tema = r['tema'] || r['topic'] || r['subject'] || 'Geral';
-          const tipo = (r['tipo'] || 'mc').toLowerCase();
-          const txt = r['pergunta'] || r['question'] || '';
-          const respRaw = (r['resposta'] || r['resp'] || '').toUpperCase();
+          // Função auxiliar para obter valor de lista de chaves possíveis
+          const getField = (keys) => {
+            for (const k of keys) {
+              for (const rk in r) {
+                if (rk.includes(k) && r[rk] !== '') {
+                  return r[rk];
+                }
+              }
+            }
+            return '';
+          };
 
+          // 1. Pergunta / Question
+          const txt = getField(['question', 'pergunta', 'questao', 'txt']);
           if (!txt) {
-            erros.push(`Linha ${idx + 2}: Pergunta sem texto.`);
+            erros.push(`Linha ${idx + headerIdx + 2}: Pergunta sem texto.`);
             return;
           }
 
-          const t = (tipo === 'mc' || tipo === 'múltipla') ? 'mc' : (tipo === 'vf' || tipo === 'v/f') ? 'vf' : 'veloc';
-          const obj = { mat, turma, tema, tipo: t, txt };
+          // 2. Respostas / Answers 1 a 4 (Kahoot standard)
+          const a1 = getField(['answer_1', 'resposta_1', 'opcao_1', 'alternativa_1', 'alt_a', 'opcao_a', 'a']);
+          const a2 = getField(['answer_2', 'resposta_2', 'opcao_2', 'alternativa_2', 'alt_b', 'opcao_b', 'b']);
+          const a3 = getField(['answer_3', 'resposta_3', 'opcao_3', 'alternativa_3', 'alt_c', 'opcao_c', 'c']);
+          const a4 = getField(['answer_4', 'resposta_4', 'opcao_4', 'alternativa_4', 'alt_d', 'opcao_d', 'd']);
 
-          const tempoRaw = r['tempo'] || r['time'] || '';
+          // 3. Tempo / Time limit (sec)
+          const tempoRaw = getField(['time_limit', 'tempo_limite', 'tempo', 'time', 'duracao']);
           let tempoVal = undefined;
           if (tempoRaw !== '') {
-            const rawLower = String(tempoRaw).toLowerCase().trim();
-            if (rawLower === 'sem_tempo' || rawLower === 'sem tempo' || rawLower === '0' || rawLower === 'infinito' || rawLower === '∞') {
+            const rawLower = tempoRaw.toLowerCase();
+            if (['sem_tempo', 'sem tempo', '0', 'infinito', '∞'].includes(rawLower)) {
               tempoVal = null;
             } else {
-              const parsedTempo = parseInt(tempoRaw, 10);
-              if (!isNaN(parsedTempo) && parsedTempo > 0) {
-                tempoVal = parsedTempo;
+              const parsed = parseInt(tempoRaw, 10);
+              if (!isNaN(parsed) && parsed > 0) {
+                tempoVal = parsed;
               }
             }
           }
 
+          // 4. Metadados opcionais (com defaults automáticos)
+          const mat = getField(['materia', 'subject', 'category', 'categoria', 'mat', 'disciplina']) || 'Geral';
+          const turma = getField(['turma', 'class', 'grade', 'ano']) || 'Sem Turma';
+          const tema = getField(['tema', 'topic', 'assunto', 'conteudo']) || 'Geral';
+          const tipoRaw = getField(['tipo', 'type', 'format']).toLowerCase();
+
+          // 5. Resposta correta / Correct answer(s) (1, 2, 3, 4 ou A, B, C, D ou texto exato)
+          const correctRaw = getField(['correct_answer', 'resposta_correta', 'correta', 'gabarito', 'resposta', 'resp']);
+
+          // Detecção de tipo de pergunta: V/F vs Múltipla Escolha vs Velocidade
+          const a1Lower = a1.toLowerCase();
+          const a2Lower = a2.toLowerCase();
+          const isVFExplicit = ['vf', 'v/f', 'true/false', 'verdadeiro/falso'].includes(tipoRaw);
+          const isVFInferred = (!a3 && !a4) && (['true', 'verdadeiro', 'v'].includes(a1Lower) || ['false', 'falso', 'f'].includes(a2Lower));
+
+          const obj = { mat, turma, tema, txt };
           if (tempoVal !== undefined) {
             obj.tempo = tempoVal;
           }
 
-          if (t === 'mc') {
-            const a = [r['alt_a'] || r['a'] || '', r['alt_b'] || r['b'] || '', r['alt_c'] || r['c'] || '', r['alt_d'] || r['d'] || ''];
-            if (a.some(x => !x)) {
-              erros.push(`Linha ${idx + 2}: Alternativas incompletas para Múltipla Escolha.`);
-              return;
+          if (isVFExplicit || isVFInferred) {
+            obj.tipo = 'vf';
+            const cUpper = correctRaw.toUpperCase().trim();
+            if (['1', 'V', 'TRUE', 'VERDADEIRO'].includes(cUpper)) {
+              obj.resp = 'v';
+            } else if (['2', 'F', 'FALSE', 'FALSO'].includes(cUpper)) {
+              obj.resp = 'f';
+            } else {
+              obj.resp = (cUpper.startsWith('V') || cUpper.startsWith('T') || cUpper === '1') ? 'v' : 'f';
             }
-            const mapa = { A: 0, B: 1, C: 2, D: 3 };
-            if (!(respRaw in mapa)) {
-              erros.push(`Linha ${idx + 2}: Resposta da Alt. inválida (deve ser A, B, C ou D).`);
-              return;
-            }
-            obj.alts = a;
-            obj.resp = mapa[respRaw];
-          } else if (t === 'vf') {
-            const rv = (respRaw === 'V' || respRaw === 'VERDADEIRO') ? 'v' : (respRaw === 'F' || respRaw === 'FALSO') ? 'f' : null;
-            if (!rv) {
-              erros.push(`Linha ${idx + 2}: Resposta V/F inválida (deve ser V ou F).`);
-              return;
-            }
-            obj.resp = rv;
+          } else if (['veloc', 'velocidade', 'speed'].includes(tipoRaw)) {
+            obj.tipo = 'veloc';
+            obj.resp = correctRaw || a1 || 'N/A';
           } else {
-            obj.resp = r['resposta'] || 'N/A';
+            // Múltipla Escolha (Kahoot Standard)
+            obj.tipo = 'mc';
+            const alts = [a1, a2, a3, a4];
+            
+            // Garantir alternativas válidas (preenche faltantes se tiver ao menos 2)
+            if (!a1 || !a2) {
+              erros.push(`Linha ${idx + headerIdx + 2}: Múltipla Escolha precisa de ao menos 2 opções.`);
+              return;
+            }
+            if (!alts[2]) alts[2] = '-';
+            if (!alts[3]) alts[3] = '-';
+
+            // Mapeamento da resposta correta do Kahoot (1..4, A..D, ou correspondência de texto)
+            const cClean = correctRaw.toUpperCase().replace(/[\s\(\)]+/g, '').split(',')[0];
+            const mapaNum = { '1': 0, '2': 1, '3': 2, '4': 3 };
+            const mapaLet = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 };
+
+            let respIdx = -1;
+            if (cClean in mapaNum) {
+              respIdx = mapaNum[cClean];
+            } else if (cClean in mapaLet) {
+              respIdx = mapaLet[cClean];
+            } else {
+              // Tenta correspondência exata de texto da alternativa
+              const matchIdx = alts.findIndex(opt => opt && opt.toLowerCase() === correctRaw.toLowerCase());
+              if (matchIdx !== -1) {
+                respIdx = matchIdx;
+              }
+            }
+
+            if (respIdx === -1) {
+              // Se não especificou ou inválido, default para primeira opção com aviso
+              respIdx = 0;
+            }
+
+            obj.alts = alts;
+            obj.resp = respIdx;
           }
 
           novas.push(obj);
@@ -5893,10 +5971,10 @@ export default function App() {
         }
 
         setPlanilhaNovasPerguntas(novas);
-        setPlanilhaFeedback({ txt: `✅ Planilha analisada! ${novas.length} perguntas prontas para importação (erros ignorados: ${erros.length}).`, tipo: 'ok' });
+        setPlanilhaFeedback({ txt: `✅ Planilha Kahoot analisada com sucesso! ${novas.length} perguntas prontas para importação (avisos: ${erros.length}).`, tipo: 'ok' });
 
       } catch (err) {
-        setPlanilhaFeedback({ txt: `❌ Erro de processamento: ${err.message}`, tipo: 'err' });
+        setPlanilhaFeedback({ txt: `❌ Erro ao processar planilha: ${err.message}`, tipo: 'err' });
       }
     };
     reader.readAsArrayBuffer(file);
@@ -6111,17 +6189,52 @@ export default function App() {
   };
 
   // Gerador de Planilha Modelo
+  // Gerador de Planilha Modelo no formato Kahoot
   const baixarModeloExcel = () => {
     const data = [
-      { turma: '8º Ano A', materia: 'Geografia', tema: 'Europa', tipo: 'mc', pergunta: 'Qual é a capital da França?', alt_a: 'Londres', alt_b: 'Madri', alt_c: 'Berlim', alt_d: 'Paris', resposta: 'D', tempo: 20 },
-      { turma: '8º Ano A', materia: 'Geografia', tema: 'América do Sul', tipo: 'vf', pergunta: 'O Brasil é o maior país da América do Sul.', alt_a: '', alt_b: '', alt_c: '', alt_d: '', resposta: 'V', tempo: 'sem tempo' },
-      { turma: '9º Ano B', materia: 'História', tema: 'Guerras Mundiais', tipo: 'veloc', pergunta: 'Em que ano iniciou a Segunda Guerra Mundial?', alt_a: '', alt_b: '', alt_c: '', alt_d: '', resposta: '1939', tempo: '' }
+      {
+        'Question': 'Qual é a capital da França?',
+        'Answer 1': 'Londres',
+        'Answer 2': 'Madri',
+        'Answer 3': 'Berlim',
+        'Answer 4': 'Paris',
+        'Time limit (sec)': 20,
+        'Correct answer(s)': 4,
+        'Materia': 'Geografia',
+        'Tema': 'Europa',
+        'Turma': '8º Ano A'
+      },
+      {
+        'Question': 'O Brasil é o maior país da América do Sul.',
+        'Answer 1': 'Verdadeiro',
+        'Answer 2': 'Falso',
+        'Answer 3': '',
+        'Answer 4': '',
+        'Time limit (sec)': 30,
+        'Correct answer(s)': 1,
+        'Materia': 'Geografia',
+        'Tema': 'América do Sul',
+        'Turma': '8º Ano A'
+      },
+      {
+        'Question': 'Quem formulou a Teoria da Relatividade?',
+        'Answer 1': 'Isaac Newton',
+        'Answer 2': 'Albert Einstein',
+        'Answer 3': 'Galileu Galilei',
+        'Answer 4': 'Nikola Tesla',
+        'Time limit (sec)': 20,
+        'Correct answer(s)': 2,
+        'Materia': 'Ciências',
+        'Tema': 'Física',
+        'Turma': '9º Ano B'
+      }
     ];
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Modelo_Duelo');
-    XLSX.writeFile(wb, 'modelo_perguntas_duelo.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, 'Kahoot_Template');
+    XLSX.writeFile(wb, 'modelo_kahoot_perguntas.xlsx');
   };
+
 
   const baixarModeloExcelPistas = () => {
     const data = [
@@ -8501,22 +8614,23 @@ export default function App() {
         {cadTab === 'importar' && (
           <div className="tab-panel ativa">
             <div className="card">
-              <div className="sec">📥 Importar Perguntas via Planilha Excel</div>
+              <div className="sec">📥 Importar Perguntas (Compatível com Kahoot! 🟣)</div>
               <p style={{ color: '#c4b5fd', fontSize: '0.85rem', marginBottom: '14px' }}>
-                O sistema lê arquivos Excel (.xlsx, .xls) ou arquivos texto delimitados (.csv).
+                O sistema lê diretamente arquivos do <strong>Kahoot!</strong> (.xlsx, .xls ou .csv) ou planilhas personalizadas.
               </p>
               
               <button className="btn-download" onClick={baixarModeloExcel}>
-                ⬇ Baixar Planilha de Exemplo (.xlsx)
+                ⬇ Baixar Planilha Modelo no Padrão Kahoot (.xlsx)
               </button>
 
-              <div className="msg-warn" style={{ marginTop: '14px' }}>
-                <strong>Regras de Colunas:</strong><br />
-                A planilha precisa ter exatamente as seguintes colunas na primeira linha:<br />
-                <code>materia | tipo | pergunta | alt_a | alt_b | alt_c | alt_d | resposta</code><br />
-                • tipo: usar <code>mc</code> (múltipla escolha), <code>vf</code> ou <code>veloc</code><br />
-                • resposta: para mc usar <code>A, B, C ou D</code>. Para vf usar <code>V ou F</code>.
+              <div className="msg-warn" style={{ marginTop: '14px', lineHeight: '1.6' }}>
+                <strong>🟣 Formato Padrão Kahoot Aceito:</strong><br />
+                <code>Question | Answer 1 | Answer 2 | Answer 3 | Answer 4 | Time limit (sec) | Correct answer(s)</code><br />
+                • <strong>Respostas corretas:</strong> use números <code>1, 2, 3 ou 4</code> (ou letras <code>A, B, C ou D</code>).<br />
+                • <strong>Verdadeiro/Falso:</strong> preencha Answer 1 com "Verdadeiro" e Answer 2 com "Falso" (Correct answer <code>1</code> ou <code>2</code>).<br />
+                • <em>Colunas adicionais opcionais:</em> <code>Materia</code>, <code>Tema</code> e <code>Turma</code>.
               </div>
+
 
               <div 
                 className="drop-area" 
